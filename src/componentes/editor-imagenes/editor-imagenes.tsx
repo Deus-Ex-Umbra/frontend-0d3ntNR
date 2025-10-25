@@ -116,6 +116,21 @@ export function EditorImagenes({
   const stage_ref = useRef<any>(null);
   const layer_dibujo_ref = useRef<any>(null);
 
+  const [dialogo_confirmar_limpiar_abierto, setDialogoConfirmarLimpiarAbierto] = useState(false);
+
+  const [dialogo_confirmar_eliminar_version_abierto, setDialogoConfirmarEliminarVersionAbierto] = useState(false);
+  const [version_a_eliminar, setVersionAEliminar] = useState<EdicionVersion | null>(null);
+
+  const abrirDialogoConfirmarLimpiar = () => {
+    if (objetos.length === 0) return;
+    setDialogoConfirmarLimpiarAbierto(true);
+  };
+
+  const abrirDialogoConfirmarEliminarVersion = (version: EdicionVersion) => {
+    setVersionAEliminar(version);
+    setDialogoConfirmarEliminarVersionAbierto(true);
+  };
+
   useEffect(() => {
     if (abierto) {
       cargarImagen();
@@ -319,12 +334,13 @@ export function EditorImagenes({
   };
 
   const limpiarCanvas = () => {
-    if (objetos.length === 0) return;
-    
-    if (confirm('¿Estás seguro de limpiar todo el canvas?')) {
-      guardarEstadoHistorial();
-      setObjetos([]);
-    }
+    guardarEstadoHistorial();
+    setObjetos([]);
+    setDialogoConfirmarLimpiarAbierto(false);
+    toast({
+      title: 'Canvas limpiado',
+      description: 'Todos los objetos fueron eliminados',
+    });
   };
 
   const exportarImagen = () => {
@@ -437,15 +453,17 @@ export function EditorImagenes({
     }
   };
 
-  const eliminarVersion = async (version: EdicionVersion) => {
-    if (!confirm(`¿Eliminar la versión ${version.version}?`)) return;
+  const eliminarVersion = async () => {
+    if (!version_a_eliminar) return;
     
     try {
-      await edicionesImagenesApi.eliminar(version.id);
+      await edicionesImagenesApi.eliminar(version_a_eliminar.id);
       toast({
         title: 'Versión eliminada',
         description: 'La versión se eliminó correctamente',
       });
+      setDialogoConfirmarEliminarVersionAbierto(false);
+      setVersionAEliminar(null);
       await cargarVersiones();
     } catch (error) {
       toast({
@@ -686,14 +704,14 @@ export function EditorImagenes({
                   </Button>
                 )}
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={limpiarCanvas}
-                  disabled={objetos.length === 0}
-                  title="Limpiar canvas"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+  variant="outline"
+  size="sm"
+  onClick={abrirDialogoConfirmarLimpiar}
+  disabled={objetos.length === 0}
+  title="Limpiar canvas"
+>
+  <Trash2 className="h-4 w-4" />
+</Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -742,6 +760,46 @@ export function EditorImagenes({
           </div>
         </div>
       </DialogContent>
+
+      <Dialog open={dialogo_confirmar_limpiar_abierto} onOpenChange={setDialogoConfirmarLimpiarAbierto}>
+  <DialogContent className="sm:max-w-[425px]">
+    <DialogHeader>
+      <DialogTitle>Limpiar Canvas</DialogTitle>
+      <DialogDescription>
+        ¿Estás seguro de que deseas limpiar todo el canvas?
+      </DialogDescription>
+    </DialogHeader>
+    
+    <div className="p-4 rounded-lg bg-secondary/30 border border-border">
+      <p className="text-sm text-foreground">
+        Se eliminarán todos los objetos dibujados en el canvas. Esta acción se puede deshacer usando el botón de "Deshacer".
+      </p>
+    </div>
+
+    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+      <p className="text-sm text-destructive">
+        Todos los dibujos, líneas y símbolos serán eliminados.
+      </p>
+    </div>
+
+    <DialogFooter>
+      <Button
+        variant="outline"
+        onClick={() => setDialogoConfirmarLimpiarAbierto(false)}
+        className="hover:scale-105 transition-all duration-200"
+      >
+        Cancelar
+      </Button>
+      <Button
+        variant="destructive"
+        onClick={limpiarCanvas}
+        className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+      >
+        Limpiar Todo
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
       <Dialog open={dialogo_guardar_abierto} onOpenChange={setDialogoGuardarAbierto}>
         <DialogContent>
@@ -795,6 +853,62 @@ export function EditorImagenes({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar_version_abierto} onOpenChange={setDialogoConfirmarEliminarVersionAbierto}>
+  <DialogContent className="sm:max-w-[425px]">
+    <DialogHeader>
+      <DialogTitle>Confirmar Eliminación de Versión</DialogTitle>
+      <DialogDescription>
+        ¿Estás seguro de que deseas eliminar esta versión de edición?
+      </DialogDescription>
+    </DialogHeader>
+    
+    {version_a_eliminar && (
+      <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">v{version_a_eliminar.version}</Badge>
+          <p className="font-semibold text-foreground">
+            {version_a_eliminar.nombre || `Versión ${version_a_eliminar.version}`}
+          </p>
+        </div>
+        {version_a_eliminar.descripcion && (
+          <p className="text-sm text-muted-foreground">
+            {version_a_eliminar.descripcion}
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Por {version_a_eliminar.usuario.nombre} • {new Date(version_a_eliminar.fecha_creacion).toLocaleString('es-BO')}
+        </p>
+      </div>
+    )}
+
+    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+      <p className="text-sm text-destructive">
+        Esta acción no se puede deshacer.
+      </p>
+    </div>
+
+    <DialogFooter>
+      <Button
+        variant="outline"
+        onClick={() => {
+          setDialogoConfirmarEliminarVersionAbierto(false);
+          setVersionAEliminar(null);
+        }}
+        className="hover:scale-105 transition-all duration-200"
+      >
+        Cancelar
+      </Button>
+      <Button
+        variant="destructive"
+        onClick={eliminarVersion}
+        className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+      >
+        Eliminar Versión
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
       <Dialog open={dialogo_versiones_abierto} onOpenChange={setDialogoVersionesAbierto}>
         <DialogContent className="max-w-2xl">
@@ -856,14 +970,15 @@ export function EditorImagenes({
                           <Copy className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => eliminarVersion(version)}
-                          className="hover:bg-destructive/20 hover:text-destructive"
-                          title="Eliminar versión"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+  variant="outline"
+  size="sm"
+  onClick={() => abrirDialogoConfirmarEliminarVersion(version)}
+  className="hover:bg-destructive/20 hover:text-destructive"
+  title="Eliminar versión"
+>
+  <Trash2 className="h-4 w-4" />
+</Button>
+                        
                       </div>
                     </div>
                   </div>

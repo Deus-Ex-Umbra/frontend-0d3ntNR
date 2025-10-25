@@ -25,7 +25,7 @@ import { Toaster } from '@/componentes/ui/toaster';
 import { pacientesApi, archivosApi, edicionesImagenesApi } from '@/lib/api';
 import { EditorImagenes } from '@/componentes/editor-imagenes/editor-imagenes';
 import { VisualizadorArchivos } from '@/componentes/archivos/visualizador-archivos';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
 
@@ -78,6 +78,14 @@ export default function EdicionImagenes() {
   const [visualizador_abierto, setVisualizadorAbierto] = useState(false);
   const [dialogo_versiones_abierto, setDialogoVersionesAbierto] = useState(false);
   const [version_visualizar, setVersionVisualizar] = useState<EdicionVersion | null>(null);
+
+  const [dialogo_confirmar_eliminar_version_abierto, setDialogoConfirmarEliminarVersionAbierto] = useState(false);
+  const [version_a_eliminar, setVersionAEliminar] = useState<EdicionVersion | null>(null);
+
+  const abrirDialogoConfirmarEliminarVersion = (version: EdicionVersion) => {
+    setVersionAEliminar(version);
+    setDialogoConfirmarEliminarVersionAbierto(true);
+  };
 
   useEffect(() => {
     cargarTodosPacientes();
@@ -245,15 +253,17 @@ export default function EdicionImagenes() {
     }
   };
 
-  const eliminarVersion = async (version: EdicionVersion) => {
-    if (!confirm(`¿Eliminar la versión ${version.version}?`)) return;
-    
+  const eliminarVersion = async () => {
+    if (!version_a_eliminar) return;
+
     try {
-      await edicionesImagenesApi.eliminar(version.id);
+      await edicionesImagenesApi.eliminar(version_a_eliminar.id);
       toast({
         title: 'Versión eliminada',
         description: 'La versión se eliminó correctamente',
       });
+      setDialogoConfirmarEliminarVersionAbierto(false);
+      setVersionAEliminar(null);
       if (archivo_seleccionado) {
         await cargarVersiones(archivo_seleccionado.id);
       }
@@ -298,10 +308,10 @@ export default function EdicionImagenes() {
         <div className="p-8 space-y-8">
           <div className="space-y-2">
             <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
-              Editor de Imágenes
+              Visor de Estudios
             </h1>
             <p className="text-lg text-muted-foreground">
-              Edita y marca radiografías e imágenes dentales con herramientas profesionales
+              Realiza anotaciones y marcas visuales sobre las imágenes para explicar diagnósticos y tratamientos.
             </p>
           </div>
 
@@ -758,14 +768,69 @@ export default function EdicionImagenes() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => eliminarVersion(version)}
-                            title="Eliminar versión"
+                            onClick={() => abrirDialogoConfirmarEliminarVersion(version)}
                             className="hover:bg-destructive/20 hover:text-destructive"
+                            title="Eliminar versión"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
+
+                          <Dialog open={dialogo_confirmar_eliminar_version_abierto} onOpenChange={setDialogoConfirmarEliminarVersionAbierto}>
+  <DialogContent className="sm:max-w-[425px]">
+    <DialogHeader>
+      <DialogTitle>Confirmar Eliminación de Versión</DialogTitle>
+      <DialogDescription>
+        ¿Estás seguro de que deseas eliminar esta versión de edición?
+      </DialogDescription>
+    </DialogHeader>
+    
+    {version_a_eliminar && (
+      <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">v{version_a_eliminar.version}</Badge>
+          <p className="font-semibold text-foreground">
+            {version_a_eliminar.nombre || `Versión ${version_a_eliminar.version}`}
+          </p>
+        </div>
+        {version_a_eliminar.descripcion && (
+          <p className="text-sm text-muted-foreground">
+            {version_a_eliminar.descripcion}
+          </p>
+        )}
+      </div>
+    )}
+
+    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+      <p className="text-sm text-destructive">
+        Esta acción no se puede deshacer.
+      </p>
+    </div>
+
+    <DialogFooter>
+      <Button
+        variant="outline"
+        onClick={() => {
+          setDialogoConfirmarEliminarVersionAbierto(false);
+          setVersionAEliminar(null);
+        }}
+        className="hover:scale-105 transition-all duration-200"
+      >
+        Cancelar
+      </Button>
+      <Button
+        variant="destructive"
+        onClick={eliminarVersion}
+        className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+      >
+        Eliminar Versión
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+                          
                         </div>
                       </div>
+
                     </CardContent>
                   </Card>
                 ))}

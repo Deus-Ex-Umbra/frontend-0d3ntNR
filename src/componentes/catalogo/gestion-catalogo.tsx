@@ -55,6 +55,13 @@ export function GestionCatalogo({
   const [dialogo_editar_abierto, setDialogoEditarAbierto] = useState(false);
   const [item_editar, setItemEditar] = useState<ItemCatalogo | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
+  const [item_a_eliminar, setItemAEliminar] = useState<{ id: number; nombre: string } | null>(null);
+
+  const abrirDialogoConfirmarEliminar = (id: number, nombre: string) => {
+    setItemAEliminar({ id, nombre });
+    setDialogoConfirmarEliminarAbierto(true);
+  };
   
   const [formulario, setFormulario] = useState({
     nombre: '',
@@ -165,15 +172,17 @@ export function GestionCatalogo({
     setDialogoEditarAbierto(true);
   };
 
-  const manejarEliminar = async (id: number, nombre: string) => {
-    if (!confirm(`¿Estás seguro de eliminar "${nombre}"?`)) return;
+  const manejarEliminar = async () => {
+    if (!item_a_eliminar) return;
 
     try {
-      await onEliminar(id);
+      await onEliminar(item_a_eliminar.id);
       toast({
         title: 'Éxito',
         description: `${titulo} eliminado correctamente`,
       });
+      setDialogoConfirmarEliminarAbierto(false);
+      setItemAEliminar(null);
       await onRecargar();
     } catch (error: any) {
       toast({
@@ -259,7 +268,7 @@ export function GestionCatalogo({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => manejarEliminar(item.id, item.nombre)}
+                      onClick={() => abrirDialogoConfirmarEliminar(item.id, item.nombre)}
                       className="hover:bg-destructive/20 hover:text-destructive transition-all duration-200"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
@@ -272,6 +281,50 @@ export function GestionCatalogo({
           ))}
         </Accordion>
       )}
+
+      <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
+  <DialogContent className="sm:max-w-[425px]">
+    <DialogHeader>
+      <DialogTitle>Confirmar Eliminación</DialogTitle>
+      <DialogDescription>
+        ¿Estás seguro de que deseas eliminar este elemento?
+      </DialogDescription>
+    </DialogHeader>
+    
+    {item_a_eliminar && (
+      <div className="p-4 rounded-lg bg-secondary/30 border border-border">
+        <p className="font-semibold text-foreground">"{item_a_eliminar.nombre}"</p>
+        <p className="text-sm text-muted-foreground mt-1">{titulo}</p>
+      </div>
+    )}
+
+    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+      <p className="text-sm text-destructive">
+        Esta acción no se puede deshacer.
+      </p>
+    </div>
+
+    <DialogFooter>
+      <Button
+        variant="outline"
+        onClick={() => {
+          setDialogoConfirmarEliminarAbierto(false);
+          setItemAEliminar(null);
+        }}
+        className="hover:scale-105 transition-all duration-200"
+      >
+        Cancelar
+      </Button>
+      <Button
+        variant="destructive"
+        onClick={manejarEliminar}
+        className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+      >
+        Eliminar
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
       <Dialog open={dialogo_crear_abierto} onOpenChange={setDialogoCrearAbierto}>
         <DialogContent className="sm:max-w-[500px]">

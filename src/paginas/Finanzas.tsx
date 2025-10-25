@@ -7,7 +7,7 @@ import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { finanzasApi, agendaApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
@@ -16,6 +16,7 @@ import { Badge } from '@/componentes/ui/badge';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
+import { SearchInput } from '@/componentes/ui/search-input';
 import { formatearFechaISO } from '@/lib/utilidades';
 
 interface Movimiento {
@@ -553,15 +554,69 @@ export default function Finanzas() {
     }))
   ];
 
+  const construirTextoCompletoBusqueda = (movimiento: Movimiento): string => {
+    const texto_completo_partes: string[] = [];
+    
+    texto_completo_partes.push(formatearFechaHora(movimiento.fecha));
+    texto_completo_partes.push(movimiento.concepto);
+    texto_completo_partes.push(formatearMoneda(movimiento.monto));
+    
+    return texto_completo_partes.join(' ').toLowerCase();
+  };
+
+  const calcularPuntuacionBusqueda = (movimiento: Movimiento, termino: string): number => {
+    const texto_completo = construirTextoCompletoBusqueda(movimiento);
+    
+    if (!texto_completo.includes(termino)) {
+      return 0;
+    }
+    
+    let puntuacion = 1;
+    
+    const concepto_lower = movimiento.concepto.toLowerCase();
+    if (concepto_lower.includes(termino)) {
+      puntuacion += 10;
+      
+      if (concepto_lower.startsWith(termino)) {
+        puntuacion += 5;
+      }
+    }
+    
+    const fecha_formateada = formatearFechaHora(movimiento.fecha).toLowerCase();
+    if (fecha_formateada.includes(termino)) {
+      puntuacion += 5;
+    }
+    
+    const monto_formateado = formatearMoneda(movimiento.monto).toLowerCase();
+    if (monto_formateado.includes(termino)) {
+      puntuacion += 3;
+    }
+    
+    return puntuacion;
+  };
+
+  const cumpleFiltro = (movimiento: Movimiento): boolean => {
+    if (!filtros.busqueda) return true;
+    
+    const termino_busqueda = filtros.busqueda.toLowerCase().trim();
+    const puntuacion = calcularPuntuacionBusqueda(movimiento, termino_busqueda);
+    
+    return puntuacion > 0;
+  };
+
   const agruparMovimientosPorDia = () => {
     const grupos: { [key: string]: Movimiento[] } = {};
     
-    const movimientos_filtrados = reporte?.movimientos.filter(mov => {
-      if (filtros.busqueda) {
-        return mov.concepto.toLowerCase().includes(filtros.busqueda.toLowerCase());
-      }
-      return true;
-    }) || [];
+    let movimientos_filtrados = reporte?.movimientos.filter(cumpleFiltro) || [];
+
+    if (filtros.busqueda) {
+      const termino = filtros.busqueda.toLowerCase().trim();
+      movimientos_filtrados = movimientos_filtrados.sort((a, b) => {
+        const puntuacion_a = calcularPuntuacionBusqueda(a, termino);
+        const puntuacion_b = calcularPuntuacionBusqueda(b, termino);
+        return puntuacion_b - puntuacion_a;
+      });
+    }
 
     movimientos_filtrados.forEach(mov => {
       const fecha_str = formatearFecha(mov.fecha);
@@ -571,9 +626,11 @@ export default function Finanzas() {
       grupos[fecha_str].push(mov);
     });
 
-    Object.keys(grupos).forEach(fecha => {
-      grupos[fecha].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-    });
+    if (!filtros.busqueda) {
+      Object.keys(grupos).forEach(fecha => {
+        grupos[fecha].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+      });
+    }
 
     return grupos;
   };
@@ -902,19 +959,12 @@ export default function Finanzas() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="busqueda">Buscar por concepto</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="busqueda"
-                    value={filtros.busqueda}
-                    onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })}
-                    placeholder="Ej: pago, compra, factura..."
-                    className="pl-10 hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-              </div>
+              <SearchInput
+                valor={filtros.busqueda}
+                onChange={(valor) => setFiltros({ ...filtros, busqueda: valor })}
+                placeholder="Buscar por fecha, nombre de paciente, concepto o monto..."
+                label="Buscar movimiento"
+              />
 
               {Object.keys(movimientos_agrupados).length === 0 ? (
                 <div className="text-center py-12 space-y-4">

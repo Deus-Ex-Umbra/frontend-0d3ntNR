@@ -54,6 +54,13 @@ export default function Pacientes() {
   const [modo_edicion, setModoEdicion] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [guardando_color, setGuardandoColor] = useState(false);
+  const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
+  const [paciente_a_eliminar, setPacienteAEliminar] = useState<number | null>(null);
+
+  const abrirDialogoConfirmarEliminar = (id: number) => {
+    setPacienteAEliminar(id);
+    setDialogoConfirmarEliminarAbierto(true);
+  };
 
   const [catalogos, setCatalogos] = useState({
     alergias: [] as ItemCatalogo[],
@@ -229,15 +236,17 @@ export default function Pacientes() {
     }
   };
 
-  const manejarEliminar = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar este paciente?')) return;
+  const manejarEliminar = async () => {
+    if (!paciente_a_eliminar) return;
 
     try {
-      await pacientesApi.eliminar(id);
+      await pacientesApi.eliminar(paciente_a_eliminar);
       toast({
         title: 'Éxito',
         description: 'Paciente eliminado correctamente',
       });
+      setDialogoConfirmarEliminarAbierto(false);
+      setPacienteAEliminar(null);
       cargarDatos();
     } catch (error) {
       console.error('Error al eliminar paciente:', error);
@@ -595,7 +604,7 @@ export default function Pacientes() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => manejarEliminar(paciente.id)}
+                            onClick={() => abrirDialogoConfirmarEliminar(paciente.id)}
                             className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
                             title="Eliminar"
                           >
@@ -611,6 +620,41 @@ export default function Pacientes() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar este paciente?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción eliminará permanentemente el paciente y toda su información asociada.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarAbierto(false);
+                setPacienteAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={manejarEliminar}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar Paciente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogo_abierto} onOpenChange={setDialogoAbierto}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">

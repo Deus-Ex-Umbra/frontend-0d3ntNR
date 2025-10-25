@@ -52,6 +52,14 @@ export default function Agenda() {
   const [modo_edicion, setModoEdicion] = useState(false);
   const [cita_seleccionada, setCitaSeleccionada] = useState<Cita | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
+  const [cita_a_eliminar, setCitaAEliminar] = useState<number | null>(null);
+
+  const abrirDialogoConfirmarEliminar = (id: number) => {
+    setCitaAEliminar(id);
+    setDialogoConfirmarEliminarAbierto(true);
+  };
+
 
   const [filtros, setFiltros] = useState({
     paciente_id: '',
@@ -293,27 +301,28 @@ export default function Agenda() {
           <div className="space-y-2">
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-              <p className="text-sm">{mensaje_error}</p>
+              <pre className="text-sm whitespace-pre-wrap font-mono">{mensaje_error}</pre>
             </div>
           </div>
         ),
         variant: 'destructive',
-        duration: 10000,
+        duration: 15000,
       });
     } finally {
       setGuardando(false);
     }
   };
 
-  const manejarEliminar = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar esta cita?')) return;
-
+  const manejarEliminar = async () => {
+    if (!cita_a_eliminar) return;
     try {
-      await agendaApi.eliminar(id);
+      await agendaApi.eliminar(cita_a_eliminar);
       toast({
         title: 'Éxito',
         description: 'Cita eliminada correctamente',
       });
+      setDialogoConfirmarEliminarAbierto(false);
+      setCitaAEliminar(null);
       cargarDatos();
     } catch (error) {
       console.error('Error al eliminar cita:', error);
@@ -623,7 +632,7 @@ export default function Agenda() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => manejarEliminar(cita.id)}
+                                onClick={() => abrirDialogoConfirmarEliminar(cita.id)}
                                 className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
                                 title="Eliminar"
                               >
@@ -641,6 +650,43 @@ export default function Agenda() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar esta cita?
+            </DialogDescription>
+          </DialogHeader>
+                  
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+                  
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarAbierto(false);
+                setCitaAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={manejarEliminar}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogo_filtros_abierto} onOpenChange={setDialogoFiltrosAbierto}>
         <DialogContent className="sm:max-w-[500px]">

@@ -46,7 +46,7 @@ export function Combobox({
 }: ComboboxProps) {
   const [abierto, setAbierto] = React.useState(false)
 
-  const opcionSeleccionada = opciones.find((opcion) => opcion.valor === valor)
+  const opcion_seleccionada = opciones.find((opcion) => opcion.valor === valor)
 
   return (
     <Popover open={abierto} onOpenChange={setAbierto}>
@@ -58,7 +58,7 @@ export function Combobox({
           className={cn("w-full justify-between", className)}
           disabled={disabled}
         >
-          {opcionSeleccionada ? opcionSeleccionada.etiqueta : placeholder}
+          {opcion_seleccionada ? opcion_seleccionada.etiqueta : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -73,7 +73,7 @@ export function Combobox({
               {opciones.map((opcion) => (
                 <CommandItem
                   key={opcion.valor}
-                  value={opcion.valor}
+                  value={opcion.etiqueta}
                   onSelect={() => {
                     onChange(opcion.valor === valor ? "" : opcion.valor)
                     setAbierto(false)

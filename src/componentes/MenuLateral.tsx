@@ -28,7 +28,7 @@ const items_menu: ItemMenu[] = [
   { icono: Home, etiqueta: 'Inicio', ruta: '/inicio' },
   { icono: Users, etiqueta: 'Pacientes', ruta: '/pacientes' },
   { icono: Calendar, etiqueta: 'Agenda', ruta: '/agenda' },
-  { icono: ImageIcon, etiqueta: 'Editor de Imágenes', ruta: '/edicion-imagenes' },
+  { icono: ImageIcon, etiqueta: 'Visor de Estudios', ruta: '/edicion-imagenes' },
   { icono: FileText, etiqueta: 'Tratamientos', ruta: '/tratamientos' },
   { icono: DollarSign, etiqueta: 'Finanzas', ruta: '/finanzas' },
   { icono: Settings, etiqueta: 'Configuración', ruta: '/configuracion' },

@@ -53,6 +53,7 @@ import { Toaster } from "@/componentes/ui/toaster";
 import { Badge } from "@/componentes/ui/badge";
 import { Combobox, OpcionCombobox } from "@/componentes/ui/combobox";
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
+import { SearchInput } from "@/componentes/ui/search-input";
 import { ajustarFechaParaBackend } from "@/lib/utilidades";
 
 interface Tratamiento {
@@ -122,6 +123,8 @@ export default function Tratamientos() {
   const [cita_a_eliminar, setCitaAEliminar] = useState<any>(null);
   const [guardando, setGuardando] = useState(false);
   const [paciente_filtro, setPacienteFiltro] = useState<string>("todos");
+  const [busqueda_plantillas, setBusquedaPlantillas] = useState("");
+  const [busqueda_planes, setBusquedaPlanes] = useState("");
 
   const [formulario_plantilla, setFormularioPlantilla] = useState({
     nombre: "",
@@ -431,12 +434,12 @@ export default function Tratamientos() {
           <div className="space-y-2">
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-              <p className="text-sm">{mensaje_error}</p>
+              <pre className="text-sm whitespace-pre-wrap font-mono">{mensaje_error}</pre>
             </div>
           </div>
         ),
         variant: "destructive",
-        duration: 10000,
+        duration: 15000,
       });
     } finally {
       setGuardando(false);
@@ -537,12 +540,12 @@ export default function Tratamientos() {
           <div className="space-y-2">
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-              <p className="text-sm">{mensaje_error}</p>
+              <pre className="text-sm whitespace-pre-wrap font-mono">{mensaje_error}</pre>
             </div>
           </div>
         ),
         variant: "destructive",
-        duration: 10000,
+        duration: 15000,
       });
     } finally {
       setGuardando(false);
@@ -651,6 +654,27 @@ export default function Tratamientos() {
     return `Cada ${partes.join(', ')}`;
   };
 
+  const cumpleFiltroPlantilla = (tratamiento: Tratamiento): boolean => {
+    if (!busqueda_plantillas) return true;
+    
+    const termino = busqueda_plantillas.toLowerCase();
+    return tratamiento.nombre.toLowerCase().includes(termino);
+  };
+
+  const cumpleFiltroPlan = (plan: PlanTratamiento): boolean => {
+    if (paciente_filtro !== 'todos' && plan.paciente?.id.toString() !== paciente_filtro) {
+      return false;
+    }
+    
+    if (!busqueda_planes) return true;
+    
+    const termino = busqueda_planes.toLowerCase();
+    const nombre_paciente = `${plan.paciente?.nombre || ''} ${plan.paciente?.apellidos || ''}`.toLowerCase();
+    const nombre_tratamiento = plan.tratamiento?.nombre.toLowerCase() || '';
+    
+    return nombre_paciente.includes(termino) || nombre_tratamiento.includes(termino);
+  };
+
   const opciones_pacientes: OpcionCombobox[] = [
     { valor: "todos", etiqueta: "Todos los pacientes" },
     ...pacientes.map(p => ({
@@ -669,9 +693,8 @@ export default function Tratamientos() {
     etiqueta: e.etiqueta
   }));
 
-  const planes_filtrados = paciente_filtro === 'todos' 
-    ? planes 
-    : planes.filter(p => p.paciente?.id.toString() === paciente_filtro);
+  const tratamientos_filtrados = tratamientos.filter(cumpleFiltroPlantilla);
+  const planes_filtrados = planes.filter(cumpleFiltroPlan);
 
   if (cargando) {
     return (
@@ -734,31 +757,48 @@ export default function Tratamientos() {
             <TabsContent value="plantillas" className="space-y-6 mt-6">
               <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
                 <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                      <FileText className="h-5 w-5 text-primary" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl">
+                          Plantillas de Tratamiento
+                        </CardTitle>
+                        <CardDescription>
+                          {tratamientos_filtrados.length} de {tratamientos.length} plantillas
+                          {busqueda_plantillas && ' (filtradas)'}
+                        </CardDescription>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle className="text-xl">
-                        Plantillas de Tratamiento
-                      </CardTitle>
-                      <CardDescription>{tratamientos.length} plantillas registradas</CardDescription>
+                    <div className="w-80">
+                      <SearchInput
+                        valor={busqueda_plantillas}
+                        onChange={setBusquedaPlantillas}
+                        placeholder="Buscar plantilla por nombre..."
+                      />
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {tratamientos.length === 0 ? (
+                  {tratamientos_filtrados.length === 0 ? (
                     <div className="text-center py-12 space-y-4">
                       <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 transition-transform duration-200">
                         <AlertCircle className="h-8 w-8 text-muted-foreground" />
                       </div>
                       <div className="space-y-2">
                         <h3 className="text-lg font-semibold text-foreground">
-                          No hay plantillas registradas
+                          {busqueda_plantillas 
+                            ? 'No se encontraron plantillas'
+                            : 'No hay plantillas registradas'
+                          }
                         </h3>
                         <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                          Crea plantillas de tratamientos comunes para agilizar
-                          tu trabajo
+                          {busqueda_plantillas
+                            ? 'Intenta con otro término de búsqueda'
+                            : 'Crea plantillas de tratamientos comunes para agilizar tu trabajo'
+                          }
                         </p>
                       </div>
                     </div>
@@ -775,7 +815,7 @@ export default function Tratamientos() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {tratamientos.map((tratamiento) => (
+                        {tratamientos_filtrados.map((tratamiento) => (
                           <TableRow
                             key={tratamiento.id}
                             className="hover:bg-secondary/50 transition-colors duration-200"
@@ -858,17 +898,27 @@ export default function Tratamientos() {
                           Planes de Tratamiento Asignados
                         </CardTitle>
                         <CardDescription>
-                          {planes_filtrados.length} planes activos
+                          {planes_filtrados.length} de {planes.length} planes
+                          {(paciente_filtro !== 'todos' || busqueda_planes) && ' (filtrados)'}
                         </CardDescription>
                       </div>
                     </div>
-                    <div className="w-64">
-                      <Combobox
-                        opciones={opciones_pacientes}
-                        valor={paciente_filtro}
-                        onChange={setPacienteFiltro}
-                        placeholder="Filtrar por paciente"
-                      />
+                    <div className="flex gap-3">
+                      <div className="w-64">
+                        <Combobox
+                          opciones={opciones_pacientes}
+                          valor={paciente_filtro}
+                          onChange={setPacienteFiltro}
+                          placeholder="Filtrar por paciente"
+                        />
+                      </div>
+                      <div className="w-80">
+                        <SearchInput
+                          valor={busqueda_planes}
+                          onChange={setBusquedaPlanes}
+                          placeholder="Buscar por paciente o tratamiento..."
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -887,11 +937,16 @@ export default function Tratamientos() {
                       </div>
                       <div className="space-y-2">
                         <h3 className="text-lg font-semibold text-foreground">
-                          No hay planes de tratamiento asignados
+                          {busqueda_planes || paciente_filtro !== 'todos'
+                            ? 'No se encontraron planes'
+                            : 'No hay planes de tratamiento asignados'
+                          }
                         </h3>
                         <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                          Asigna plantillas de tratamiento a tus pacientes desde
-                          la pestaña de Plantillas
+                          {busqueda_planes || paciente_filtro !== 'todos'
+                            ? 'Intenta con otro filtro de búsqueda'
+                            : 'Asigna plantillas de tratamiento a tus pacientes desde la pestaña de Plantillas'
+                          }
                         </p>
                       </div>
                     </div>

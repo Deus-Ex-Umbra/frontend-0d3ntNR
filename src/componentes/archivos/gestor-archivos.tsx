@@ -92,7 +92,9 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
   const [dialogo_subir_abierto, setDialogoSubirAbierto] = useState(false);
   const [dialogo_editar_abierto, setDialogoEditarAbierto] = useState(false);
   const [dialogo_ver_abierto, setDialogoVerAbierto] = useState(false);
+  const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [archivo_seleccionado, setArchivoSeleccionado] = useState<ArchivoAdjunto | null>(null);
+  const [archivo_a_eliminar, setArchivoAEliminar] = useState<ArchivoAdjunto | null>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [rotacion, setRotacion] = useState(0);
@@ -298,11 +300,16 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
     }
   };
 
-  const manejarEliminar = async (id: number, nombre: string) => {
-    if (!confirm(`¿Estás seguro de eliminar "${nombre}"?`)) return;
+  const abrirDialogoConfirmarEliminar = (archivo: ArchivoAdjunto) => {
+    setArchivoAEliminar(archivo);
+    setDialogoConfirmarEliminarAbierto(true);
+  };
+
+  const eliminarArchivo = async () => {
+    if (!archivo_a_eliminar) return;
 
     try {
-      await archivosApi.eliminar(id);
+      await archivosApi.eliminar(archivo_a_eliminar.id);
       toast({
         title: 'Éxito',
         description: 'Archivo eliminado correctamente',
@@ -314,6 +321,9 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         description: 'No se pudo eliminar el archivo',
         variant: 'destructive',
       });
+    } finally {
+      setDialogoConfirmarEliminarAbierto(false);
+      setArchivoAEliminar(null);
     }
   };
 
@@ -460,7 +470,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => manejarEliminar(archivo.id, archivo.nombre_archivo)}
+                      onClick={() => abrirDialogoConfirmarEliminar(archivo)}
                       className="hover:bg-destructive/20 hover:text-destructive transition-all"
                       title="Eliminar"
                     >
@@ -716,6 +726,61 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
               {rotacion > 0 && ` • Rotación: ${rotacion}°`}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar este archivo?
+            </DialogDescription>
+          </DialogHeader>
+    
+          {archivo_a_eliminar && (
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-foreground">
+                  {archivo_a_eliminar.nombre_archivo}
+                </p>
+              </div>
+              {archivo_a_eliminar.descripcion && (
+                <p className="text-sm text-muted-foreground">
+                  {archivo_a_eliminar.descripcion}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {new Date(archivo_a_eliminar.fecha_subida).toLocaleString('es-BO')}
+              </p>
+            </div>
+          )}
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarAbierto(false);
+                setArchivoAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={eliminarArchivo}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar Archivo
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
