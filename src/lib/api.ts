@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = (import.meta as any).env.VITE_API_URL || 'http://44.222.205.139';
+const API_URL = (import.meta as any).env.VITE_API_URL || 'https://backend-0d3nt.ddns.net';
 
 export const api = axios.create({
   baseURL: `${API_URL}/api`,
