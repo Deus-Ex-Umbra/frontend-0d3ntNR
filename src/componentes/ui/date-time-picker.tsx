@@ -12,7 +12,6 @@ import {
   PopoverTrigger,
 } from "@/componentes/ui/popover"
 import { Input } from "@/componentes/ui/input"
-import { Label } from "@/componentes/ui/label"
 
 interface DateTimePickerProps {
   valor?: Date

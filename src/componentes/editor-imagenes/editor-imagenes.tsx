@@ -1,17 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
-import { Stage, Layer, Line, Image as KonvaImage, Circle, Rect, Text as KonvaText } from 'react-konva';
+import { Stage, Layer, Line, Image as KonvaImage} from 'react-konva';
 import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { Badge } from '@/componentes/ui/badge';
 import { 
-  Pencil, Square, Circle as CircleIcon, Type, Eraser, Download, 
-  Save, Undo, Redo, ZoomIn, ZoomOut, RotateCw, Hand, Image as ImageIcon, 
+  Pencil, Circle as Eraser, Download, 
+  Save, Undo, Redo, ZoomIn, ZoomOut, RotateCw,Image as
   Loader2, Trash2, Copy, History, X
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';

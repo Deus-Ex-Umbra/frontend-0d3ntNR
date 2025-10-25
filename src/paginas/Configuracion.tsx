@@ -7,7 +7,7 @@ import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
-import { Settings, User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill } from 'lucide-react';
+import { User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { useTema } from '@/contextos/tema-contexto';
 import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';

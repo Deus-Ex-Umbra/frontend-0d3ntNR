@@ -52,7 +52,6 @@ import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/componentes/ui/toaster";
 import { Badge } from "@/componentes/ui/badge";
 import { Combobox, OpcionCombobox } from "@/componentes/ui/combobox";
-import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { ajustarFechaParaBackend } from "@/lib/utilidades";
 
