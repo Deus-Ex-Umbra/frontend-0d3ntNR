@@ -70,7 +70,7 @@ export function MenuLateralMovil() {
               title="Visitar GitHub"
             >
               <img 
-                src="/app_0dd3nt_logo.svg" 
+                src="/app_0d3nt_logo.svg" 
                 alt="GitHub"
                 className="h-6 w-6 transition-all duration-300 group-hover:scale-110 relative z-10"
               />
