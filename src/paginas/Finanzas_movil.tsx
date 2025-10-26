@@ -714,7 +714,7 @@ export default function FinanzasMobile() {
               </p>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-2 self-end md:self-auto">
+            <div className="flex flex-row md:flex-row gap-2 self-end md:self-auto">
               <Dialog open={dialogo_ingreso_abierto} onOpenChange={setDialogoIngresoAbierto}>
                 <DialogTrigger asChild>
                   <Button size="default" onClick={abrirDialogoIngreso} className="shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200 bg-green-600 hover:bg-green-700 w-full md:w-auto">
