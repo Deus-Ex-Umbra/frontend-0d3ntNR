@@ -64,7 +64,7 @@ export function MenuLateral() {
               title="Visitar GitHub"
             >
               <img 
-                src="/deus_ex_umbra.svg" 
+                src="/app_0dd3nt_logo.svg" 
                 alt="GitHub"
                 className="h-8 w-8 transition-all duration-300 group-hover:scale-110 relative z-10"
               />
