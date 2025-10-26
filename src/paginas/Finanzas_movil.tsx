@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MenuLateral } from '@/componentes/MenuLateral';
+import { MenuLateralMovil } from '@/componentes/MenuLateral_movil';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
@@ -57,7 +57,7 @@ interface DatosGrafico {
   egresos: number;
 }
 
-export default function Finanzas() {
+export default function FinanzasMobile() {
   const [reporte, setReporte] = useState<ReporteFinanzas | null>(null);
   const [reporte_general, setReporteGeneral] = useState<ReporteFinanzas | null>(null);
   const [datos_grafico, setDatosGrafico] = useState<DatosGrafico[]>([]);
@@ -686,8 +686,8 @@ export default function Finanzas() {
 
   if (cargando) {
     return (
-      <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
-        <MenuLateral />
+      <div className="flex flex-row h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
+        <MenuLateralMovil />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
@@ -699,54 +699,54 @@ export default function Finanzas() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
-      <MenuLateral />
+    <div className="flex flex-row h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
+      <MenuLateralMovil />
       
       <div className="flex-1 overflow-y-auto">
-        <div className="p-8 space-y-8">
-          <div className="flex justify-between items-start">
+        <div className="p-4 md:p-8 space-y-6 md:space-y-8">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 md:gap-0">
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
                 Finanzas
               </h1>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-base md:text-lg text-muted-foreground">
                 Gestión financiera de tu consultorio
               </p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col md:flex-row gap-2 self-end md:self-auto">
               <Dialog open={dialogo_ingreso_abierto} onOpenChange={setDialogoIngresoAbierto}>
                 <DialogTrigger asChild>
-                  <Button size="lg" onClick={abrirDialogoIngreso} className="shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200 bg-green-600 hover:bg-green-700">
-                    <Plus className="h-5 w-5 mr-2" />
-                    Registrar Ingreso
+                  <Button size="default" onClick={abrirDialogoIngreso} className="shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200 bg-green-600 hover:bg-green-700 w-full md:w-auto">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Ingreso
                   </Button>
                 </DialogTrigger>
               </Dialog>
 
               <Dialog open={dialogo_egreso_abierto} onOpenChange={setDialogoEgresoAbierto}>
                 <DialogTrigger asChild>
-                  <Button size="lg" variant="destructive" onClick={abrirDialogoEgreso} className="shadow-lg hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200">
-                    <Plus className="h-5 w-5 mr-2" />
-                    Registrar Egreso
+                  <Button size="default" variant="destructive" onClick={abrirDialogoEgreso} className="shadow-lg hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200 w-full md:w-auto">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Egreso
                   </Button>
                 </DialogTrigger>
               </Dialog>
             </div>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
             <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.2)] hover:scale-105 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Ingresos {filtros_aplicados && '(General)'}
+                  Ingresos {filtros_aplicados && '(General)'}
                 </CardTitle>
                 <div className="bg-green-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <TrendingUp className="h-5 w-5 text-green-500" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-500">
+                <div className="text-2xl md:text-3xl font-bold text-green-500">
                   {formatearMoneda(reporte_general?.total_ingresos || 0)}
                 </div>
               </CardContent>
@@ -755,14 +755,14 @@ export default function Finanzas() {
             <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:scale-105 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Egresos {filtros_aplicados && '(General)'}
+                  Egresos {filtros_aplicados && '(General)'}
                 </CardTitle>
                 <div className="bg-red-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <TrendingDown className="h-5 w-5 text-red-500" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-red-500">
+                <div className="text-2xl md:text-3xl font-bold text-red-500">
                   {formatearMoneda(reporte_general?.total_egresos || 0)}
                 </div>
               </CardContent>
@@ -771,14 +771,14 @@ export default function Finanzas() {
             <Card className="border-2 border-primary/30 shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 transition-all duration-300 bg-gradient-to-br from-primary/5 to-transparent">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Balance Total {filtros_aplicados && '(General)'}
+                  Balance {filtros_aplicados && '(General)'}
                 </CardTitle>
                 <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <DollarSign className="h-5 w-5 text-primary" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className={`text-3xl font-bold ${
+                <div className={`text-2xl md:text-3xl font-bold ${
                   (reporte_general?.balance || 0) >= 0 ? 'text-primary' : 'text-destructive'
                 }`}>
                   {formatearMoneda(reporte_general?.balance || 0)}
@@ -788,7 +788,7 @@ export default function Finanzas() {
           </div>
 
           {filtros_aplicados && (
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
               <Card className="border-2 border-green-500/30 shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.2)] hover:scale-105 transition-all duration-300">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -843,40 +843,24 @@ export default function Finanzas() {
 
           <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-0">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                     <BarChart3 className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Gráfico de Ingresos y Egresos</CardTitle>
-                    <CardDescription>
-                      Visualización de movimientos financieros - {obtenerTituloGrafico()}
-                    </CardDescription>
+                    <CardTitle className="text-lg md:text-xl">Gráfico de Ingresos y Egresos</CardTitle>
+                    <CardDescription>{obtenerTituloGrafico()}</CardDescription>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => cambiarFechaGrafico(-1)}
-                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200"
-                  >
+                  <Button variant="outline" size="icon" onClick={() => cambiarFechaGrafico(-1)} className="hover:bg-primary/20 hover:scale-110 transition-all duration-200">
                     <ChevronLeft className="h-5 w-5" />
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setFechaGrafico(new Date())}
-                    className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
-                  >
+                  <Button variant="outline" onClick={() => setFechaGrafico(new Date())} className="hover:bg-primary/20 hover:scale-105 transition-all duration-200">
                     Hoy
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => cambiarFechaGrafico(1)}
-                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200"
-                  >
+                  <Button variant="outline" size="icon" onClick={() => cambiarFechaGrafico(1)} className="hover:bg-primary/20 hover:scale-110 transition-all duration-200">
                     <ChevronRight className="h-5 w-5" />
                   </Button>
                 </div>
@@ -885,9 +869,9 @@ export default function Finanzas() {
             <CardContent>
               <Tabs value={tipo_grafico} onValueChange={(value) => setTipoGrafico(value as 'dia' | 'mes' | 'ano')} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 mb-4">
-                  <TabsTrigger value="dia">Por Día</TabsTrigger>
-                  <TabsTrigger value="mes">Por Mes</TabsTrigger>
-                  <TabsTrigger value="ano">Por Año</TabsTrigger>
+                  <TabsTrigger value="dia">Día</TabsTrigger>
+                  <TabsTrigger value="mes">Mes</TabsTrigger>
+                  <TabsTrigger value="ano">Año</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="dia" className="mt-0">
@@ -896,15 +880,12 @@ export default function Finanzas() {
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={400}>
+                    <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={datos_grafico}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="periodo" />
                         <YAxis />
-                        <Tooltip 
-                          formatter={(value: number) => formatearMoneda(value)}
-                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                        />
+                        <Tooltip formatter={(value: number) => formatearMoneda(value)} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
                         <Legend />
                         <Bar dataKey="ingresos" fill="#22c55e" name="Ingresos" />
                         <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
@@ -919,15 +900,12 @@ export default function Finanzas() {
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={400}>
+                    <ResponsiveContainer width="100%" height={300}>
                       <LineChart data={datos_grafico}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="periodo" />
                         <YAxis />
-                        <Tooltip 
-                          formatter={(value: number) => formatearMoneda(value)}
-                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                        />
+                        <Tooltip formatter={(value: number) => formatearMoneda(value)} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
                         <Legend />
                         <Line type="monotone" dataKey="ingresos" stroke="#22c55e" strokeWidth={2} name="Ingresos" />
                         <Line type="monotone" dataKey="egresos" stroke="#ef4444" strokeWidth={2} name="Egresos" />
@@ -942,15 +920,12 @@ export default function Finanzas() {
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={400}>
+                    <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={datos_grafico}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="periodo" />
                         <YAxis />
-                        <Tooltip 
-                          formatter={(value: number) => formatearMoneda(value)}
-                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                        />
+                        <Tooltip formatter={(value: number) => formatearMoneda(value)} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
                         <Legend />
                         <Bar dataKey="ingresos" fill="#22c55e" name="Ingresos" />
                         <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
@@ -964,27 +939,27 @@ export default function Finanzas() {
 
           <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-0">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                     <FileText className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Historial de Movimientos</CardTitle>
+                    <CardTitle className="text-lg md:text-xl">Historial de Movimientos</CardTitle>
                     <CardDescription>
                       {Object.values(movimientos_agrupados).flat().length} de {reporte?.movimientos.length || 0} movimientos
-                      {filtros.busqueda && ' (filtrados por búsqueda)'}
+                      {filtros.busqueda && ' (filtrados)'}
                     </CardDescription>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col md:flex-row gap-2">
                   <Button
-                    size="lg"
+                    size="default"
                     variant="outline"
                     onClick={abrirDialogoFiltros}
-                    className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200 relative"
+                    className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200 relative w-full md:w-auto"
                   >
-                    <Filter className="h-5 w-5 mr-2" />
+                    <Filter className="h-4 w-4 mr-2" />
                     Filtros
                     {contarFiltrosActivos() > 0 && (
                       <Badge className="ml-2 bg-primary text-primary-foreground">
@@ -996,7 +971,7 @@ export default function Finanzas() {
                     <Button 
                       variant="outline" 
                       onClick={limpiarFiltros}
-                      className="hover:scale-105 transition-all duration-200"
+                      className="hover:scale-105 transition-all duration-200 w-full md:w-auto"
                     >
                       <X className="h-4 w-4 mr-2" />
                       Limpiar
@@ -1009,7 +984,7 @@ export default function Finanzas() {
               <SearchInput
                 valor={filtros.busqueda}
                 onChange={(valor) => setFiltros({ ...filtros, busqueda: valor })}
-                placeholder="Buscar por fecha, nombre de paciente, concepto o monto..."
+                placeholder="Buscar por fecha, concepto o monto..."
                 label="Buscar movimiento"
               />
 
@@ -1035,13 +1010,13 @@ export default function Finanzas() {
                         <Calendar className="h-5 w-5 text-primary" />
                         {fecha}
                       </h3>
-                      <div className="space-y-2 pl-7">
+                      <div className="space-y-2 pl-0 md:pl-7">
                         {movimientos_del_dia.map((movimiento) => (
                           <div
                             key={`${movimiento.tipo}-${movimiento.id}`}
-                            className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
+                            className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200 gap-4 md:gap-0"
                           >
-                            <div className="flex items-center gap-4 flex-1">
+                            <div className="flex items-center gap-4 flex-1 w-full md:w-auto">
                               <div className={`p-2 rounded-lg hover:scale-110 transition-transform duration-200 ${
                                 movimiento.tipo === 'ingreso' 
                                   ? 'bg-green-500/10' 
@@ -1054,7 +1029,7 @@ export default function Finanzas() {
                                 )}
                               </div>
                               <div className="flex-1">
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
                                   <p className="font-medium text-foreground">
                                     {movimiento.concepto}
                                   </p>
@@ -1063,7 +1038,7 @@ export default function Finanzas() {
                                   </p>
                                 </div>
                                 {(movimiento.cita_id || movimiento.plan_tratamiento_id) && (
-                                  <div className="flex gap-2 mt-1">
+                                  <div className="flex flex-col md:flex-row gap-2 mt-1">
                                     {movimiento.cita_id && (
                                       <Badge variant="outline" className="text-xs">
                                         Cita #{movimiento.cita_id}
@@ -1086,7 +1061,7 @@ export default function Finanzas() {
                                 {formatearMoneda(movimiento.monto)}
                               </div>
                             </div>
-                            <div className="flex gap-2 ml-4">
+                            <div className="flex gap-2 ml-0 md:ml-4 mt-2 md:mt-0">
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1162,18 +1137,18 @@ export default function Finanzas() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row">
             <Button
               variant="outline"
               onClick={limpiarFiltros}
-              className="hover:scale-105 transition-all duration-200"
+              className="hover:scale-105 transition-all duration-200 w-full sm:w-auto"
             >
               <X className="h-4 w-4 mr-2" />
               Limpiar
             </Button>
             <Button
               onClick={manejarFiltrarPorFechas}
-              className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+              className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200 w-full sm:w-auto"
             >
               Aplicar Filtros
             </Button>
@@ -1228,7 +1203,7 @@ export default function Finanzas() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fecha_ingreso">Fecha *</Label>
                 <DatePicker
@@ -1261,19 +1236,19 @@ export default function Finanzas() {
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row">
             <Button
               variant="outline"
               onClick={() => setDialogoIngresoAbierto(false)}
               disabled={guardando_ingreso}
-              className="hover:scale-105 transition-all duration-200"
+              className="hover:scale-105 transition-all duration-200 w-full sm:w-auto"
             >
               Cancelar
             </Button>
             <Button 
               onClick={manejarRegistrarIngreso} 
               disabled={guardando_ingreso}
-              className="bg-green-600 hover:bg-green-700 hover:shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200"
+              className="bg-green-600 hover:bg-green-700 hover:shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200 w-full sm:w-auto"
             >
               {guardando_ingreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {modo_edicion_ingreso ? 'Actualizar' : 'Registrar'}
@@ -1309,7 +1284,7 @@ export default function Finanzas() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fecha_egreso">Fecha *</Label>
                 <DatePicker
@@ -1334,12 +1309,12 @@ export default function Finanzas() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row">
             <Button
               variant="outline"
               onClick={() => setDialogoEgresoAbierto(false)}
               disabled={guardando_egreso}
-              className="hover:scale-105 transition-all duration-200"
+              className="hover:scale-105 transition-all duration-200 w-full sm:w-auto"
             >
               Cancelar
             </Button>
@@ -1347,7 +1322,7 @@ export default function Finanzas() {
               onClick={manejarRegistrarEgreso} 
               disabled={guardando_egreso}
               variant="destructive"
-              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200 w-full sm:w-auto"
             >
               {guardando_egreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {modo_edicion_egreso ? 'Actualizar' : 'Registrar'}
@@ -1385,21 +1360,21 @@ export default function Finanzas() {
             </p>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row">
             <Button
               variant="outline"
               onClick={() => {
                 setDialogoConfirmarEliminarAbierto(false);
                 setMovimientoAEliminar(null);
               }}
-              className="hover:scale-105 transition-all duration-200"
+              className="hover:scale-105 transition-all duration-200 w-full sm:w-auto"
             >
               Cancelar
             </Button>
             <Button
               variant="destructive"
               onClick={confirmarEliminarMovimiento}
-              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200 w-full sm:w-auto"
             >
               Eliminar
             </Button>

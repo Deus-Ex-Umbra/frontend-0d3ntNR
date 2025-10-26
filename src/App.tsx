@@ -4,13 +4,21 @@ import { ProveedorTema } from './contextos/tema-contexto';
 import InicioSesion from './paginas/InicioSesion';
 import Registro from './paginas/Registro';
 import Inicio from './paginas/Inicio';
+import InicioMobile from './paginas/Inicio_movil';
 import Pacientes from './paginas/Pacientes';
+import PacientesMobile from './paginas/Pacientes_movil';
 import Agenda from './paginas/Agenda';
+import AgendaMobile from './paginas/Agenda_movil';
 import EdicionImagenes from './paginas/EdicionImagenes';
+import EdicionImagenesMobile from './paginas/EdicionImagenes_movil';
 import Tratamientos from './paginas/Tratamientos';
+import TratamientosMobile from './paginas/Tratamientos_movil';
 import Finanzas from './paginas/Finanzas';
+import FinanzasMobile from './paginas/Finanzas_movil';
 import Configuracion from './paginas/Configuracion';
+import ConfiguracionMobile from './paginas/Configuracion_movil';
 import { Loader2 } from 'lucide-react';
+import { useResponsive } from './hooks/use-responsive';
 
 function RutaProtegida({ children }: { children: React.ReactNode }) {
   const { usuario, cargando } = useAutenticacion();
@@ -54,6 +62,41 @@ function RutaPublica({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function InicioResponsive() {
+  const { es_movil } = useResponsive();
+  return es_movil ? <InicioMobile /> : <Inicio />;
+}
+
+function PacientesResponsive() {
+  const { es_movil } = useResponsive();
+  return es_movil ? <PacientesMobile /> : <Pacientes />;
+}
+
+function AgendaResponsive() {
+  const { es_movil } = useResponsive();
+  return es_movil ? <AgendaMobile /> : <Agenda />;
+}
+
+function EdicionImagenesResponsive() {
+  const { es_movil } = useResponsive();
+  return es_movil ? <EdicionImagenesMobile /> : <EdicionImagenes />;
+}
+
+function TratamientosResponsive() {
+  const { es_movil } = useResponsive();
+  return es_movil ? <TratamientosMobile /> : <Tratamientos />;
+}
+
+function FinanzasResponsive() {
+  const { es_movil } = useResponsive();
+  return es_movil ? <FinanzasMobile /> : <Finanzas />;
+}
+
+function ConfiguracionResponsive() {
+  const { es_movil } = useResponsive();
+  return es_movil ? <ConfiguracionMobile /> : <Configuracion />;
+}
+
 function App() {
   return (
     <ProveedorTema>
@@ -80,7 +123,7 @@ function App() {
               path="/inicio"
               element={
                 <RutaProtegida>
-                  <Inicio />
+                  <InicioResponsive />
                 </RutaProtegida>
               }
             />
@@ -88,7 +131,7 @@ function App() {
               path="/pacientes"
               element={
                 <RutaProtegida>
-                  <Pacientes />
+                  <PacientesResponsive />
                 </RutaProtegida>
               }
             />
@@ -96,7 +139,7 @@ function App() {
               path="/agenda"
               element={
                 <RutaProtegida>
-                  <Agenda />
+                  <AgendaResponsive />
                 </RutaProtegida>
               }
             />
@@ -104,7 +147,7 @@ function App() {
               path="/edicion-imagenes"
               element={
                 <RutaProtegida>
-                  <EdicionImagenes />
+                  <EdicionImagenesResponsive />
                 </RutaProtegida>
               }
             />
@@ -112,7 +155,7 @@ function App() {
               path="/tratamientos"
               element={
                 <RutaProtegida>
-                  <Tratamientos />
+                  <TratamientosResponsive />
                 </RutaProtegida>
               }
             />
@@ -120,7 +163,7 @@ function App() {
               path="/finanzas"
               element={
                 <RutaProtegida>
-                  <Finanzas />
+                  <FinanzasResponsive />
                 </RutaProtegida>
               }
             />
@@ -128,7 +171,7 @@ function App() {
               path="/configuracion"
               element={
                 <RutaProtegida>
-                  <Configuracion />
+                  <ConfiguracionResponsive />
                 </RutaProtegida>
               }
             />
