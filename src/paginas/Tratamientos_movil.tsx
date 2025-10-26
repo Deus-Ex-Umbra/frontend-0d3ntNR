@@ -125,6 +125,7 @@ export default function TratamientosMobile() {
   const [paciente_filtro, setPacienteFiltro] = useState<string>("todos");
   const [busqueda_plantillas, setBusquedaPlantillas] = useState("");
   const [busqueda_planes, setBusquedaPlanes] = useState("");
+  const [plan_a_eliminar, setPlanAEliminar] = useState<PlanTratamiento | null>(null);
 
   const [formulario_plantilla, setFormularioPlantilla] = useState({
     nombre: "",
@@ -574,6 +575,30 @@ export default function TratamientosMobile() {
   const abrirDialogoConfirmarEliminarCita = (cita: any) => {
     setCitaAEliminar(cita);
     setDialogoConfirmarEliminarAbierto(true);
+  };
+
+  const confirmarEliminarPlan = async () => {
+    if (!plan_a_eliminar) return;
+
+    try {
+      await planesTratamientoApi.eliminar(plan_a_eliminar.id);
+      toast({
+        title: "Éxito",
+        description: "Plan de tratamiento eliminado correctamente",
+      });
+      setDialogoConfirmarEliminarAbierto(false);
+      setPlanAEliminar(null);
+      setDialogoDetallePlanAbierto(false);
+      cargarPlanes();
+    } catch (error: any) {
+      console.error("Error al eliminar plan:", error);
+      const mensaje = error.response?.data?.message || "No se pudo eliminar el plan de tratamiento. Posiblemente tiene citas o pagos asociados.";
+      toast({
+        title: "Error",
+        description: mensaje,
+        variant: "destructive",
+      });
+    }
   };
 
   const confirmarEliminarCita = async () => {
@@ -1295,6 +1320,20 @@ export default function TratamientosMobile() {
           <DialogHeader>
             <DialogTitle>Gestión del Plan</DialogTitle>
             <DialogDescription>Administra citas y pagos</DialogDescription>
+            <div className="flex justify-end mt-[-20px]">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setPlanAEliminar(plan_seleccionado);
+                  setDialogoConfirmarEliminarAbierto(true);
+                }}
+                className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                title="Eliminar Plan"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
 
           {plan_seleccionado && (
@@ -1493,6 +1532,8 @@ export default function TratamientosMobile() {
             <DialogDescription>
               {cita_a_eliminar 
                 ? '¿Estás seguro de eliminar esta cita?'
+                : plan_a_eliminar
+                ? '¿Estás seguro de eliminar este plan asignado?'
                 : tratamiento_seleccionado 
                 ? '¿Estás seguro de eliminar esta plantilla?'
                 : '¿Estás seguro de eliminar este elemento?'
@@ -1510,6 +1551,18 @@ export default function TratamientosMobile() {
             </div>
           )}
 
+          {plan_a_eliminar && (
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+              <p className="font-semibold text-foreground">{plan_a_eliminar.tratamiento.nombre}</p>
+              <p className="text-sm text-muted-foreground">
+                Paciente: {plan_a_eliminar.paciente.nombre} {plan_a_eliminar.paciente.apellidos}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {plan_a_eliminar.citas.length} citas - {formatearMoneda(plan_a_eliminar.costo_total)}
+              </p>
+            </div>
+          )}
+
           {tratamiento_seleccionado && !cita_a_eliminar && (
             <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
               <p className="font-semibold text-foreground">{tratamiento_seleccionado.nombre}</p>
@@ -1524,8 +1577,21 @@ export default function TratamientosMobile() {
           </div>
 
           <DialogFooter className="flex-col sm:flex-row">
-            <Button variant="outline" onClick={() => { setDialogoConfirmarEliminarAbierto(false); setCitaAEliminar(null); setTratamientoSeleccionado(null); }} className="w-full sm:w-auto">Cancelar</Button>
-            <Button variant="destructive" onClick={() => { if (cita_a_eliminar) { confirmarEliminarCita(); } else if (tratamiento_seleccionado) { confirmarEliminarPlantilla(); } }} className="w-full sm:w-auto">Eliminar</Button>
+            <Button variant="outline" onClick={() => {
+                  setDialogoConfirmarEliminarAbierto(false);
+                  setCitaAEliminar(null);
+                  setPlanAEliminar(null);
+                  setTratamientoSeleccionado(null);
+                }} className="w-full sm:w-auto">Cancelar</Button>
+            <Button variant="destructive" onClick={() => {
+                if (cita_a_eliminar) {
+                  confirmarEliminarCita();
+                } else if (plan_a_eliminar) {
+                  confirmarEliminarPlan();
+                } else if (tratamiento_seleccionado) {
+                  confirmarEliminarPlantilla();
+                }
+              }} className="w-full sm:w-auto">Eliminar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

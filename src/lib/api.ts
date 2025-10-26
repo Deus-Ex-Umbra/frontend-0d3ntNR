@@ -137,6 +137,10 @@ export const planesTratamientoApi = {
     const respuesta = await api.get(`/planes-tratamiento/paciente/${paciente_id}`);
     return respuesta.data;
   },
+  eliminar: async (id: number) => {
+    const respuesta = await api.delete(`/planes-tratamiento/eliminar/${id}`);
+    return respuesta.data;
+  },
 };
 
 export const agendaApi = {
