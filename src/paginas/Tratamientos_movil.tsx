@@ -391,16 +391,17 @@ export default function TratamientosMobile() {
     setDialogoAsignarAbierto(true);
   };
 
+
   const formatearFechaParaBackend = (fecha: Date): string => {
-    const anio = fecha.getFullYear();
-    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-    const dia = String(fecha.getDate()).padStart(2, '0');
+    const anio = fecha.getUTCFullYear();
+    const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getUTCDate()).padStart(2, '0');
     return `${anio}-${mes}-${dia}`;
   };
-
+  
   const formatearHoraParaBackend = (fecha: Date): string => {
-    const horas = String(fecha.getHours()).padStart(2, '0');
-    const minutos = String(fecha.getMinutes()).padStart(2, '0');
+    const horas = String(fecha.getUTCHours()).padStart(2, '0');
+    const minutos = String(fecha.getUTCMinutes()).padStart(2, '0');
     return `${horas}:${minutos}`;
   };
 
