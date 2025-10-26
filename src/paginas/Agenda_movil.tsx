@@ -225,11 +225,18 @@ export default function AgendaMobile() {
 
     const horas = parseInt(formulario.horas_aproximadas);
     const minutos = parseInt(formulario.minutos_aproximados);
-
-    if (isNaN(horas) || horas < 0 || isNaN(minutos) || minutos < 1) {
+    if (isNaN(horas) || horas < 0 || isNaN(minutos) || minutos < 0) { 
       toast({
         title: 'Error',
-        description: 'La duración debe ser válida (mínimo 1 minuto)',
+        description: 'Las horas y minutos deben ser números válidos y no negativos',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (horas + minutos <= 0) { 
+      toast({
+        title: 'Error',
+        description: 'La duración total (horas + minutos) debe ser de al menos 1 minuto',
         variant: 'destructive',
       });
       return;

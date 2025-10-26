@@ -283,11 +283,20 @@ export default function TratamientosMobile() {
       isNaN(horas_aproximadas_citas) ||
       horas_aproximadas_citas < 0 ||
       isNaN(minutos_aproximados_citas) ||
-      minutos_aproximados_citas < 1
+      minutos_aproximados_citas < 0
     ) {
       toast({
         title: "Error",
-        description: "Los valores numéricos deben ser válidos",
+        description: "Los valores numéricos deben ser válidos y no negativos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (horas_aproximadas_citas + minutos_aproximados_citas <= 0) {
+      toast({
+        title: "Error",
+        description: "La duración total de la cita debe ser de al menos 1 minuto",
         variant: "destructive",
       });
       return;
@@ -491,10 +500,19 @@ export default function TratamientosMobile() {
     const horas = parseInt(formulario_cita.horas_aproximadas);
     const minutos = parseInt(formulario_cita.minutos_aproximados);
 
-    if (isNaN(horas) || horas < 0 || isNaN(minutos) || minutos < 1) {
+    if (isNaN(horas) || horas < 0 || isNaN(minutos) || minutos < 0) {
       toast({
         title: "Error",
-        description: "La duración debe ser válida (mínimo 1 minuto)",
+        description: "Las horas y minutos deben ser números válidos y no negativos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (horas + minutos <= 0) {
+      toast({
+        title: "Error",
+        description: "La duración total (horas + minutos) debe ser de al menos 1 minuto",
         variant: "destructive",
       });
       return;
