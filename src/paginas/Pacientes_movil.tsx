@@ -674,7 +674,7 @@ export default function PacientesMobile() {
           <Tabs defaultValue="datos-generales" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="datos-generales">Datos Generales</TabsTrigger>
-              <TabsTrigger value="anamnesis">Anamnesis</TabsTrigger>
+              <TabsTrigger value="anamnesis">Información Médica</TabsTrigger>
             </TabsList>
 
             <TabsContent value="datos-generales" className="space-y-4 mt-4">
