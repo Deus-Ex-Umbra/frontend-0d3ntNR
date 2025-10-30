@@ -397,3 +397,91 @@ export const edicionesImagenesApi = {
     return respuesta.data;
   },
 };
+
+export const inventarioApi = {
+  crearInventario: async (datos: { nombre: string; visibilidad?: string }) => {
+    const respuesta = await api.post('/inventario', datos);
+    return respuesta.data;
+  },
+  obtenerInventarios: async () => {
+    const respuesta = await api.get('/inventario');
+    return respuesta.data;
+  },
+  obtenerInventarioPorId: async (inventario_id: number) => {
+    const respuesta = await api.get(`/inventario/${inventario_id}`);
+    return respuesta.data;
+  },
+  actualizarInventario: async (inventario_id: number, datos: { nombre?: string; visibilidad?: string }) => {
+    const respuesta = await api.put(`/inventario/${inventario_id}`, datos);
+    return respuesta.data;
+  },
+  eliminarInventario: async (inventario_id: number) => {
+    const respuesta = await api.delete(`/inventario/${inventario_id}`);
+    return respuesta.data;
+  },
+  invitarUsuario: async (inventario_id: number, datos: { usuario_id: number; rol: string }) => {
+    const respuesta = await api.post(`/inventario/${inventario_id}/invitar`, datos);
+    return respuesta.data;
+  },
+  eliminarPermiso: async (inventario_id: number, permiso_id: number) => {
+    const respuesta = await api.delete(`/inventario/${inventario_id}/permisos/${permiso_id}`);
+    return respuesta.data;
+  },
+  crearProducto: async (datos: {
+    inventario_id: number;
+    nombre: string;
+    tipo_gestion: string;
+    stock_minimo?: number;
+    unidad_medida?: string;
+  }) => {
+    const respuesta = await api.post('/inventario/productos', datos);
+    return respuesta.data;
+  },
+  obtenerProductos: async (inventario_id: number) => {
+    const respuesta = await api.get(`/inventario/${inventario_id}/productos`);
+    return respuesta.data;
+  },
+  obtenerStockProducto: async (inventario_id: number, producto_id: number) => {
+    const respuesta = await api.get(`/inventario/${inventario_id}/productos/${producto_id}/stock`);
+    return respuesta.data;
+  },
+  actualizarProducto: async (inventario_id: number, producto_id: number, datos: any) => {
+    const respuesta = await api.put(`/inventario/${inventario_id}/productos/${producto_id}`, datos);
+    return respuesta.data;
+  },
+  eliminarProducto: async (inventario_id: number, producto_id: number) => {
+    const respuesta = await api.delete(`/inventario/${inventario_id}/productos/${producto_id}`);
+    return respuesta.data;
+  },
+  registrarCompra: async (inventario_id: number, datos: {
+    producto_id: number;
+    cantidad: number;
+    costo_total: number;
+    fecha_vencimiento?: string;
+    nro_lote?: string;
+    nro_serie?: string;
+    nombre_asignado?: string;
+    fecha_compra: string;
+    generar_egreso?: boolean;
+  }) => {
+    const respuesta = await api.post(`/inventario/${inventario_id}/registrar-compra`, datos);
+    return respuesta.data;
+  },
+  cambiarEstadoActivo: async (inventario_id: number, activo_id: number, datos: { estado: string }) => {
+    const respuesta = await api.put(`/inventario/${inventario_id}/activos/${activo_id}/estado`, datos);
+    return respuesta.data;
+  },
+  obtenerHistorialActivo: async (inventario_id: number, activo_id: number) => {
+    const respuesta = await api.get(`/inventario/${inventario_id}/activos/${activo_id}/historial`);
+    return respuesta.data;
+  },
+  obtenerHistorialMovimientos: async (inventario_id: number, producto_id?: number) => {
+    const params = producto_id ? `?producto_id=${producto_id}` : '';
+    const respuesta = await api.get(`/inventario/${inventario_id}/historial-movimientos${params}`);
+    return respuesta.data;
+  },
+  obtenerReporteValor: async (inventario_id: number) => {
+    const respuesta = await api.get(`/inventario/${inventario_id}/reporte-valor`);
+    return respuesta.data;
+  },
+};
