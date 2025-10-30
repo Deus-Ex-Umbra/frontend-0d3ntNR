@@ -6,13 +6,14 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
-import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign, Filter, X, AlertTriangle } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign, Filter, X, AlertTriangle, CalendarClock } from 'lucide-react';
 import { agendaApi, pacientesApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Badge } from '@/componentes/ui/badge';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
+import { Switch } from '@/componentes/ui/switch';
 import { ajustarFechaParaBackend } from '@/lib/utilidades';
 
 interface Cita {
@@ -34,15 +35,27 @@ interface Cita {
   } | null;
 }
 
+interface HoraLibre {
+  fecha: Date;
+  duracion_minutos: number;
+  horas_aproximadas: number;
+  minutos_aproximados: number;
+  descripcion: string;
+}
+
 interface Paciente {
   id: number;
   nombre: string;
   apellidos: string;
 }
 
+type ElementoAgenda = (Cita | HoraLibre) & { es_hora_libre?: boolean };
+
 export default function Agenda() {
   const [citas, setCitas] = useState<Cita[]>([]);
-  const [citas_filtradas, setCitasFiltradas] = useState<Cita[]>([]);
+  const [horas_libres, setHorasLibres] = useState<HoraLibre[]>([]);
+  const [mostrar_horas_libres, setMostrarHorasLibres] = useState(false);
+  const [elementos_filtrados, setElementosFiltrados] = useState<ElementoAgenda[]>([]);
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [mes_actual, setMesActual] = useState(new Date().getMonth() + 1);
   const [ano_actual, setAnoActual] = useState(new Date().getFullYear());
@@ -59,7 +72,6 @@ export default function Agenda() {
     setCitaAEliminar(id);
     setDialogoConfirmarEliminarAbierto(true);
   };
-
 
   const [filtros, setFiltros] = useState({
     paciente_id: '',
@@ -96,17 +108,33 @@ export default function Agenda() {
 
   useEffect(() => {
     aplicarFiltros();
-  }, [citas, filtros]);
+  }, [citas, horas_libres, filtros, mostrar_horas_libres]);
 
   const cargarDatos = async () => {
     setCargando(true);
     try {
-      const [datos_citas, datos_pacientes] = await Promise.all([
-        agendaApi.obtenerPorMes(mes_actual, ano_actual),
-        pacientesApi.obtenerTodos(),
-      ]);
+      const tiene_filtro_fecha = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
+
+      let datos_citas;
+      let datos_horas_libres;
+
+      if (tiene_filtro_fecha) {
+        [datos_citas, datos_horas_libres] = await Promise.all([
+          agendaApi.filtrarCitas(filtros.fecha_hora_inicio!, filtros.fecha_hora_fin!),
+          agendaApi.filtrarEspaciosLibres(filtros.fecha_hora_inicio!, filtros.fecha_hora_fin!),
+        ]);
+      } else {
+        [datos_citas, datos_horas_libres] = await Promise.all([
+          agendaApi.obtenerPorMes(mes_actual, ano_actual),
+          agendaApi.obtenerEspaciosLibres(mes_actual, ano_actual),
+        ]);
+      }
+
+      const datos_pacientes = await pacientesApi.obtenerTodos();
+
       setCitas(datos_citas);
       setPacientes(datos_pacientes);
+      setHorasLibres(datos_horas_libres);
     } catch (error) {
       console.error('Error al cargar datos:', error);
       toast({
@@ -120,33 +148,55 @@ export default function Agenda() {
   };
 
   const aplicarFiltros = () => {
-    let resultado = [...citas];
+    let elementos: ElementoAgenda[] = [];
+
+    if (mostrar_horas_libres) {
+      elementos = horas_libres.map(hora => ({ ...hora, es_hora_libre: true }));
+    } else {
+      elementos = [...citas];
+    }
 
     if (filtros.fecha_hora_inicio && filtros.fecha_hora_fin) {
-      resultado = resultado.filter(c => {
-        const fecha_cita = new Date(c.fecha);
-        return fecha_cita >= filtros.fecha_hora_inicio! && fecha_cita <= filtros.fecha_hora_fin!;
+      elementos = elementos.filter(e => {
+        const fecha_elemento = new Date(e.fecha);
+        return fecha_elemento >= filtros.fecha_hora_inicio! && fecha_elemento <= filtros.fecha_hora_fin!;
       });
     }
 
-    if (filtros.paciente_id) {
-      resultado = resultado.filter(c => c.paciente?.id.toString() === filtros.paciente_id);
+    if (!mostrar_horas_libres) {
+      if (filtros.paciente_id) {
+        elementos = elementos.filter(e => {
+          const cita = e as Cita;
+          return cita.paciente?.id.toString() === filtros.paciente_id;
+        });
+      }
+
+      if (filtros.estado_pago) {
+        elementos = elementos.filter(e => {
+          const cita = e as Cita;
+          return cita.estado_pago === filtros.estado_pago;
+        });
+      }
+
+      if (filtros.busqueda) {
+        const busqueda_lower = filtros.busqueda.toLowerCase();
+        elementos = elementos.filter(e => {
+          const cita = e as Cita;
+          return cita.descripcion.toLowerCase().includes(busqueda_lower) ||
+            (cita.paciente && 
+              `${cita.paciente.nombre} ${cita.paciente.apellidos}`.toLowerCase().includes(busqueda_lower));
+        });
+      }
+    } else {
+      if (filtros.busqueda) {
+        const busqueda_lower = filtros.busqueda.toLowerCase();
+        elementos = elementos.filter(e => 
+          e.descripcion.toLowerCase().includes(busqueda_lower)
+        );
+      }
     }
 
-    if (filtros.estado_pago) {
-      resultado = resultado.filter(c => c.estado_pago === filtros.estado_pago);
-    }
-
-    if (filtros.busqueda) {
-      const busqueda_lower = filtros.busqueda.toLowerCase();
-      resultado = resultado.filter(c => 
-        c.descripcion.toLowerCase().includes(busqueda_lower) ||
-        (c.paciente && 
-          `${c.paciente.nombre} ${c.paciente.apellidos}`.toLowerCase().includes(busqueda_lower))
-      );
-    }
-
-    setCitasFiltradas(resultado);
+    setElementosFiltrados(elementos);
   };
 
   const limpiarFiltros = () => {
@@ -387,15 +437,15 @@ export default function Agenda() {
     return estado_encontrado?.etiqueta || estado;
   };
 
-  const agruparCitasPorDia = () => {
-    const grupos: { [key: string]: Cita[] } = {};
+  const agruparElementosPorDia = () => {
+    const grupos: { [key: string]: ElementoAgenda[] } = {};
     
-    citas_filtradas.forEach(cita => {
-      const fecha_str = formatearFecha(cita.fecha);
+    elementos_filtrados.forEach(elemento => {
+      const fecha_str = formatearFecha(elemento.fecha);
       if (!grupos[fecha_str]) {
         grupos[fecha_str] = [];
       }
-      grupos[fecha_str].push(cita);
+      grupos[fecha_str].push(elemento);
     });
 
     Object.keys(grupos).forEach(fecha => {
@@ -405,7 +455,7 @@ export default function Agenda() {
     return grupos;
   };
 
-  const citas_agrupadas = agruparCitasPorDia();
+  const elementos_agrupados = agruparElementosPorDia();
 
   const opciones_pacientes: OpcionCombobox[] = [
     { valor: '', etiqueta: 'Evento general (sin paciente)' },
@@ -438,6 +488,10 @@ export default function Agenda() {
 
   const tiene_paciente = formulario.paciente_id !== '';
   const filtros_fecha_activos = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
+
+  const esHoraLibre = (elemento: ElementoAgenda): elemento is HoraLibre & { es_hora_libre: true } => {
+    return 'es_hora_libre' in elemento && elemento.es_hora_libre === true;
+  };
 
   if (cargando) {
     return (
@@ -500,62 +554,84 @@ export default function Agenda() {
                   </div>
                   <div>
                     <CardTitle className="text-2xl">
-                      {filtros_fecha_activos ? 'Citas Filtradas' : `${meses[mes_actual - 1]} ${ano_actual}`}
+                      {filtros_fecha_activos 
+                        ? (mostrar_horas_libres ? 'Horas Libres Filtradas' : 'Citas Filtradas')
+                        : `${meses[mes_actual - 1]} ${ano_actual}`
+                      }
                     </CardTitle>
                     <CardDescription>
-                      {citas_filtradas.length} de {citas.length} citas
+                      {elementos_filtrados.length} de {mostrar_horas_libres ? horas_libres.length : citas.length} {mostrar_horas_libres ? 'horas libres' : 'citas'}
                       {contarFiltrosActivos() > 0 && ' (filtradas)'}
                     </CardDescription>
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => cambiarMes(-1)}
-                    disabled={filtros_fecha_activos}
-                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setMesActual(new Date().getMonth() + 1);
-                      setAnoActual(new Date().getFullYear());
-                    }}
-                    disabled={filtros_fecha_activos}
-                    className="hover:bg-primary/20 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Hoy
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => cambiarMes(1)}
-                    disabled={filtros_fecha_activos}
-                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </Button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="mostrar-horas-libres" className="text-sm font-medium cursor-pointer">
+                      {mostrar_horas_libres ? 'Ver Citas' : 'Ver Horas Libres'}
+                    </Label>
+                    <Switch
+                      id="mostrar-horas-libres"
+                      checked={mostrar_horas_libres}
+                      onCheckedChange={setMostrarHorasLibres}
+                    />
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => cambiarMes(-1)}
+                      disabled={filtros_fecha_activos}
+                      className="hover:bg-primary/20 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setMesActual(new Date().getMonth() + 1);
+                        setAnoActual(new Date().getFullYear());
+                      }}
+                      disabled={filtros_fecha_activos}
+                      className="hover:bg-primary/20 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Hoy
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => cambiarMes(1)}
+                      disabled={filtros_fecha_activos}
+                      className="hover:bg-primary/20 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              {citas_filtradas.length === 0 ? (
+              {elementos_filtrados.length === 0 ? (
                 <div className="text-center py-12 space-y-4">
                   <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-12 transition-all duration-300">
                     <AlertCircle className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-foreground">
-                      {contarFiltrosActivos() > 0 ? 'No hay citas que coincidan con los filtros' : 'No hay citas programadas'}
+                      {contarFiltrosActivos() > 0 
+                        ? (mostrar_horas_libres ? 'No hay horas libres que coincidan con los filtros' : 'No hay citas que coincidan con los filtros')
+                        : (mostrar_horas_libres ? 'No hay horas libres en este período' : 'No hay citas programadas')
+                      }
                     </h3>
                     <p className="text-sm text-muted-foreground max-w-md mx-auto">
                       {contarFiltrosActivos() > 0 
                         ? 'Intenta ajustar los filtros o crear una nueva cita'
-                        : 'Crea tu primera cita para comenzar a organizar tu agenda'
+                        : (mostrar_horas_libres 
+                          ? 'Todas las horas están ocupadas con citas programadas'
+                          : 'Crea tu primera cita para comenzar a organizar tu agenda'
+                        )
                       }
                     </p>
                     {contarFiltrosActivos() > 0 && (
@@ -573,83 +649,123 @@ export default function Agenda() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {Object.entries(citas_agrupadas).map(([fecha, citas_del_dia]) => (
+                  {Object.entries(elementos_agrupados).map(([fecha, elementos_del_dia]) => (
                     <div key={fecha} className="space-y-3">
                       <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur-sm py-2 z-10">
                         <Calendar className="h-5 w-5 text-primary" />
                         {fecha}
                       </h3>
                       <div className="space-y-2 pl-7">
-                        {citas_del_dia.map((cita) => (
-                          <div
-                            key={cita.id}
-                            className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
-                          >
-                            <div className="flex items-center gap-4 flex-1">
-                              {cita.paciente?.color_categoria && (
-                                <div
-                                  className="w-1 h-12 rounded-full"
-                                  style={{ backgroundColor: cita.paciente.color_categoria }}
-                                />
-                              )}
-                              <div className="flex items-center gap-3">
-                                <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                                  <Clock className="h-4 w-4 text-primary" />
-                                </div>
-                                <div>
-                                  <p className="font-semibold text-foreground">
-                                    {formatearHora(cita.fecha)}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {cita.paciente 
-                                      ? `${cita.paciente.nombre} ${cita.paciente.apellidos}`
-                                      : 'Evento general'}
-                                  </p>
+                        {elementos_del_dia.map((elemento, idx) => {
+                          if (esHoraLibre(elemento)) {
+                            return (
+                              <div
+                                key={`libre-${idx}`}
+                                className="flex items-center justify-between p-4 rounded-lg border-2 border-dashed border-green-500/30 bg-green-500/5 hover:bg-green-500/10 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
+                              >
+                                <div className="flex items-center gap-4 flex-1">
+                                  <div className="flex items-center gap-3">
+                                    <div className="bg-green-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                                      <CalendarClock className="h-4 w-4 text-green-600" />
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-foreground">
+                                        {formatearHora(elemento.fecha)}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Hora libre
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="ml-4 flex-1">
+                                    <p className="text-sm text-foreground">{elemento.descripcion}</p>
+                                    <div className="flex items-center gap-3 mt-1">
+                                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        Duración disponible: {formatearDuracion(elemento.horas_aproximadas, elemento.minutos_aproximados)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Badge className="bg-green-500 text-white hover:scale-110 transition-transform duration-200">
+                                    Disponible
+                                  </Badge>
                                 </div>
                               </div>
-                              <div className="ml-4 flex-1">
-                                <p className="text-sm text-foreground">{cita.descripcion}</p>
-                                <div className="flex items-center gap-3 mt-1">
-                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    Duración: {formatearDuracion(cita.horas_aproximadas, cita.minutos_aproximados)}
-                                  </p>
-                                  {cita.paciente && cita.monto_esperado && cita.monto_esperado > 0 && (
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                      <DollarSign className="h-3 w-3" />
-                                      Monto esperado: {formatearMoneda(cita.monto_esperado)}
-                                    </p>
+                            );
+                          } else {
+                            const cita = elemento as Cita;
+                            return (
+                              <div
+                                key={cita.id}
+                                className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
+                              >
+                                <div className="flex items-center gap-4 flex-1">
+                                  {cita.paciente?.color_categoria && (
+                                    <div
+                                      className="w-1 h-12 rounded-full"
+                                      style={{ backgroundColor: cita.paciente.color_categoria }}
+                                    />
+                                  )}
+                                  <div className="flex items-center gap-3">
+                                    <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                                      <Clock className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-foreground">
+                                        {formatearHora(cita.fecha)}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {cita.paciente 
+                                          ? `${cita.paciente.nombre} ${cita.paciente.apellidos}`
+                                          : 'Evento general'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="ml-4 flex-1">
+                                    <p className="text-sm text-foreground">{cita.descripcion}</p>
+                                    <div className="flex items-center gap-3 mt-1">
+                                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        Duración: {formatearDuracion(cita.horas_aproximadas, cita.minutos_aproximados)}
+                                      </p>
+                                      {cita.paciente && cita.monto_esperado && cita.monto_esperado > 0 && (
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <DollarSign className="h-3 w-3" />
+                                          Monto esperado: {formatearMoneda(cita.monto_esperado)}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {cita.paciente && (
+                                    <Badge className={`${obtenerColorEstado(cita.estado_pago)} text-white hover:scale-110 transition-transform duration-200`}>
+                                      {obtenerEtiquetaEstado(cita.estado_pago)}
+                                    </Badge>
                                   )}
                                 </div>
+                                <div className="flex gap-2 ml-4">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => abrirDialogoEditar(cita)}
+                                    className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                    title="Editar"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => abrirDialogoConfirmarEliminar(cita.id)}
+                                    className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                                    title="Eliminar"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
-                              {cita.paciente && (
-                                <Badge className={`${obtenerColorEstado(cita.estado_pago)} text-white hover:scale-110 transition-transform duration-200`}>
-                                  {obtenerEtiquetaEstado(cita.estado_pago)}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex gap-2 ml-4">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => abrirDialogoEditar(cita)}
-                                className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
-                                title="Editar"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => abrirDialogoConfirmarEliminar(cita.id)}
-                                className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
-                                title="Eliminar"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                            );
+                          }
+                        })}
                       </div>
                     </div>
                   ))}
@@ -702,7 +818,7 @@ export default function Agenda() {
           <DialogHeader>
             <DialogTitle>Filtros de Agenda</DialogTitle>
             <DialogDescription>
-              Filtra las citas por paciente, estado o búsqueda
+              Filtra las {mostrar_horas_libres ? 'horas libres' : 'citas'} por {mostrar_horas_libres ? 'búsqueda' : 'paciente, estado o búsqueda'}
             </DialogDescription>
           </DialogHeader>
 
@@ -710,32 +826,36 @@ export default function Agenda() {
             <div className="space-y-2">
               <Label>Buscar por texto</Label>
               <Input
-                placeholder="Buscar en descripción o paciente..."
+                placeholder="Buscar en descripción..."
                 value={filtros.busqueda}
                 onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Filtrar por paciente</Label>
-              <Combobox
-                opciones={opciones_pacientes_filtro}
-                valor={filtros.paciente_id}
-                onChange={(valor) => setFiltros({ ...filtros, paciente_id: valor })}
-                placeholder="Selecciona un paciente"
-              />
-            </div>
+            {!mostrar_horas_libres && (
+              <>
+                <div className="space-y-2">
+                  <Label>Filtrar por paciente</Label>
+                  <Combobox
+                    opciones={opciones_pacientes_filtro}
+                    valor={filtros.paciente_id}
+                    onChange={(valor) => setFiltros({ ...filtros, paciente_id: valor })}
+                    placeholder="Selecciona un paciente"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label>Filtrar por estado de pago</Label>
-              <Combobox
-                opciones={opciones_estados_filtro}
-                valor={filtros.estado_pago}
-                onChange={(valor) => setFiltros({ ...filtros, estado_pago: valor })}
-                placeholder="Selecciona un estado"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Filtrar por estado de pago</Label>
+                  <Combobox
+                    opciones={opciones_estados_filtro}
+                    valor={filtros.estado_pago}
+                    onChange={(valor) => setFiltros({ ...filtros, estado_pago: valor })}
+                    placeholder="Selecciona un estado"
+                  />
+                </div>
+              </>
+            )}
 
             <div className="space-y-3 pt-4 border-t border-border">
               <Label className="text-base font-semibold">Filtrar por Intervalo de Fecha y Hora</Label>

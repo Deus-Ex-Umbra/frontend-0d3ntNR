@@ -152,6 +152,10 @@ export const agendaApi = {
     const respuesta = await api.get(`/agenda?mes=${mes}&ano=${ano}`);
     return respuesta.data;
   },
+  filtrarCitas: async (fecha_inicio: Date, fecha_fin: Date) => {
+    const respuesta = await api.get(`/agenda/filtrar?fecha_inicio=${fecha_inicio.toISOString()}&fecha_fin=${fecha_fin.toISOString()}`);
+    return respuesta.data;
+  },
   obtenerCitasSinPagar: async () => {
     const respuesta = await api.get('/agenda/sin-pagar');
     return respuesta.data;
@@ -162,6 +166,10 @@ export const agendaApi = {
   },
   obtenerEspaciosLibres: async (mes: number, ano: number) => {
     const respuesta = await api.get(`/agenda/espacios-libres?mes=${mes}&ano=${ano}`);
+    return respuesta.data;
+  },
+  filtrarEspaciosLibres: async (fecha_inicio: Date, fecha_fin: Date) => {
+    const respuesta = await api.get(`/agenda/espacios-libres-filtrar?fecha_inicio=${fecha_inicio.toISOString()}&fecha_fin=${fecha_fin.toISOString()}`);
     return respuesta.data;
   },
   actualizar: async (id: number, datos: any) => {
