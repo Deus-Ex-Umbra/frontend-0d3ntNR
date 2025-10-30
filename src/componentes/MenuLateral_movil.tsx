@@ -11,7 +11,8 @@ import {
   ImageIcon,
   ChevronLeft,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  Package
 } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { cn } from '@/lib/utilidades';
@@ -31,6 +32,7 @@ const items_menu: ItemMenu[] = [
   { icono: ImageIcon, etiqueta: 'Visor de Estudios', ruta: '/edicion-imagenes' },
   { icono: FileText, etiqueta: 'Tratamientos', ruta: '/tratamientos' },
   { icono: DollarSign, etiqueta: 'Finanzas', ruta: '/finanzas' },
+  { icono: Package, etiqueta: 'Inventarios', ruta: '/inventarios' },
   { icono: Settings, etiqueta: 'Configuración', ruta: '/configuracion' },
 ];
 

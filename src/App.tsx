@@ -15,6 +15,8 @@ import Tratamientos from './paginas/Tratamientos';
 import TratamientosMobile from './paginas/Tratamientos_movil';
 import Finanzas from './paginas/Finanzas';
 import FinanzasMobile from './paginas/Finanzas_movil';
+import Inventarios from './paginas/Inventarios';
+import InventariosMobile from './paginas/Inventarios_movil';
 import Configuracion from './paginas/Configuracion';
 import ConfiguracionMobile from './paginas/Configuracion_movil';
 import { Loader2 } from 'lucide-react';
@@ -92,6 +94,11 @@ function FinanzasResponsive() {
   return es_movil ? <FinanzasMobile /> : <Finanzas />;
 }
 
+function InventariosResponsive() {
+  const { es_movil } = useResponsive();
+  return es_movil ? <InventariosMobile /> : <Inventarios />;
+}
+
 function ConfiguracionResponsive() {
   const { es_movil } = useResponsive();
   return es_movil ? <ConfiguracionMobile /> : <Configuracion />;
@@ -164,6 +171,14 @@ function App() {
               element={
                 <RutaProtegida>
                   <FinanzasResponsive />
+                </RutaProtegida>
+              }
+            />
+            <Route
+              path="/inventarios"
+              element={
+                <RutaProtegida>
+                  <InventariosResponsive />
                 </RutaProtegida>
               }
             />

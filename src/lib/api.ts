@@ -160,6 +160,10 @@ export const agendaApi = {
     const respuesta = await api.get('/agenda/sin-pago');
     return respuesta.data;
   },
+  obtenerEspaciosLibres: async (mes: number, ano: number) => {
+    const respuesta = await api.get(`/agenda/espacios-libres?mes=${mes}&ano=${ano}`);
+    return respuesta.data;
+  },
   actualizar: async (id: number, datos: any) => {
     const respuesta = await api.put(`/agenda/${id}`, datos);
     return respuesta.data;
@@ -311,22 +315,6 @@ export const catalogoApi = {
     const respuesta = await api.delete(`/catalogo/colores/${id}`);
     return respuesta.data;
   },
-  obtenerSimbologias: async () => {
-    const respuesta = await api.get('/catalogo/simbologia');
-    return respuesta.data;
-  },
-  crearSimbologia: async (datos: { nombre: string; descripcion?: string; imagen_base64: string }) => {
-    const respuesta = await api.post('/catalogo/simbologia', datos);
-    return respuesta.data;
-  },
-  actualizarSimbologia: async (id: number, datos: { nombre?: string; descripcion?: string; imagen_base64?: string }) => {
-    const respuesta = await api.put(`/catalogo/simbologia/${id}`, datos);
-    return respuesta.data;
-  },
-  eliminarSimbologia: async (id: number) => {
-    const respuesta = await api.delete(`/catalogo/simbologia/${id}`);
-    return respuesta.data;
-  },
 };
 
 export const archivosApi = {
@@ -347,6 +335,10 @@ export const archivosApi = {
   },
   obtenerPorPlan: async (plan_id: number) => {
     const respuesta = await api.get(`/archivos-adjuntos/plan-tratamiento/${plan_id}`);
+    return respuesta.data;
+  },
+  obtenerContenido: async (id: number) => {
+    const respuesta = await api.get(`/archivos-adjuntos/${id}/contenido`);
     return respuesta.data;
   },
   actualizar: async (id: number, datos: { nombre_archivo?: string; descripcion?: string }) => {
@@ -394,6 +386,36 @@ export const edicionesImagenesApi = {
   },
   duplicar: async (id: number) => {
     const respuesta = await api.post(`/ediciones-imagenes/${id}/duplicar`);
+    return respuesta.data;
+  },
+};
+
+export const plantillasConsentimientoApi = {
+  crear: async (datos: { nombre: string; contenido: string }) => {
+    const respuesta = await api.post('/plantillas-consentimiento', datos);
+    return respuesta.data;
+  },
+  obtenerTodas: async () => {
+    const respuesta = await api.get('/plantillas-consentimiento');
+    return respuesta.data;
+  },
+  obtenerPorId: async (id: number) => {
+    const respuesta = await api.get(`/plantillas-consentimiento/${id}`);
+    return respuesta.data;
+  },
+  actualizar: async (id: number, datos: { nombre?: string; contenido?: string }) => {
+    const respuesta = await api.put(`/plantillas-consentimiento/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminar: async (id: number) => {
+    const respuesta = await api.delete(`/plantillas-consentimiento/${id}`);
+    return respuesta.data;
+  },
+  generarConsentimiento: async (paciente_id: number, datos: {
+    plantilla_id: number;
+    pdf_firmado_base64: string;
+  }) => {
+    const respuesta = await api.post(`/plantillas-consentimiento/pacientes/${paciente_id}/generar-consentimiento`, datos);
     return respuesta.data;
   },
 };
@@ -467,6 +489,34 @@ export const inventarioApi = {
     const respuesta = await api.post(`/inventario/${inventario_id}/registrar-compra`, datos);
     return respuesta.data;
   },
+  confirmarConsumibles: async (cita_id: number, datos: {
+    consumibles: Array<{ producto_id: number; cantidad: number }>;
+  }) => {
+    const respuesta = await api.post(`/inventario/citas/${cita_id}/confirmar-consumibles`, datos);
+    return respuesta.data;
+  },
+  asignarMaterialesCita: async (cita_id: number, datos: {
+    materiales: Array<{ producto_id: number; cantidad_planeada: number }>;
+  }) => {
+    const respuesta = await api.post(`/inventario/citas/${cita_id}/asignar-materiales`, datos);
+    return respuesta.data;
+  },
+  obtenerMaterialesCita: async (cita_id: number) => {
+    const respuesta = await api.get(`/inventario/citas/${cita_id}/materiales`);
+    return respuesta.data;
+  },
+  confirmarMaterialesCita: async (cita_id: number, datos: {
+    materiales: Array<{ material_cita_id: number; cantidad_usada: number }>;
+  }) => {
+    const respuesta = await api.post(`/inventario/citas/${cita_id}/confirmar-materiales`, datos);
+    return respuesta.data;
+  },
+  asignarMaterialesTratamiento: async (plan_tratamiento_id: number, datos: {
+    materiales: Array<{ producto_id: number; tipo: string; cantidad_planeada: number }>;
+  }) => {
+    const respuesta = await api.post(`/inventario/tratamientos/${plan_tratamiento_id}/asignar-materiales`, datos);
+    return respuesta.data;
+  },
   cambiarEstadoActivo: async (inventario_id: number, activo_id: number, datos: { estado: string }) => {
     const respuesta = await api.put(`/inventario/${inventario_id}/activos/${activo_id}/estado`, datos);
     return respuesta.data;
@@ -482,6 +532,19 @@ export const inventarioApi = {
   },
   obtenerReporteValor: async (inventario_id: number) => {
     const respuesta = await api.get(`/inventario/${inventario_id}/reporte-valor`);
+    return respuesta.data;
+  },
+};
+
+export const reportesApi = {
+  generar: async (datos: {
+    areas: string[];
+    fecha_inicio?: string;
+    fecha_fin?: string;
+  }) => {
+    const respuesta = await api.post('/reportes/generar', datos, {
+      responseType: 'blob',
+    });
     return respuesta.data;
   },
 };
