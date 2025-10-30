@@ -81,6 +81,14 @@ export default function Agenda() {
     fecha_hora_fin: undefined as Date | undefined,
   });
 
+  const [filtros_temporales, setFiltrosTemporales] = useState({
+    paciente_id: '',
+    estado_pago: '',
+    busqueda: '',
+    fecha_hora_inicio: undefined as Date | undefined,
+    fecha_hora_fin: undefined as Date | undefined,
+  });
+
   const [formulario, setFormulario] = useState({
     paciente_id: '',
     fecha: undefined as Date | undefined,
@@ -104,11 +112,11 @@ export default function Agenda() {
 
   useEffect(() => {
     cargarDatos();
-  }, [mes_actual, ano_actual]);
+  }, [mes_actual, ano_actual, filtros.fecha_hora_inicio, filtros.fecha_hora_fin]);
 
   useEffect(() => {
     aplicarFiltros();
-  }, [citas, horas_libres, filtros, mostrar_horas_libres]);
+  }, [citas, horas_libres, filtros.paciente_id, filtros.estado_pago, filtros.busqueda, mostrar_horas_libres]);
 
   const cargarDatos = async () => {
     setCargando(true);
@@ -156,13 +164,6 @@ export default function Agenda() {
       elementos = [...citas];
     }
 
-    if (filtros.fecha_hora_inicio && filtros.fecha_hora_fin) {
-      elementos = elementos.filter(e => {
-        const fecha_elemento = new Date(e.fecha);
-        return fecha_elemento >= filtros.fecha_hora_inicio! && fecha_elemento <= filtros.fecha_hora_fin!;
-      });
-    }
-
     if (!mostrar_horas_libres) {
       if (filtros.paciente_id) {
         elementos = elementos.filter(e => {
@@ -199,8 +200,37 @@ export default function Agenda() {
     setElementosFiltrados(elementos);
   };
 
+  const abrirDialogoFiltros = () => {
+    setFiltrosTemporales({
+      paciente_id: filtros.paciente_id,
+      estado_pago: filtros.estado_pago,
+      busqueda: filtros.busqueda,
+      fecha_hora_inicio: filtros.fecha_hora_inicio,
+      fecha_hora_fin: filtros.fecha_hora_fin,
+    });
+    setDialogoFiltrosAbierto(true);
+  };
+
+  const aplicarFiltrosDialogo = () => {
+    setFiltros({
+      paciente_id: filtros_temporales.paciente_id,
+      estado_pago: filtros_temporales.estado_pago,
+      busqueda: filtros_temporales.busqueda,
+      fecha_hora_inicio: filtros_temporales.fecha_hora_inicio,
+      fecha_hora_fin: filtros_temporales.fecha_hora_fin,
+    });
+    setDialogoFiltrosAbierto(false);
+  };
+
   const limpiarFiltros = () => {
     setFiltros({
+      paciente_id: '',
+      estado_pago: '',
+      busqueda: '',
+      fecha_hora_inicio: undefined,
+      fecha_hora_fin: undefined,
+    });
+    setFiltrosTemporales({
       paciente_id: '',
       estado_pago: '',
       busqueda: '',
@@ -527,7 +557,7 @@ export default function Agenda() {
               <Button
                 size="lg"
                 variant="outline"
-                onClick={() => setDialogoFiltrosAbierto(true)}
+                onClick={abrirDialogoFiltros}
                 className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200 relative"
               >
                 <Filter className="h-5 w-5 mr-2" />
@@ -827,8 +857,8 @@ export default function Agenda() {
               <Label>Buscar por texto</Label>
               <Input
                 placeholder="Buscar en descripción..."
-                value={filtros.busqueda}
-                onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })}
+                value={filtros_temporales.busqueda}
+                onChange={(e) => setFiltrosTemporales({ ...filtros_temporales, busqueda: e.target.value })}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
               />
             </div>
@@ -839,8 +869,8 @@ export default function Agenda() {
                   <Label>Filtrar por paciente</Label>
                   <Combobox
                     opciones={opciones_pacientes_filtro}
-                    valor={filtros.paciente_id}
-                    onChange={(valor) => setFiltros({ ...filtros, paciente_id: valor })}
+                    valor={filtros_temporales.paciente_id}
+                    onChange={(valor) => setFiltrosTemporales({ ...filtros_temporales, paciente_id: valor })}
                     placeholder="Selecciona un paciente"
                   />
                 </div>
@@ -849,8 +879,8 @@ export default function Agenda() {
                   <Label>Filtrar por estado de pago</Label>
                   <Combobox
                     opciones={opciones_estados_filtro}
-                    valor={filtros.estado_pago}
-                    onChange={(valor) => setFiltros({ ...filtros, estado_pago: valor })}
+                    valor={filtros_temporales.estado_pago}
+                    onChange={(valor) => setFiltrosTemporales({ ...filtros_temporales, estado_pago: valor })}
                     placeholder="Selecciona un estado"
                   />
                 </div>
@@ -866,8 +896,8 @@ export default function Agenda() {
               <div className="space-y-2">
                 <Label>Fecha y Hora de Inicio</Label>
                 <DateTimePicker
-                  valor={filtros.fecha_hora_inicio}
-                  onChange={(fecha) => setFiltros({ ...filtros, fecha_hora_inicio: fecha })}
+                  valor={filtros_temporales.fecha_hora_inicio}
+                  onChange={(fecha) => setFiltrosTemporales({ ...filtros_temporales, fecha_hora_inicio: fecha })}
                   placeholder="Selecciona inicio"
                 />
               </div>
@@ -875,8 +905,8 @@ export default function Agenda() {
               <div className="space-y-2">
                 <Label>Fecha y Hora de Fin</Label>
                 <DateTimePicker
-                  valor={filtros.fecha_hora_fin}
-                  onChange={(fecha) => setFiltros({ ...filtros, fecha_hora_fin: fecha })}
+                  valor={filtros_temporales.fecha_hora_fin}
+                  onChange={(fecha) => setFiltrosTemporales({ ...filtros_temporales, fecha_hora_fin: fecha })}
                   placeholder="Selecciona fin"
                 />
               </div>
@@ -893,7 +923,7 @@ export default function Agenda() {
               Limpiar
             </Button>
             <Button
-              onClick={() => setDialogoFiltrosAbierto(false)}
+              onClick={aplicarFiltrosDialogo}
               className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
             >
               Aplicar Filtros
