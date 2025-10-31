@@ -14,7 +14,7 @@ import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { GestionCatalogoMovil } from '@/componentes/catalogo/gestion-catalogo_movil';
-import { MarkdownRenderer } from '@/componentes/markdown-rendered';
+import { MarkdownRenderer } from '@/componentes/ui/markdown-rendered';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 

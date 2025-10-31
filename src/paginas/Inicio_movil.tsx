@@ -4,7 +4,7 @@ import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { Card, CardContent, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Sparkles, Loader2, TrendingDown } from 'lucide-react';
 import { estadisticasApi, asistenteApi } from '@/lib/api';
-import { MarkdownRenderer } from '@/componentes/markdown-rendered';
+import { MarkdownRenderer } from '@/componentes/ui/markdown-rendered';
 
 interface Transaccion {
   id: number;
