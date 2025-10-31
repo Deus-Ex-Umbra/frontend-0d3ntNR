@@ -71,6 +71,10 @@ export const usuariosApi = {
     const respuesta = await api.put('/usuarios/perfil/cambiar-contrasena', datos);
     return respuesta.data;
   },
+  obtenerTodos: async () => {
+    const respuesta = await api.get('/usuarios');
+    return respuesta.data;
+  },
 };
 
 export const pacientesApi = {

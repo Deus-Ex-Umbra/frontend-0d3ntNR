@@ -45,7 +45,7 @@ import {
   Layers,
   CircleDot
 } from 'lucide-react';
-import { inventarioApi, usuariosApi, finanzasApi } from '@/lib/api';
+import { inventarioApi, usuariosApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Badge } from '@/componentes/ui/badge';
@@ -56,6 +56,12 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/componentes/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
+
+interface Usuario {
+  id: number;
+  nombre: string;
+  correo: string;
+}
 
 interface Inventario {
   id: number;
@@ -143,27 +149,9 @@ interface MovimientoInventario {
   };
 }
 
-interface Lote {
-  id: number;
-  nro_lote: string;
-  fecha_vencimiento: Date;
-  cantidad_actual: number;
-  costo_unitario_compra: number;
-  fecha_compra: Date;
-}
-
-interface Activo {
-  id: number;
-  nro_serie?: string;
-  nombre_asignado?: string;
-  costo_compra: number;
-  fecha_compra: Date;
-  estado: string;
-  ubicacion?: string;
-}
-
 export default function Inventarios() {
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [inventario_seleccionado, setInventarioSeleccionado] = useState<Inventario | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [reporte_valor, setReporteValor] = useState<ReporteValor | null>(null);
@@ -177,12 +165,8 @@ export default function Inventarios() {
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [dialogo_invitar_abierto, setDialogoInvitarAbierto] = useState(false);
   const [dialogo_producto_abierto, setDialogoProductoAbierto] = useState(false);
-  const [dialogo_lote_abierto, setDialogoLoteAbierto] = useState(false);
-  const [dialogo_activo_abierto, setDialogoActivoAbierto] = useState(false);
-  const [dialogo_movimiento_abierto, setDialogoMovimientoAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_producto_abierto, setDialogoConfirmarEliminarProductoAbierto] = useState(false);
   const [dialogo_remover_usuario_abierto, setDialogoRemoverUsuarioAbierto] = useState(false);
-  const [dialogo_compra_abierto, setDialogoCompraAbierto] = useState(false);
   
   const [modo_edicion, setModoEdicion] = useState(false);
   const [modo_edicion_producto, setModoEdicionProducto] = useState(false);
@@ -196,7 +180,6 @@ export default function Inventarios() {
   const [vista_actual, setVistaActual] = useState<'lista' | 'detalle'>('lista');
   const [tab_activo, setTabActivo] = useState<'productos' | 'historial' | 'usuarios'>('productos');
   const [filtro_tipo_producto, setFiltroTipoProducto] = useState<string>('todos');
-  const [vista_inventario, setVistaInventario] = useState<'fisico' | 'valorado'>('fisico');
 
   const [formulario_inventario, setFormularioInventario] = useState({
     nombre: '',
@@ -206,43 +189,17 @@ export default function Inventarios() {
   });
 
   const [formulario_invitar, setFormularioInvitar] = useState({
-    correo_busqueda: '',
-    usuario_id: '',
+    usuarios_ids: [] as number[],
     rol: 'lector',
   });
 
   const [formulario_producto, setFormularioProducto] = useState({
     nombre: '',
     tipo_gestion: 'consumible',
-    stock_minimo: '0',
-    unidad_medida: 'unidad',
+    stock_minimo: '10',
+    unidad_medida: '',
     descripcion: '',
     notificar_stock_bajo: true,
-  });
-
-  const [formulario_lote, setFormularioLote] = useState({
-    nro_lote: '',
-    fecha_vencimiento: undefined as Date | undefined,
-    cantidad_actual: '',
-    costo_unitario_compra: '',
-    fecha_compra: new Date(),
-  });
-
-  const [formulario_activo, setFormularioActivo] = useState({
-    nro_serie: '',
-    nombre_asignado: '',
-    costo_compra: '',
-    fecha_compra: new Date(),
-    estado: 'disponible',
-    ubicacion: '',
-  });
-
-  const [formulario_movimiento, setFormularioMovimiento] = useState({
-    tipo: 'ajuste',
-    cantidad: '',
-    producto_id: '',
-    referencia: '',
-    observaciones: '',
   });
 
   const [formulario_compra, setFormularioCompra] = useState({
@@ -254,23 +211,27 @@ export default function Inventarios() {
     nro_factura: '',
     observaciones: '',
     registrar_egreso_finanzas: true,
+    nro_lote: '',
+    fecha_vencimiento: '',
+    nro_serie: '',
+    nombre_asignado: '',
   });
 
   const visibilidades = [
-    { valor: 'privado', etiqueta: 'Privado', icono: Lock },
-    { valor: 'publico', etiqueta: 'Público', icono: Globe },
+    { valor: 'privado', etiqueta: 'Privado' },
+    { valor: 'publico', etiqueta: 'Público' },
   ];
 
   const roles = [
-    { valor: 'lector', etiqueta: 'Lector', descripcion: 'Solo puede ver' },
-    { valor: 'editor', etiqueta: 'Editor', descripcion: 'Puede editar productos' },
-    { valor: 'administrador', etiqueta: 'Administrador', descripcion: 'Control total' },
+    { valor: 'lector', etiqueta: 'Lector' },
+    { valor: 'editor', etiqueta: 'Editor' },
+    { valor: 'administrador', etiqueta: 'Administrador' },
   ];
 
   const tipos_gestion = [
-    { valor: 'consumible', etiqueta: 'Consumible', descripcion: 'Material que se gasta' },
-    { valor: 'activo_serializado', etiqueta: 'Activo Serializado', descripcion: 'Con número de serie' },
-    { valor: 'activo_general', etiqueta: 'Activo General', descripcion: 'Sin número de serie' },
+    { valor: 'consumible', etiqueta: 'Consumible (Lotes)' },
+    { valor: 'activo_serializado', etiqueta: 'Activo Serializado (Individual)' },
+    { valor: 'activo_general', etiqueta: 'Activo General (Agrupado)' },
   ];
 
   const estados_activo = [
@@ -280,16 +241,9 @@ export default function Inventarios() {
     { valor: 'roto', etiqueta: 'Roto' },
   ];
 
-  const tipos_movimiento = [
-    { valor: 'compra', etiqueta: 'Compra' },
-    { valor: 'ajuste', etiqueta: 'Ajuste' },
-    { valor: 'uso_cita', etiqueta: 'Uso en Cita' },
-    { valor: 'uso_tratamiento', etiqueta: 'Uso en Tratamiento' },
-    { valor: 'devolucion', etiqueta: 'Devolución' },
-  ];
-
   useEffect(() => {
     cargarInventarios();
+    cargarUsuarios();
   }, []);
 
   const cargarInventarios = async () => {
@@ -309,6 +263,45 @@ export default function Inventarios() {
     }
   };
 
+  const cargarUsuarios = async () => {
+    try {
+      const datos = await usuariosApi.obtenerTodos();
+      setUsuarios(datos);
+    } catch (error) {
+      console.error('Error al cargar usuarios:', error);
+    }
+  };
+
+  const verificarStockBajo = (productos: Producto[]) => {
+    const productos_stock_bajo = productos.filter(p => {
+      if (!p.notificar_stock_bajo) return false;
+      
+      const stock_actual = obtenerStockTotal(p);
+      return stock_actual <= p.stock_minimo && stock_actual > 0;
+    });
+
+    const productos_sin_stock = productos.filter(p => {
+      if (!p.notificar_stock_bajo) return false;
+      const stock_actual = obtenerStockTotal(p);
+      return stock_actual === 0;
+    });
+
+    if (productos_sin_stock.length > 0) {
+      toast({
+        title: '⚠️ Productos sin stock',
+        description: `${productos_sin_stock.length} producto(s) sin stock: ${productos_sin_stock.map(p => p.nombre).join(', ')}`,
+        variant: 'destructive',
+      });
+    }
+
+    if (productos_stock_bajo.length > 0) {
+      toast({
+        title: '📉 Stock bajo detectado',
+        description: `${productos_stock_bajo.length} producto(s) con stock bajo: ${productos_stock_bajo.map(p => p.nombre).join(', ')}`,
+      });
+    }
+  };
+
   const cargarDetalleInventario = async (inventario: Inventario) => {
     setCargandoDetalle(true);
     try {
@@ -324,6 +317,8 @@ export default function Inventarios() {
       setReporteValor(reporte);
       setMovimientos(movimientos_data);
       setVistaActual('detalle');
+      
+      verificarStockBajo(productos_data);
     } catch (error) {
       console.error('Error al cargar detalle:', error);
       toast({
@@ -371,24 +366,27 @@ export default function Inventarios() {
 
     setGuardando(true);
     try {
+      const datos = {
+        nombre: formulario_inventario.nombre,
+        visibilidad: formulario_inventario.visibilidad,
+      };
+
       if (modo_edicion && inventario_seleccionado) {
-        await inventarioApi.actualizarInventario(inventario_seleccionado.id, formulario_inventario);
+        await inventarioApi.actualizarInventario(inventario_seleccionado.id, datos);
         toast({
           title: 'Éxito',
           description: 'Inventario actualizado correctamente',
         });
       } else {
-        await inventarioApi.crearInventario(formulario_inventario);
+        await inventarioApi.crearInventario(datos);
         toast({
           title: 'Éxito',
           description: 'Inventario creado correctamente',
         });
       }
+
       setDialogoInventarioAbierto(false);
       await cargarInventarios();
-      if (inventario_seleccionado) {
-        await cargarDetalleInventario(inventario_seleccionado);
-      }
     } catch (error: any) {
       console.error('Error al guardar inventario:', error);
       toast({
@@ -401,12 +399,12 @@ export default function Inventarios() {
     }
   };
 
-  const confirmarEliminarInventario = (inventario: Inventario) => {
+  const abrirDialogoConfirmarEliminar = (inventario: Inventario) => {
     setInventarioAEliminar(inventario);
     setDialogoConfirmarEliminarAbierto(true);
   };
 
-  const manejarEliminarInventario = async () => {
+  const confirmarEliminarInventario = async () => {
     if (!inventario_a_eliminar) return;
 
     try {
@@ -416,10 +414,8 @@ export default function Inventarios() {
         description: 'Inventario eliminado correctamente',
       });
       setDialogoConfirmarEliminarAbierto(false);
+      setInventarioAEliminar(null);
       await cargarInventarios();
-      if (inventario_seleccionado?.id === inventario_a_eliminar.id) {
-        volverALista();
-      }
     } catch (error: any) {
       console.error('Error al eliminar inventario:', error);
       toast({
@@ -430,21 +426,19 @@ export default function Inventarios() {
     }
   };
 
-  const abrirDialogoInvitar = (inventario: Inventario) => {
-    setInventarioSeleccionado(inventario);
+  const abrirDialogoInvitar = () => {
     setFormularioInvitar({
-      correo_busqueda: '',
-      usuario_id: '',
+      usuarios_ids: [],
       rol: 'lector',
     });
     setDialogoInvitarAbierto(true);
   };
 
-  const manejarInvitarUsuario = async () => {
-    if (!inventario_seleccionado || !formulario_invitar.usuario_id) {
+  const manejarInvitarUsuarios = async () => {
+    if (!inventario_seleccionado || formulario_invitar.usuarios_ids.length === 0) {
       toast({
         title: 'Error',
-        description: 'Debes seleccionar un usuario',
+        description: 'Debes seleccionar al menos un usuario',
         variant: 'destructive',
       });
       return;
@@ -452,24 +446,28 @@ export default function Inventarios() {
 
     setGuardando(true);
     try {
-      await inventarioApi.invitarUsuario(inventario_seleccionado.id, {
-        usuario_id: parseInt(formulario_invitar.usuario_id),
-        rol: formulario_invitar.rol,
-      });
+      const promesas = formulario_invitar.usuarios_ids.map(usuario_id =>
+        inventarioApi.invitarUsuario(inventario_seleccionado.id, {
+          usuario_id,
+          rol: formulario_invitar.rol
+        })
+      );
+
+      await Promise.all(promesas);
+
       toast({
         title: 'Éxito',
-        description: 'Usuario invitado correctamente',
+        description: `${formulario_invitar.usuarios_ids.length} usuario(s) invitado(s) correctamente`,
       });
+      
       setDialogoInvitarAbierto(false);
-      await cargarInventarios();
-      if (vista_actual === 'detalle') {
-        await cargarDetalleInventario(inventario_seleccionado);
-      }
+      setFormularioInvitar({ usuarios_ids: [], rol: 'lector' });
+      await cargarDetalleInventario(inventario_seleccionado);
     } catch (error: any) {
-      console.error('Error al invitar usuario:', error);
+      console.error('Error al invitar usuarios:', error);
       toast({
         title: 'Error',
-        description: error.response?.data?.mensaje || 'Error al invitar usuario',
+        description: error.response?.data?.mensaje || 'Error al invitar usuarios',
         variant: 'destructive',
       });
     } finally {
@@ -477,12 +475,12 @@ export default function Inventarios() {
     }
   };
 
-  const confirmarRemoverUsuario = (usuario: any) => {
-    setUsuarioARemover(usuario);
+  const abrirDialogoRemoverUsuario = (permiso: any) => {
+    setUsuarioARemover(permiso);
     setDialogoRemoverUsuarioAbierto(true);
   };
 
-  const manejarRemoverUsuario = async () => {
+  const confirmarRemoverUsuario = async () => {
     if (!inventario_seleccionado || !usuario_a_remover) return;
 
     try {
@@ -492,6 +490,7 @@ export default function Inventarios() {
         description: 'Usuario removido correctamente',
       });
       setDialogoRemoverUsuarioAbierto(false);
+      setUsuarioARemover(null);
       await cargarDetalleInventario(inventario_seleccionado);
     } catch (error: any) {
       console.error('Error al remover usuario:', error);
@@ -507,13 +506,12 @@ export default function Inventarios() {
     setFormularioProducto({
       nombre: '',
       tipo_gestion: 'consumible',
-      stock_minimo: '0',
-      unidad_medida: 'unidad',
+      stock_minimo: '10',
+      unidad_medida: '',
       descripcion: '',
       notificar_stock_bajo: true,
     });
     setModoEdicionProducto(false);
-    setProductoSeleccionado(null);
     setDialogoProductoAbierto(true);
   };
 
@@ -543,19 +541,34 @@ export default function Inventarios() {
 
     setGuardando(true);
     try {
+      const datos_producto = {
+        inventario_id: inventario_seleccionado.id,
+        nombre: formulario_producto.nombre,
+        tipo_gestion: formulario_producto.tipo_gestion,
+        stock_minimo: parseInt(formulario_producto.stock_minimo) || 0,
+        unidad_medida: formulario_producto.unidad_medida || undefined,
+        descripcion: formulario_producto.descripcion || undefined,
+        notificar_stock_bajo: formulario_producto.notificar_stock_bajo,
+      };
+
       if (modo_edicion_producto && producto_seleccionado) {
-        await inventarioApi.actualizarProducto(inventario_seleccionado.id, producto_seleccionado.id, formulario_producto);
+        await inventarioApi.actualizarProducto(
+          inventario_seleccionado.id,
+          producto_seleccionado.id,
+          datos_producto
+        );
         toast({
           title: 'Éxito',
           description: 'Producto actualizado correctamente',
         });
       } else {
-        await inventarioApi.crearProducto(inventario_seleccionado.id, formulario_producto);
+        await inventarioApi.crearProducto(datos_producto);
         toast({
           title: 'Éxito',
           description: 'Producto creado correctamente',
         });
       }
+
       setDialogoProductoAbierto(false);
       await cargarDetalleInventario(inventario_seleccionado);
     } catch (error: any) {
@@ -570,12 +583,12 @@ export default function Inventarios() {
     }
   };
 
-  const confirmarEliminarProducto = (producto: Producto) => {
+  const abrirDialogoConfirmarEliminarProducto = (producto: Producto) => {
     setProductoAEliminar(producto);
     setDialogoConfirmarEliminarProductoAbierto(true);
   };
 
-  const manejarEliminarProducto = async () => {
+  const confirmarEliminarProducto = async () => {
     if (!inventario_seleccionado || !producto_a_eliminar) return;
 
     try {
@@ -585,6 +598,7 @@ export default function Inventarios() {
         description: 'Producto eliminado correctamente',
       });
       setDialogoConfirmarEliminarProductoAbierto(false);
+      setProductoAEliminar(null);
       await cargarDetalleInventario(inventario_seleccionado);
     } catch (error: any) {
       console.error('Error al eliminar producto:', error);
@@ -594,20 +608,6 @@ export default function Inventarios() {
         variant: 'destructive',
       });
     }
-  };
-
-  const abrirDialogoCompra = () => {
-    setFormularioCompra({
-      producto_id: '',
-      cantidad: '',
-      costo_total: '',
-      proveedor: '',
-      fecha_compra: new Date(),
-      nro_factura: '',
-      observaciones: '',
-      registrar_egreso_finanzas: true,
-    });
-    setDialogoCompraAbierto(true);
   };
 
   const manejarRegistrarCompra = async () => {
@@ -622,23 +622,42 @@ export default function Inventarios() {
 
     setGuardando(true);
     try {
-      await inventarioApi.registrarCompra(inventario_seleccionado.id, formulario_compra);
-      
-      if (formulario_compra.registrar_egreso_finanzas) {
-        const producto = productos.find(p => p.id === parseInt(formulario_compra.producto_id));
-        await finanzasApi.registrarEgreso({
-          concepto: `Compra de ${producto?.nombre || 'producto'} - ${formulario_compra.proveedor}`,
-          monto: parseFloat(formulario_compra.costo_total),
-          fecha: formulario_compra.fecha_compra,
-          referencia: formulario_compra.nro_factura,
-        });
-      }
+      const datos_compra = {
+        producto_id: parseInt(formulario_compra.producto_id),
+        cantidad: parseFloat(formulario_compra.cantidad),
+        costo_total: parseFloat(formulario_compra.costo_total),
+        fecha_compra: format(formulario_compra.fecha_compra, 'yyyy-MM-dd'),
+        generar_egreso: formulario_compra.registrar_egreso_finanzas,
+        nro_lote: formulario_compra.nro_lote || undefined,
+        fecha_vencimiento: formulario_compra.fecha_vencimiento || undefined,
+        nro_serie: formulario_compra.nro_serie || undefined,
+        nombre_asignado: formulario_compra.nombre_asignado || undefined,
+      };
+
+      await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
 
       toast({
         title: 'Éxito',
-        description: 'Compra registrada correctamente',
+        description: formulario_compra.registrar_egreso_finanzas
+          ? 'Compra registrada y egreso creado en finanzas'
+          : 'Compra registrada correctamente',
       });
-      setDialogoCompraAbierto(false);
+      
+      setFormularioCompra({
+        producto_id: '',
+        cantidad: '',
+        costo_total: '',
+        proveedor: '',
+        fecha_compra: new Date(),
+        nro_factura: '',
+        observaciones: '',
+        registrar_egreso_finanzas: true,
+        nro_lote: '',
+        fecha_vencimiento: '',
+        nro_serie: '',
+        nombre_asignado: '',
+      });
+      
       await cargarDetalleInventario(inventario_seleccionado);
     } catch (error: any) {
       console.error('Error al registrar compra:', error);
@@ -746,11 +765,6 @@ export default function Inventarios() {
     etiqueta: t.etiqueta,
   }));
 
-  const opciones_estados_activo: OpcionCombobox[] = estados_activo.map(e => ({
-    valor: e.valor,
-    etiqueta: e.etiqueta,
-  }));
-
   const opciones_productos: OpcionCombobox[] = productos.map(p => ({
     valor: p.id.toString(),
     etiqueta: p.nombre,
@@ -795,118 +809,129 @@ export default function Inventarios() {
                     {inventario_seleccionado.visibilidad === 'privado' ? 'Privado' : 'Público'}
                   </Badge>
                 </div>
-                <p className="text-muted-foreground">
-                  Propietario: {inventario_seleccionado.propietario?.nombre}
+                <p className="text-muted-foreground mt-1">
+                  Propietario: {inventario_seleccionado.propietario?.nombre || 'Desconocido'}
                 </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {inventario_seleccionado.es_propietario && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => abrirDialogoEditar(inventario_seleccionado)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={abrirDialogoInvitar}
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Invitar
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 
             {reporte_valor && (
-              <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-                <Card className="border-2 hover:shadow-lg transition-all duration-300">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Valor Total
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-foreground">
-                      ${reporte_valor.valor_total.toLocaleString()}
+              <Card className="border-2">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/10 p-2 rounded-lg">
+                      <BarChart3 className="h-5 w-5 text-primary" />
                     </div>
-                  </CardContent>
-                </Card>
+                    <div>
+                      <CardTitle>Reporte de Valor</CardTitle>
+                      <CardDescription>Resumen financiero del inventario</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 p-4 rounded-lg border border-blue-500/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-muted-foreground">Consumibles</span>
+                          <Layers className="h-4 w-4 text-blue-500" />
+                        </div>
+                        <p className="text-2xl font-bold text-foreground">
+                          ${reporte_valor.valor_consumibles.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {reporte_valor.cantidad_lotes} lotes
+                        </p>
+                      </div>
 
-                <Card className="border-2 hover:shadow-lg transition-all duration-300">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <Package className="h-4 w-4" />
-                      Consumibles
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-purple-600">
-                      ${reporte_valor.valor_consumibles.toLocaleString()}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {reporte_valor.cantidad_lotes} lotes
-                    </p>
-                  </CardContent>
-                </Card>
+                      <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 p-4 rounded-lg border border-cyan-500/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-muted-foreground">Activos</span>
+                          <Box className="h-4 w-4 text-cyan-500" />
+                        </div>
+                        <p className="text-2xl font-bold text-foreground">
+                          ${reporte_valor.valor_activos.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {reporte_valor.cantidad_activos} activos
+                        </p>
+                      </div>
 
-                <Card className="border-2 hover:shadow-lg transition-all duration-300">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <Box className="h-4 w-4" />
-                      Activos
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-blue-600">
-                      ${reporte_valor.valor_activos.toLocaleString()}
+                      <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 p-4 rounded-lg border border-green-500/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-muted-foreground">Valor Total</span>
+                          <DollarSign className="h-4 w-4 text-green-500" />
+                        </div>
+                        <p className="text-2xl font-bold text-foreground">
+                          ${reporte_valor.valor_total.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Inventario completo
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {reporte_valor.cantidad_activos} activos
-                    </p>
-                  </CardContent>
-                </Card>
 
-                <Card className="border-2 hover:shadow-lg transition-all duration-300 bg-green-500/5">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      Disponibles
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600">
-                      {reporte_valor.desglose_activos_por_estado.disponible}
-                    </div>
-                  </CardContent>
-                </Card>
+                    <div>
+                      <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Desglose de Activos por Estado</h4>
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="bg-secondary/30 p-3 rounded-lg border">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                            <span className="text-xs font-medium">Disponible</span>
+                          </div>
+                          <p className="text-xl font-bold">{reporte_valor.desglose_activos_por_estado.disponible}</p>
+                        </div>
 
-                <Card className="border-2 hover:shadow-lg transition-all duration-300 bg-blue-500/5">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <CircleDot className="h-4 w-4 text-blue-600" />
-                      En Uso
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {reporte_valor.desglose_activos_por_estado.en_uso}
-                    </div>
-                  </CardContent>
-                </Card>
+                        <div className="bg-secondary/30 p-3 rounded-lg border">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock className="h-3.5 w-3.5 text-blue-500" />
+                            <span className="text-xs font-medium">En Uso</span>
+                          </div>
+                          <p className="text-xl font-bold">{reporte_valor.desglose_activos_por_estado.en_uso}</p>
+                        </div>
 
-                <Card className="border-2 hover:shadow-lg transition-all duration-300 bg-amber-500/5">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-amber-600" />
-                      Mantenimiento
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-amber-600">
-                      {reporte_valor.desglose_activos_por_estado.en_mantenimiento}
-                    </div>
-                  </CardContent>
-                </Card>
+                        <div className="bg-secondary/30 p-3 rounded-lg border">
+                          <div className="flex items-center gap-2 mb-1">
+                            <AlertTriangle className="h-3.5 w-3.5 text-yellow-500" />
+                            <span className="text-xs font-medium">Mantenimiento</span>
+                          </div>
+                          <p className="text-xl font-bold">{reporte_valor.desglose_activos_por_estado.en_mantenimiento}</p>
+                        </div>
 
-                <Card className="border-2 hover:shadow-lg transition-all duration-300 bg-red-500/5">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <XCircle className="h-4 w-4 text-red-600" />
-                      Rotos
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600">
-                      {reporte_valor.desglose_activos_por_estado.roto}
+                        <div className="bg-secondary/30 p-3 rounded-lg border">
+                          <div className="flex items-center gap-2 mb-1">
+                            <XCircle className="h-3.5 w-3.5 text-red-500" />
+                            <span className="text-xs font-medium">Roto</span>
+                          </div>
+                          <p className="text-xl font-bold">{reporte_valor.desglose_activos_por_estado.roto}</p>
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             <Tabs value={tab_activo} onValueChange={(v) => setTabActivo(v as any)} className="w-full">
@@ -931,266 +956,220 @@ export default function Inventarios() {
                           </CardDescription>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={abrirDialogoCompra}
-                          className="hover:bg-green-500/10 hover:border-green-500"
-                        >
-                          <ShoppingCart className="h-4 w-4 mr-2" />
-                          Registrar Compra
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={abrirDialogoNuevoProducto}
-                          className="hover:shadow-lg"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Nuevo Producto
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        onClick={abrirDialogoNuevoProducto}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nuevo Producto
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       <div className="flex-1">
                         <SearchInput
                           valor={busqueda_productos}
                           onChange={setBusquedaProductos}
-                          placeholder="Buscar producto..."
+                          placeholder="Buscar productos..."
                         />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-sm whitespace-nowrap">Tipo:</Label>
-                        <Select value={filtro_tipo_producto} onValueChange={setFiltroTipoProducto}>
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Filtrar por tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="todos">Todos</SelectItem>
-                            <SelectItem value="consumible">Consumibles</SelectItem>
-                            <SelectItem value="activo_serializado">Activos Serializados</SelectItem>
-                            <SelectItem value="activo_general">Activos Generales</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant={vista_inventario === 'fisico' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setVistaInventario('fisico')}
-                        >
-                          <Box className="h-4 w-4 mr-1" />
-                          Físico
-                        </Button>
-                        <Button
-                          variant={vista_inventario === 'valorado' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setVistaInventario('valorado')}
-                        >
-                          <DollarSign className="h-4 w-4 mr-1" />
-                          Valorado
-                        </Button>
-                      </div>
+                      <Select value={filtro_tipo_producto} onValueChange={setFiltroTipoProducto}>
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">Todos los tipos</SelectItem>
+                          <SelectItem value="consumible">Consumibles</SelectItem>
+                          <SelectItem value="activo_serializado">Activos Serializados</SelectItem>
+                          <SelectItem value="activo_general">Activos Generales</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="compra" className="border rounded-lg">
+                        <AccordionTrigger className="px-4 hover:no-underline hover:bg-green-500/10">
+                          <div className="flex items-center gap-2">
+                            <ShoppingCart className="h-5 w-5 text-green-600" />
+                            <span className="font-semibold">Registrar Compra</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4 space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="producto_compra">Producto *</Label>
+                              <Combobox
+                                opciones={opciones_productos}
+                                valor={formulario_compra.producto_id}
+                                onChange={(valor) => setFormularioCompra({ ...formulario_compra, producto_id: valor })}
+                                placeholder="Selecciona un producto"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="cantidad_compra">Cantidad *</Label>
+                              <Input
+                                id="cantidad_compra"
+                                type="number"
+                                value={formulario_compra.cantidad}
+                                onChange={(e) => setFormularioCompra({ ...formulario_compra, cantidad: e.target.value })}
+                                placeholder="0"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="costo_total">Costo Total *</Label>
+                              <Input
+                                id="costo_total"
+                                type="number"
+                                step="0.01"
+                                value={formulario_compra.costo_total}
+                                onChange={(e) => setFormularioCompra({ ...formulario_compra, costo_total: e.target.value })}
+                                placeholder="0.00"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="fecha_compra">Fecha de Compra</Label>
+                              <DatePicker
+                                valor={formulario_compra.fecha_compra}
+                                onChange={(fecha) => setFormularioCompra({ ...formulario_compra, fecha_compra: fecha || new Date() })}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="proveedor">Proveedor</Label>
+                              <Input
+                                id="proveedor"
+                                value={formulario_compra.proveedor}
+                                onChange={(e) => setFormularioCompra({ ...formulario_compra, proveedor: e.target.value })}
+                                placeholder="Nombre del proveedor"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="nro_factura">Nro. Factura</Label>
+                              <Input
+                                id="nro_factura"
+                                value={formulario_compra.nro_factura}
+                                onChange={(e) => setFormularioCompra({ ...formulario_compra, nro_factura: e.target.value })}
+                                placeholder="Opcional"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="observaciones_compra">Observaciones</Label>
+                            <Textarea
+                              id="observaciones_compra"
+                              value={formulario_compra.observaciones}
+                              onChange={(e) => setFormularioCompra({ ...formulario_compra, observaciones: e.target.value })}
+                              placeholder="Notas adicionales..."
+                              rows={2}
+                            />
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              id="registrar_egreso"
+                              checked={formulario_compra.registrar_egreso_finanzas}
+                              onCheckedChange={(checked) =>
+                                setFormularioCompra({ ...formulario_compra, registrar_egreso_finanzas: checked })
+                              }
+                            />
+                            <Label htmlFor="registrar_egreso" className="cursor-pointer">
+                              Registrar egreso en finanzas
+                            </Label>
+                          </div>
+
+                          <Button
+                            onClick={manejarRegistrarCompra}
+                            disabled={guardando}
+                            className="w-full"
+                          >
+                            {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Confirmar Compra
+                          </Button>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+
                     {productos_filtrados.length === 0 ? (
-                      <div className="text-center py-12 space-y-4">
-                        <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center">
-                          <AlertCircle className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-semibold">
-                            {busqueda_productos ? 'No se encontraron productos' : 'No hay productos registrados'}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {busqueda_productos
-                              ? 'Intenta con otros términos de búsqueda'
-                              : 'Comienza agregando productos a tu inventario'
-                            }
-                          </p>
-                        </div>
+                      <div className="text-center py-12">
+                        <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No hay productos registrados</p>
                       </div>
                     ) : (
-                      <Accordion type="single" collapsible className="w-full space-y-2">
-                        {productos_filtrados.map((producto) => {
-                          const stock_total = obtenerStockTotal(producto);
-                          const valor_total = obtenerValorTotal(producto);
-                          const stock_bajo = stock_total < producto.stock_minimo;
+                      <ScrollArea className="h-[400px]">
+                        <div className="space-y-3">
+                          {productos_filtrados.map((producto) => {
+                            const stock_total = obtenerStockTotal(producto);
+                            const stock_bajo = producto.notificar_stock_bajo && stock_total <= producto.stock_minimo;
 
-                          return (
-                            <AccordionItem
-                              key={producto.id}
-                              value={`producto-${producto.id}`}
-                              className="border-2 rounded-lg px-4"
-                            >
-                              <AccordionTrigger className="hover:no-underline">
-                                <div className="flex items-center justify-between w-full pr-4">
-                                  <div className="flex items-center gap-3">
-                                    <Badge className={obtenerColorTipoGestion(producto.tipo_gestion)}>
-                                      {obtenerEtiquetaTipoGestion(producto.tipo_gestion)}
-                                    </Badge>
-                                    <div className="text-left">
-                                      <div className="font-semibold">{producto.nombre}</div>
-                                      {producto.descripcion && (
-                                        <div className="text-xs text-muted-foreground">
-                                          {producto.descripcion}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-6">
-                                    {vista_inventario === 'fisico' ? (
-                                      <div className="text-right">
-                                        <div className="text-sm font-medium">
-                                          Stock: {stock_total} {producto.unidad_medida}
-                                        </div>
+                            return (
+                              <Card key={producto.id} className={`border hover:shadow-md transition-all duration-200 ${stock_bajo ? 'border-yellow-500/50 bg-yellow-500/5' : ''}`}>
+                                <CardContent className="p-4">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1 space-y-2">
+                                      <div className="flex items-center gap-3">
+                                        <h3 className="font-semibold text-lg">{producto.nombre}</h3>
+                                        <Badge className={obtenerColorTipoGestion(producto.tipo_gestion)}>
+                                          {obtenerEtiquetaTipoGestion(producto.tipo_gestion)}
+                                        </Badge>
                                         {stock_bajo && (
-                                          <Badge variant="destructive" className="text-xs">
-                                            <AlertTriangle className="h-3 w-3 mr-1" />
+                                          <Badge variant="destructive" className="flex items-center gap-1">
+                                            <AlertTriangle className="h-3 w-3" />
                                             Stock Bajo
                                           </Badge>
                                         )}
                                       </div>
-                                    ) : (
-                                      <div className="text-right">
-                                        <div className="text-sm font-medium">
-                                          Valor: ${valor_total.toLocaleString()}
+                                      
+                                      <div className="grid grid-cols-4 gap-4 text-sm">
+                                        <div>
+                                          <p className="text-muted-foreground">Stock Actual</p>
+                                          <p className="font-semibold">{stock_total}</p>
                                         </div>
-                                        <div className="text-xs text-muted-foreground">
-                                          {stock_total} unidades
+                                        <div>
+                                          <p className="text-muted-foreground">Stock Mínimo</p>
+                                          <p className="font-semibold">{producto.stock_minimo}</p>
                                         </div>
+                                        <div>
+                                          <p className="text-muted-foreground">Valor Total</p>
+                                          <p className="font-semibold">${obtenerValorTotal(producto).toFixed(2)}</p>
+                                        </div>
+                                        {producto.tipo_gestion !== 'consumible' && (
+                                          <div>
+                                            <p className="text-muted-foreground">Disponibles</p>
+                                            <p className="font-semibold">{obtenerActivosDisponibles(producto)}</p>
+                                          </div>
+                                        )}
                                       </div>
-                                    )}
-                                    <div className="flex items-center gap-1">
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
                                       <Button
-                                        size="icon"
                                         variant="ghost"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          abrirDialogoEditarProducto(producto);
-                                        }}
-                                        className="h-8 w-8"
+                                        size="icon"
+                                        onClick={() => abrirDialogoEditarProducto(producto)}
                                       >
                                         <Edit className="h-4 w-4" />
                                       </Button>
                                       <Button
-                                        size="icon"
                                         variant="ghost"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          confirmarEliminarProducto(producto);
-                                        }}
-                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                        size="icon"
+                                        onClick={() => abrirDialogoConfirmarEliminarProducto(producto)}
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </div>
                                   </div>
-                                </div>
-                              </AccordionTrigger>
-                              <AccordionContent className="pt-4">
-                                {producto.tipo_gestion === 'consumible' ? (
-                                  <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                      <h4 className="font-semibold">Lotes</h4>
-                                      <Button size="sm" variant="outline">
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Agregar Lote
-                                      </Button>
-                                    </div>
-                                    {producto.lotes && producto.lotes.length > 0 ? (
-                                      <Table>
-                                        <TableHeader>
-                                          <TableRow>
-                                            <TableHead>Nro. Lote</TableHead>
-                                            <TableHead>Cantidad</TableHead>
-                                            <TableHead>Costo Unit.</TableHead>
-                                            <TableHead>Valor Total</TableHead>
-                                            <TableHead>Vencimiento</TableHead>
-                                          </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                          {producto.lotes.map((lote) => (
-                                            <TableRow key={lote.id}>
-                                              <TableCell className="font-medium">{lote.nro_lote}</TableCell>
-                                              <TableCell>{lote.cantidad_actual}</TableCell>
-                                              <TableCell>${lote.costo_unitario_compra.toFixed(2)}</TableCell>
-                                              <TableCell>
-                                                ${(lote.cantidad_actual * lote.costo_unitario_compra).toFixed(2)}
-                                              </TableCell>
-                                              <TableCell>
-                                                {format(new Date(lote.fecha_vencimiento), 'dd/MM/yyyy', { locale: es })}
-                                              </TableCell>
-                                            </TableRow>
-                                          ))}
-                                        </TableBody>
-                                      </Table>
-                                    ) : (
-                                      <p className="text-sm text-muted-foreground text-center py-4">
-                                        No hay lotes registrados
-                                      </p>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                      <h4 className="font-semibold">Activos</h4>
-                                      <Button size="sm" variant="outline">
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Agregar Activo
-                                      </Button>
-                                    </div>
-                                    {producto.activos && producto.activos.length > 0 ? (
-                                      <Table>
-                                        <TableHeader>
-                                          <TableRow>
-                                            {producto.tipo_gestion === 'activo_serializado' && (
-                                              <TableHead>Nro. Serie</TableHead>
-                                            )}
-                                            <TableHead>Nombre</TableHead>
-                                            <TableHead>Estado</TableHead>
-                                            <TableHead>Ubicación</TableHead>
-                                            <TableHead>Costo</TableHead>
-                                            <TableHead>Fecha Compra</TableHead>
-                                          </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                          {producto.activos.map((activo) => (
-                                            <TableRow key={activo.id}>
-                                              {producto.tipo_gestion === 'activo_serializado' && (
-                                                <TableCell className="font-mono text-xs">{activo.nro_serie}</TableCell>
-                                              )}
-                                              <TableCell>{activo.nombre_asignado}</TableCell>
-                                              <TableCell>
-                                                <Badge
-                                                  variant={activo.estado === 'disponible' ? 'default' : 'secondary'}
-                                                >
-                                                  {activo.estado}
-                                                </Badge>
-                                              </TableCell>
-                                              <TableCell>{activo.ubicacion || '-'}</TableCell>
-                                              <TableCell>${activo.costo_compra.toFixed(2)}</TableCell>
-                                              <TableCell>
-                                                {format(new Date(activo.fecha_compra), 'dd/MM/yyyy', { locale: es })}
-                                              </TableCell>
-                                            </TableRow>
-                                          ))}
-                                        </TableBody>
-                                      </Table>
-                                    ) : (
-                                      <p className="text-sm text-muted-foreground text-center py-4">
-                                        No hay activos registrados
-                                      </p>
-                                    )}
-                                  </div>
-                                )}
-                              </AccordionContent>
-                            </AccordionItem>
-                          );
-                        })}
-                      </Accordion>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
                     )}
                   </CardContent>
                 </Card>
@@ -1205,24 +1184,15 @@ export default function Inventarios() {
                       </div>
                       <div>
                         <CardTitle>Historial de Movimientos</CardTitle>
-                        <CardDescription>
-                          Registro de todas las operaciones del inventario
-                        </CardDescription>
+                        <CardDescription>{movimientos.length} movimientos registrados</CardDescription>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     {movimientos.length === 0 ? (
-                      <div className="text-center py-12 space-y-4">
-                        <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center">
-                          <History className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-semibold">Sin movimientos</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Los movimientos del inventario aparecerán aquí
-                          </p>
-                        </div>
+                      <div className="text-center py-12">
+                        <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No hay movimientos registrados</p>
                       </div>
                     ) : (
                       <ScrollArea className="h-[500px]">
@@ -1230,33 +1200,27 @@ export default function Inventarios() {
                           <TableHeader>
                             <TableRow>
                               <TableHead>Fecha</TableHead>
-                              <TableHead>Tipo</TableHead>
                               <TableHead>Producto</TableHead>
+                              <TableHead>Tipo</TableHead>
                               <TableHead>Cantidad</TableHead>
-                              <TableHead>Stock Anterior</TableHead>
-                              <TableHead>Stock Nuevo</TableHead>
                               <TableHead>Usuario</TableHead>
-                              <TableHead>Referencia</TableHead>
+                              <TableHead>Observaciones</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {movimientos.map((mov) => (
-                              <TableRow key={mov.id}>
-                                <TableCell className="text-xs">
-                                  {format(new Date(mov.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
-                                </TableCell>
+                            {movimientos.map((movimiento) => (
+                              <TableRow key={movimiento.id}>
                                 <TableCell>
-                                  <Badge variant="outline">{mov.tipo}</Badge>
+                                  {format(new Date(movimiento.fecha), "dd 'de' MMMM, yyyy", { locale: es })}
                                 </TableCell>
-                                <TableCell>{mov.producto.nombre}</TableCell>
-                                <TableCell className={mov.cantidad > 0 ? 'text-green-600' : 'text-red-600'}>
-                                  {mov.cantidad > 0 ? '+' : ''}{mov.cantidad}
+                                <TableCell className="font-medium">{movimiento.producto.nombre}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">{movimiento.tipo}</Badge>
                                 </TableCell>
-                                <TableCell>{mov.stock_anterior}</TableCell>
-                                <TableCell>{mov.stock_nuevo}</TableCell>
-                                <TableCell>{mov.usuario.nombre}</TableCell>
-                                <TableCell className="text-xs text-muted-foreground">
-                                  {mov.referencia || '-'}
+                                <TableCell>{movimiento.cantidad}</TableCell>
+                                <TableCell>{movimiento.usuario.nombre}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {movimiento.observaciones || '-'}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -1271,75 +1235,62 @@ export default function Inventarios() {
               <TabsContent value="usuarios" className="space-y-4">
                 <Card className="border-2">
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary/10 p-2 rounded-lg">
-                          <Users className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle>Usuarios con Acceso</CardTitle>
-                          <CardDescription>
-                            Gestiona los permisos de acceso al inventario
-                          </CardDescription>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-lg">
+                        <Users className="h-5 w-5 text-primary" />
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => abrirDialogoInvitar(inventario_seleccionado)}
-                      >
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Invitar Usuario
-                      </Button>
+                      <div>
+                        <CardTitle>Usuarios con Acceso</CardTitle>
+                        <CardDescription>
+                          {inventario_seleccionado.permisos?.length || 0} usuarios invitados
+                        </CardDescription>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Usuario</TableHead>
-                          <TableHead>Correo</TableHead>
-                          <TableHead>Rol</TableHead>
-                          <TableHead>Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell className="font-medium">
-                            {inventario_seleccionado.propietario?.nombre}
-                          </TableCell>
-                          <TableCell>{inventario_seleccionado.propietario?.correo}</TableCell>
-                          <TableCell>
-                            <Badge className="bg-amber-500">
-                              <Shield className="h-3 w-3 mr-1" />
-                              Propietario
-                            </Badge>
-                          </TableCell>
-                          <TableCell>-</TableCell>
-                        </TableRow>
-                        {inventario_seleccionado.permisos?.map((permiso) => (
-                          <TableRow key={permiso.id}>
-                            <TableCell className="font-medium">
-                              {permiso.usuario_invitado.nombre}
-                            </TableCell>
-                            <TableCell>{permiso.usuario_invitado.correo}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{permiso.rol}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => confirmarRemoverUsuario(permiso)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Remover
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                    {!inventario_seleccionado.permisos || inventario_seleccionado.permisos.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No hay usuarios invitados</p>
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[500px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Usuario</TableHead>
+                              <TableHead>Correo</TableHead>
+                              <TableHead>Rol</TableHead>
+                              <TableHead>Acciones</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {inventario_seleccionado.permisos.map((permiso) => (
+                              <TableRow key={permiso.id}>
+                                <TableCell className="font-medium">
+                                  {permiso.usuario_invitado.nombre}
+                                </TableCell>
+                                <TableCell>{permiso.usuario_invitado.correo}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">{permiso.rol}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {inventario_seleccionado.es_propietario && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => abrirDialogoRemoverUsuario(permiso)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1347,167 +1298,111 @@ export default function Inventarios() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
-                Inventarios
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                Gestiona tus inventarios y productos
-              </p>
-            </div>
-
-            <Button
-              size="lg"
-              className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-              onClick={abrirDialogoNuevo}
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Nuevo Inventario
-            </Button>
-          </div>
-
-          <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-            <CardHeader>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-8">
+            <div className="max-w-7xl mx-auto space-y-8">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                    <Package className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">Mis Inventarios</CardTitle>
-                    <CardDescription>
-                      {inventarios_filtrados.length} de {inventarios.length} inventarios
-                      {busqueda_inventarios && ' (filtrados)'}
-                    </CardDescription>
-                  </div>
+                <div>
+                  <h1 className="text-4xl font-bold text-foreground tracking-tight">
+                    Inventarios
+                  </h1>
+                  <p className="text-muted-foreground mt-2">
+                    Gestiona tus inventarios, productos y materiales
+                  </p>
                 </div>
-                <div className="w-80">
+                <Button onClick={abrirDialogoNuevo}>
+                  <Plus className="h-5 w-5 mr-2" />
+                  Nuevo Inventario
+                </Button>
+              </div>
+
+              <Card className="border-2">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-lg">
+                        <Package className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle>Mis Inventarios</CardTitle>
+                        <CardDescription>
+                          {inventarios_filtrados.length} de {inventarios.length} inventarios
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <SearchInput
                     valor={busqueda_inventarios}
                     onChange={setBusquedaInventarios}
-                    placeholder="Buscar inventario..."
+                    placeholder="Buscar inventarios..."
                   />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {inventarios_filtrados.length === 0 ? (
-                <div className="text-center py-12 space-y-4">
-                  <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-12 transition-all duration-300">
-                    <AlertCircle className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {busqueda_inventarios 
-                        ? 'No se encontraron inventarios'
-                        : 'No tienes inventarios registrados'
-                      }
-                    </h3>
-                    <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                      {busqueda_inventarios
-                        ? 'Intenta con otros términos de búsqueda'
-                        : 'Comienza creando tu primer inventario para gestionar productos'
-                      }
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {inventarios_filtrados.map((inventario) => {
-                    const IconoVisibilidad = obtenerIconoVisibilidad(inventario.visibilidad);
-                    
-                    return (
-                      <div
-                        key={inventario.id}
-                        className="border-2 border-border rounded-lg p-4 hover:shadow-lg hover:border-primary/50 transition-all duration-200 group"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div 
-                            className="flex-1 flex items-center gap-4 cursor-pointer"
-                            onClick={() => {
-                              setInventarioSeleccionado(inventario);
-                              cargarDetalleInventario(inventario);
-                            }}
+
+                  {inventarios_filtrados.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-lg font-medium text-foreground mb-2">
+                        No hay inventarios disponibles
+                      </p>
+                      <p className="text-muted-foreground mb-6">
+                        Crea tu primer inventario para comenzar
+                      </p>
+                      <Button onClick={abrirDialogoNuevo}>
+                        <Plus className="h-5 w-5 mr-2" />
+                        Crear Inventario
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {inventarios_filtrados.map((inventario) => {
+                        const IconoVisibilidad = obtenerIconoVisibilidad(inventario.visibilidad);
+                        
+                        return (
+                          <Card
+                            key={inventario.id}
+                            className="border hover:shadow-lg transition-all duration-200 cursor-pointer group"
+                            onClick={() => cargarDetalleInventario(inventario)}
                           >
-                            <div className="bg-primary/10 p-3 rounded-lg group-hover:scale-110 transition-transform duration-200">
-                              <Package className="h-6 w-6 text-primary" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
-                                  {inventario.nombre}
-                                </h3>
-                                <Badge variant={inventario.visibilidad === 'privado' ? 'secondary' : 'default'}>
-                                  <IconoVisibilidad className="h-3 w-3 mr-1" />
-                                  {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
-                                </Badge>
-                                {inventario.es_propietario && (
-                                  <Badge className="bg-amber-500">
-                                    <Shield className="h-3 w-3 mr-1" />
-                                    Propietario
-                                  </Badge>
-                                )}
+                            <CardContent className="p-6">
+                              <div className="space-y-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="space-y-1 flex-1">
+                                    <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                                      {inventario.nombre}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                      {inventario.propietario?.nombre || 'Sin propietario'}
+                                    </p>
+                                  </div>
+                                  <IconoVisibilidad className="h-5 w-5 text-muted-foreground" />
+                                </div>
+
+                                <div className="flex items-center justify-between pt-4 border-t">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant={inventario.visibilidad === 'privado' ? 'secondary' : 'default'}>
+                                      {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
+                                    </Badge>
+                                    {inventario.es_propietario && (
+                                      <Badge variant="outline">Propietario</Badge>
+                                    )}
+                                  </div>
+                                  <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                                </div>
                               </div>
-                              <p className="text-sm text-muted-foreground">
-                                Propietario: {inventario.propietario?.nombre}
-                              </p>
-                              {inventario.permisos && inventario.permisos.length > 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                  <Users className="h-3 w-3 inline mr-1" />
-                                  {inventario.permisos.length} usuario{inventario.permisos.length > 1 ? 's' : ''} con acceso
-                                </p>
-                              )}
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                          </div>
-                          
-                          <div className="flex items-center gap-2 ml-4">
-                            {inventario.es_propietario && (
-                              <>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => abrirDialogoInvitar(inventario)}
-                                  className="hover:bg-blue-500/10 hover:scale-110 transition-all"
-                                  title="Invitar usuarios"
-                                >
-                                  <UserPlus className="h-4 w-4 text-blue-600" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => abrirDialogoEditar(inventario)}
-                                  className="hover:bg-primary/10 hover:scale-110 transition-all"
-                                  title="Editar inventario"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => confirmarEliminarInventario(inventario)}
-                                  className="hover:bg-destructive/10 hover:scale-110 transition-all text-destructive"
-                                  title="Eliminar inventario"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Diálogos compartidos entre ambas vistas */}
       <Dialog open={dialogo_inventario_abierto} onOpenChange={setDialogoInventarioAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -1515,64 +1410,30 @@ export default function Inventarios() {
               {modo_edicion ? 'Editar Inventario' : 'Nuevo Inventario'}
             </DialogTitle>
             <DialogDescription>
-              {modo_edicion 
+              {modo_edicion
                 ? 'Modifica la información del inventario'
-                : 'Crea un nuevo inventario para gestionar productos'
-              }
+                : 'Crea un nuevo inventario para gestionar tus productos'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="nombre">Nombre del Inventario *</Label>
+              <Label htmlFor="nombre">Nombre *</Label>
               <Input
                 id="nombre"
                 value={formulario_inventario.nombre}
                 onChange={(e) => setFormularioInventario({ ...formulario_inventario, nombre: e.target.value })}
-                placeholder="Ej: Inventario Principal, Materiales Dentales"
+                placeholder="Ej: Inventario Principal"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="descripcion">Descripción (opcional)</Label>
-              <Textarea
-                id="descripcion"
-                value={formulario_inventario.descripcion}
-                onChange={(e) => setFormularioInventario({ ...formulario_inventario, descripcion: e.target.value })}
-                placeholder="Describe el propósito del inventario..."
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="visibilidad">Visibilidad</Label>
+              <Label htmlFor="visibilidad">Visibilidad *</Label>
               <Combobox
                 opciones={opciones_visibilidad}
                 valor={formulario_inventario.visibilidad}
                 onChange={(valor) => setFormularioInventario({ ...formulario_inventario, visibilidad: valor })}
-                placeholder="Selecciona visibilidad"
-              />
-              <p className="text-xs text-muted-foreground">
-                {formulario_inventario.visibilidad === 'privado' 
-                  ? 'Solo tú y los usuarios invitados pueden ver este inventario'
-                  : 'Este inventario será visible para todos los usuarios'
-                }
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="space-y-0.5">
-                <Label htmlFor="permitir_stock_negativo">Permitir Stock Negativo</Label>
-                <p className="text-xs text-muted-foreground">
-                  Permite registrar ventas o usos aunque no haya stock suficiente
-                </p>
-              </div>
-              <Switch
-                id="permitir_stock_negativo"
-                checked={formulario_inventario.permitir_stock_negativo}
-                onCheckedChange={(checked) => 
-                  setFormularioInventario({ ...formulario_inventario, permitir_stock_negativo: checked })
-                }
+                placeholder="Selecciona la visibilidad"
               />
             </div>
           </div>
@@ -1581,14 +1442,10 @@ export default function Inventarios() {
             <Button
               variant="outline"
               onClick={() => setDialogoInventarioAbierto(false)}
-              disabled={guardando}
             >
               Cancelar
             </Button>
-            <Button 
-              onClick={manejarGuardarInventario} 
-              disabled={guardando}
-            >
+            <Button onClick={manejarGuardarInventario} disabled={guardando}>
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {modo_edicion ? 'Actualizar' : 'Crear'}
             </Button>
@@ -1597,15 +1454,11 @@ export default function Inventarios() {
       </Dialog>
 
       <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              Confirmar Eliminación
-            </DialogTitle>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas eliminar el inventario <strong>{inventario_a_eliminar?.nombre}</strong>?
-              Esta acción no se puede deshacer y eliminará todos los productos asociados.
+              ¿Estás seguro de que deseas eliminar el inventario "{inventario_a_eliminar?.nombre}"? Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1615,10 +1468,7 @@ export default function Inventarios() {
             >
               Cancelar
             </Button>
-            <Button
-              variant="destructive"
-              onClick={manejarEliminarInventario}
-            >
+            <Button variant="destructive" onClick={confirmarEliminarInventario}>
               Eliminar
             </Button>
           </DialogFooter>
@@ -1628,29 +1478,56 @@ export default function Inventarios() {
       <Dialog open={dialogo_invitar_abierto} onOpenChange={setDialogoInvitarAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Invitar Usuario al Inventario</DialogTitle>
+            <DialogTitle>Invitar Usuarios</DialogTitle>
             <DialogDescription>
-              Comparte el acceso a tu inventario con otros usuarios
+              Agrega usuarios al inventario "{inventario_seleccionado?.nombre}"
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="usuario">Usuario *</Label>
-              <Input
-                id="usuario"
-                placeholder="Buscar por correo o nombre..."
-                value={formulario_invitar.correo_busqueda}
-                onChange={(e) => setFormularioInvitar({ ...formulario_invitar, correo_busqueda: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Por ahora, deberás ingresar el ID del usuario manualmente
-              </p>
-              <Input
-                type="number"
-                placeholder="ID del usuario"
-                value={formulario_invitar.usuario_id}
-                onChange={(e) => setFormularioInvitar({ ...formulario_invitar, usuario_id: e.target.value })}
+              <Label>Usuarios Invitados</Label>
+              <div className="flex flex-wrap gap-2 mb-2 min-h-[40px] p-2 border rounded-md">
+                {formulario_invitar.usuarios_ids.length === 0 ? (
+                  <span className="text-sm text-muted-foreground">No hay usuarios seleccionados</span>
+                ) : (
+                  formulario_invitar.usuarios_ids.map((usuario_id) => {
+                    const usuario = usuarios.find(u => u.id === usuario_id);
+                    return usuario ? (
+                      <Badge
+                        key={usuario_id}
+                        variant="secondary"
+                        className="cursor-pointer hover:bg-secondary/80 hover:text-destructive transition-all duration-200"
+                        onClick={() => {
+                          setFormularioInvitar({
+                            ...formulario_invitar,
+                            usuarios_ids: formulario_invitar.usuarios_ids.filter(id => id !== usuario_id)
+                          });
+                        }}
+                      >
+                        {usuario.correo} ×
+                      </Badge>
+                    ) : null;
+                  })
+                )}
+              </div>
+              <Combobox
+                opciones={usuarios
+                  .filter(u => !formulario_invitar.usuarios_ids.includes(u.id))
+                  .map(u => ({
+                    valor: u.id.toString(),
+                    etiqueta: u.correo
+                  }))}
+                valor=""
+                onChange={(valor) => {
+                  if (valor) {
+                    setFormularioInvitar({
+                      ...formulario_invitar,
+                      usuarios_ids: [...formulario_invitar.usuarios_ids, parseInt(valor)]
+                    });
+                  }
+                }}
+                placeholder="Seleccionar usuario por correo"
               />
             </div>
 
@@ -1662,16 +1539,6 @@ export default function Inventarios() {
                 onChange={(valor) => setFormularioInvitar({ ...formulario_invitar, rol: valor })}
                 placeholder="Selecciona un rol"
               />
-              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <p className="text-xs text-blue-600 dark:text-blue-400">
-                  {formulario_invitar.rol === 'lector' 
-                    ? 'Solo puede visualizar el inventario'
-                    : formulario_invitar.rol === 'editor'
-                    ? 'Puede agregar, editar y eliminar productos'
-                    : 'Tiene control total sobre el inventario'
-                  }
-                </p>
-              </div>
             </div>
           </div>
 
@@ -1679,16 +1546,37 @@ export default function Inventarios() {
             <Button
               variant="outline"
               onClick={() => setDialogoInvitarAbierto(false)}
-              disabled={guardando}
             >
               Cancelar
             </Button>
-            <Button 
-              onClick={manejarInvitarUsuario} 
-              disabled={guardando}
+            <Button
+              onClick={manejarInvitarUsuarios}
+              disabled={guardando || formulario_invitar.usuarios_ids.length === 0}
             >
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Invitar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_remover_usuario_abierto} onOpenChange={setDialogoRemoverUsuarioAbierto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remover Usuario</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas remover a {usuario_a_remover?.usuario_invitado?.nombre} del inventario?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoRemoverUsuarioAbierto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmarRemoverUsuario}>
+              Remover
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1701,93 +1589,78 @@ export default function Inventarios() {
               {modo_edicion_producto ? 'Editar Producto' : 'Nuevo Producto'}
             </DialogTitle>
             <DialogDescription>
-              {modo_edicion_producto 
+              {modo_edicion_producto
                 ? 'Modifica la información del producto'
-                : 'Agrega un nuevo producto al inventario'
-              }
+                : 'Agrega un nuevo producto al inventario'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="nombre_producto">Nombre del Producto *</Label>
+              <Label htmlFor="nombre_producto">Nombre *</Label>
               <Input
                 id="nombre_producto"
                 value={formulario_producto.nombre}
                 onChange={(e) => setFormularioProducto({ ...formulario_producto, nombre: e.target.value })}
-                placeholder="Ej: Resina Compuesta, Guantes de Látex"
+                placeholder="Ej: Guantes de látex"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="descripcion_producto">Descripción (opcional)</Label>
-              <Textarea
-                id="descripcion_producto"
-                value={formulario_producto.descripcion}
-                onChange={(e) => setFormularioProducto({ ...formulario_producto, descripcion: e.target.value })}
-                placeholder="Detalles adicionales del producto..."
-                rows={2}
+              <Label htmlFor="tipo_gestion">Tipo de Gestión *</Label>
+              <Combobox
+                opciones={opciones_tipos_gestion}
+                valor={formulario_producto.tipo_gestion}
+                onChange={(valor) => setFormularioProducto({ ...formulario_producto, tipo_gestion: valor })}
+                placeholder="Selecciona el tipo"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="tipo_gestion">Tipo de Gestión *</Label>
-                <Combobox
-                  opciones={opciones_tipos_gestion}
-                  valor={formulario_producto.tipo_gestion}
-                  onChange={(valor) => setFormularioProducto({ ...formulario_producto, tipo_gestion: valor })}
-                  placeholder="Selecciona tipo"
+                <Label htmlFor="stock_minimo">Stock Mínimo</Label>
+                <Input
+                  id="stock_minimo"
+                  type="number"
+                  value={formulario_producto.stock_minimo}
+                  onChange={(e) => setFormularioProducto({ ...formulario_producto, stock_minimo: e.target.value })}
+                  placeholder="10"
                 />
-                <p className="text-xs text-muted-foreground">
-                  {formulario_producto.tipo_gestion === 'consumible'
-                    ? 'Material que se consume con el uso'
-                    : formulario_producto.tipo_gestion === 'activo_serializado'
-                    ? 'Activo con número de serie único'
-                    : 'Activo sin número de serie'
-                  }
-                </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="unidad_medida">Unidad de Medida *</Label>
+                <Label htmlFor="unidad_medida">Unidad de Medida</Label>
                 <Input
                   id="unidad_medida"
                   value={formulario_producto.unidad_medida}
                   onChange={(e) => setFormularioProducto({ ...formulario_producto, unidad_medida: e.target.value })}
-                  placeholder="Ej: unidad, ml, kg"
+                  placeholder="Ej: unidades, cajas, kg"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="stock_minimo">Stock Mínimo</Label>
-              <Input
-                id="stock_minimo"
-                type="number"
-                value={formulario_producto.stock_minimo}
-                onChange={(e) => setFormularioProducto({ ...formulario_producto, stock_minimo: e.target.value })}
-                placeholder="0"
+              <Label htmlFor="descripcion_producto">Descripción</Label>
+              <Textarea
+                id="descripcion_producto"
+                value={formulario_producto.descripcion}
+                onChange={(e) => setFormularioProducto({ ...formulario_producto, descripcion: e.target.value })}
+                placeholder="Descripción opcional del producto"
+                rows={3}
               />
-              <p className="text-xs text-muted-foreground">
-                Se te notificará cuando el stock esté por debajo de este valor
-              </p>
             </div>
 
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="space-y-0.5">
-                <Label htmlFor="notificar_stock_bajo">Notificar Stock Bajo</Label>
-                <p className="text-xs text-muted-foreground">
-                  Recibe alertas cuando el stock sea menor al mínimo
-                </p>
-              </div>
+            <div className="flex items-center space-x-2">
               <Switch
-                id="notificar_stock_bajo"
+                id="notificar_stock"
                 checked={formulario_producto.notificar_stock_bajo}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   setFormularioProducto({ ...formulario_producto, notificar_stock_bajo: checked })
                 }
               />
+              <Label htmlFor="notificar_stock" className="cursor-pointer">
+                Notificar cuando el stock esté bajo
+              </Label>
             </div>
           </div>
 
@@ -1795,14 +1668,10 @@ export default function Inventarios() {
             <Button
               variant="outline"
               onClick={() => setDialogoProductoAbierto(false)}
-              disabled={guardando}
             >
               Cancelar
             </Button>
-            <Button 
-              onClick={manejarGuardarProducto} 
-              disabled={guardando}
-            >
+            <Button onClick={manejarGuardarProducto} disabled={guardando}>
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {modo_edicion_producto ? 'Actualizar' : 'Crear'}
             </Button>
@@ -1811,15 +1680,11 @@ export default function Inventarios() {
       </Dialog>
 
       <Dialog open={dialogo_confirmar_eliminar_producto_abierto} onOpenChange={setDialogoConfirmarEliminarProductoAbierto}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              Confirmar Eliminación
-            </DialogTitle>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas eliminar el producto <strong>{producto_a_eliminar?.nombre}</strong>?
-              Esta acción eliminará todos los lotes/activos asociados.
+              ¿Estás seguro de que deseas eliminar el producto "{producto_a_eliminar?.nombre}"? Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1829,162 +1694,8 @@ export default function Inventarios() {
             >
               Cancelar
             </Button>
-            <Button
-              variant="destructive"
-              onClick={manejarEliminarProducto}
-            >
+            <Button variant="destructive" onClick={confirmarEliminarProducto}>
               Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={dialogo_remover_usuario_abierto} onOpenChange={setDialogoRemoverUsuarioAbierto}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              Remover Usuario
-            </DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que deseas remover a <strong>{usuario_a_remover?.usuario_invitado?.nombre}</strong> del inventario?
-              Perderá el acceso inmediatamente.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogoRemoverUsuarioAbierto(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={manejarRemoverUsuario}
-            >
-              Remover
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={dialogo_compra_abierto} onOpenChange={setDialogoCompraAbierto}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Registrar Compra</DialogTitle>
-            <DialogDescription>
-              Registra una compra de productos para el inventario
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="producto_compra">Producto *</Label>
-              <Combobox
-                opciones={opciones_productos}
-                valor={formulario_compra.producto_id}
-                onChange={(valor) => setFormularioCompra({ ...formulario_compra, producto_id: valor })}
-                placeholder="Selecciona un producto"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cantidad_compra">Cantidad *</Label>
-                <Input
-                  id="cantidad_compra"
-                  type="number"
-                  value={formulario_compra.cantidad}
-                  onChange={(e) => setFormularioCompra({ ...formulario_compra, cantidad: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="costo_total">Costo Total *</Label>
-                <Input
-                  id="costo_total"
-                  type="number"
-                  step="0.01"
-                  value={formulario_compra.costo_total}
-                  onChange={(e) => setFormularioCompra({ ...formulario_compra, costo_total: e.target.value })}
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="proveedor">Proveedor</Label>
-                <Input
-                  id="proveedor"
-                  value={formulario_compra.proveedor}
-                  onChange={(e) => setFormularioCompra({ ...formulario_compra, proveedor: e.target.value })}
-                  placeholder="Nombre del proveedor"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="nro_factura">Nro. Factura</Label>
-                <Input
-                  id="nro_factura"
-                  value={formulario_compra.nro_factura}
-                  onChange={(e) => setFormularioCompra({ ...formulario_compra, nro_factura: e.target.value })}
-                  placeholder="F001-00001"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fecha_compra">Fecha de Compra</Label>
-              <DatePicker
-                fecha={formulario_compra.fecha_compra}
-                onChange={(fecha) => setFormularioCompra({ ...formulario_compra, fecha_compra: fecha || new Date() })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="observaciones_compra">Observaciones</Label>
-              <Textarea
-                id="observaciones_compra"
-                value={formulario_compra.observaciones}
-                onChange={(e) => setFormularioCompra({ ...formulario_compra, observaciones: e.target.value })}
-                placeholder="Notas adicionales sobre la compra..."
-                rows={2}
-              />
-            </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg bg-green-500/5">
-              <div className="space-y-0.5">
-                <Label htmlFor="registrar_egreso">Registrar en Finanzas</Label>
-                <p className="text-xs text-muted-foreground">
-                  Crea automáticamente un registro de egreso en el módulo de finanzas
-                </p>
-              </div>
-              <Switch
-                id="registrar_egreso"
-                checked={formulario_compra.registrar_egreso_finanzas}
-                onCheckedChange={(checked) => 
-                  setFormularioCompra({ ...formulario_compra, registrar_egreso_finanzas: checked })
-                }
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogoCompraAbierto(false)}
-              disabled={guardando}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              onClick={manejarRegistrarCompra} 
-              disabled={guardando}
-            >
-              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Registrar Compra
             </Button>
           </DialogFooter>
         </DialogContent>
