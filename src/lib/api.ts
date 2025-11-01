@@ -546,6 +546,27 @@ export const inventarioApi = {
     const respuesta = await api.get(`/inventario/${inventario_id}/reporte-valor`);
     return respuesta.data;
   },
+    eliminarLote: async (inventario_id: number, lote_id: number) => {
+    const respuesta = await api.delete(`/inventario/${inventario_id}/lotes/${lote_id}`);
+    return respuesta.data;
+  },
+  actualizarActivo: async (inventario_id: number, activo_id: number, datos: any) => {
+    const respuesta = await api.put(`/inventario/${inventario_id}/activos/${activo_id}`, datos);
+    return respuesta.data;
+  },
+  eliminarActivo: async (inventario_id: number, activo_id: number) => {
+    const respuesta = await api.delete(`/inventario/${inventario_id}/activos/${activo_id}`);
+    return respuesta.data;
+  },
+  ajustarStock: async (inventario_id: number, datos: {
+    producto_id: number;
+    tipo: 'entrada' | 'salida';
+    cantidad: number;
+    observaciones: string;
+  }) => {
+    const respuesta = await api.post(`/inventario/${inventario_id}/ajustar-stock`, datos);
+    return respuesta.data;
+  },
 };
 
 export const reportesApi = {

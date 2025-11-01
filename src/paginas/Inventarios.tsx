@@ -21,40 +21,33 @@ import {
   Lock, 
   Globe, 
   Users, 
-  TrendingUp,
   Eye,
-  ChevronRight,
   ArrowLeft,
   DollarSign,
-  Calendar,
   Box,
   AlertTriangle,
   UserPlus,
   Shield,
   History,
-  FileText,
-  BarChart3,
-  Filter,
   X,
   Search,
   Archive,
   CheckCircle2,
   XCircle,
-  Clock,
   ShoppingCart,
+  TrendingUp,
   TrendingDown,
-  Layers,
-  CircleDot
+  Settings
 } from 'lucide-react';
 import { inventarioApi, usuariosApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Badge } from '@/componentes/ui/badge';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
+import { MultiSelect } from '@/componentes/ui/mulit-select';
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/componentes/ui/accordion';
 
 interface Usuario {
   id: number;
@@ -86,6 +79,25 @@ interface Inventario {
   es_propietario?: boolean;
 }
 
+interface Lote {
+  id: number;
+  nro_lote: string;
+  fecha_vencimiento: Date;
+  cantidad_actual: number;
+  costo_unitario_compra: number;
+  fecha_compra: Date;
+}
+
+interface Activo {
+  id: number;
+  nro_serie?: string;
+  nombre_asignado?: string;
+  costo_compra: number;
+  fecha_compra: Date;
+  estado: string;
+  ubicacion?: string;
+}
+
 interface Producto {
   id: number;
   nombre: string;
@@ -95,23 +107,8 @@ interface Producto {
   activo: boolean;
   descripcion?: string;
   notificar_stock_bajo: boolean;
-  lotes?: Array<{
-    id: number;
-    nro_lote: string;
-    fecha_vencimiento: Date;
-    cantidad_actual: number;
-    costo_unitario_compra: number;
-    fecha_compra: Date;
-  }>;
-  activos?: Array<{
-    id: number;
-    nro_serie?: string;
-    nombre_asignado?: string;
-    costo_compra: number;
-    fecha_compra: Date;
-    estado: string;
-    ubicacion?: string;
-  }>;
+  lotes?: Lote[];
+  activos?: Activo[];
 }
 
 interface ReporteValor {
@@ -164,14 +161,26 @@ export default function Inventarios() {
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [dialogo_invitar_abierto, setDialogoInvitarAbierto] = useState(false);
   const [dialogo_producto_abierto, setDialogoProductoAbierto] = useState(false);
+  const [dialogo_lote_abierto, setDialogoLoteAbierto] = useState(false);
+  const [dialogo_activo_abierto, setDialogoActivoAbierto] = useState(false);
+  const [dialogo_ajuste_stock_abierto, setDialogoAjusteStockAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_producto_abierto, setDialogoConfirmarEliminarProductoAbierto] = useState(false);
+  const [dialogo_confirmar_eliminar_lote_abierto, setDialogoConfirmarEliminarLoteAbierto] = useState(false);
+  const [dialogo_confirmar_eliminar_activo_abierto, setDialogoConfirmarEliminarActivoAbierto] = useState(false);
   const [dialogo_remover_usuario_abierto, setDialogoRemoverUsuarioAbierto] = useState(false);
   
   const [modo_edicion, setModoEdicion] = useState(false);
   const [modo_edicion_producto, setModoEdicionProducto] = useState(false);
+  const [modo_edicion_lote, setModoEdicionLote] = useState(false);
+  const [modo_edicion_activo, setModoEdicionActivo] = useState(false);
+  
   const [inventario_a_eliminar, setInventarioAEliminar] = useState<Inventario | null>(null);
   const [producto_seleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [producto_a_eliminar, setProductoAEliminar] = useState<Producto | null>(null);
+  const [lote_seleccionado, setLoteSeleccionado] = useState<Lote | null>(null);
+  const [lote_a_eliminar, setLoteAEliminar] = useState<Lote | null>(null);
+  const [activo_seleccionado, setActivoSeleccionado] = useState<Activo | null>(null);
+  const [activo_a_eliminar, setActivoAEliminar] = useState<Activo | null>(null);
   const [usuario_a_remover, setUsuarioARemover] = useState<any>(null);
   
   const [busqueda_inventarios, setBusquedaInventarios] = useState('');
@@ -186,7 +195,7 @@ export default function Inventarios() {
   });
 
   const [formulario_invitar, setFormularioInvitar] = useState({
-    usuarios_ids: [] as number[],
+    usuarios_ids: [] as string[],
     rol: 'lector',
   });
 
@@ -197,14 +206,31 @@ export default function Inventarios() {
     unidad_medida: '',
     descripcion: '',
     notificar_stock_bajo: true,
-    registrar_compra: false,
+  });
+
+  const [formulario_lote, setFormularioLote] = useState({
+    nro_lote: '',
     cantidad: '',
     costo_total: '',
-    fecha_compra: new Date(),
-    nro_lote: '',
     fecha_vencimiento: undefined as Date | undefined,
+    fecha_compra: new Date(),
+    registrar_egreso: false,
+  });
+
+  const [formulario_activo, setFormularioActivo] = useState({
     nro_serie: '',
     nombre_asignado: '',
+    costo_compra: '',
+    fecha_compra: new Date(),
+    estado: 'disponible',
+    ubicacion: '',
+    registrar_egreso: false,
+  });
+
+  const [formulario_ajuste, setFormularioAjuste] = useState({
+    tipo: 'entrada' as 'entrada' | 'salida',
+    cantidad: '',
+    observaciones: '',
   });
 
   const roles = [
@@ -226,11 +252,6 @@ export default function Inventarios() {
     { valor: 'roto', etiqueta: 'Roto' },
   ];
 
-  const opciones_visibilidad: OpcionCombobox[] = roles.map(r => ({
-    valor: r.valor,
-    etiqueta: r.etiqueta
-  }));
-
   const opciones_roles: OpcionCombobox[] = roles.map(r => ({
     valor: r.valor,
     etiqueta: r.etiqueta
@@ -239,6 +260,11 @@ export default function Inventarios() {
   const opciones_tipos_gestion: OpcionCombobox[] = tipos_gestion.map(t => ({
     valor: t.valor,
     etiqueta: t.etiqueta
+  }));
+
+  const opciones_estados: OpcionCombobox[] = estados_activo.map(e => ({
+    valor: e.valor,
+    etiqueta: e.etiqueta
   }));
 
   useEffect(() => {
@@ -373,6 +399,9 @@ export default function Inventarios() {
           title: 'Éxito',
           description: 'Inventario actualizado correctamente',
         });
+        if (vista_actual === 'detalle') {
+          await cargarDetalleInventario(inventario_seleccionado);
+        }
       } else {
         await inventarioApi.crearInventario(datos);
         toast({
@@ -411,6 +440,9 @@ export default function Inventarios() {
       });
       setDialogoConfirmarEliminarAbierto(false);
       setInventarioAEliminar(null);
+      if (vista_actual === 'detalle' && inventario_seleccionado?.id === inventario_a_eliminar.id) {
+        volverALista();
+      }
       await cargarInventarios();
     } catch (error: any) {
       console.error('Error al eliminar inventario:', error);
@@ -444,7 +476,7 @@ export default function Inventarios() {
     try {
       for (const usuario_id of formulario_invitar.usuarios_ids) {
         await inventarioApi.invitarUsuario(inventario_seleccionado.id, {
-          usuario_id,
+          usuario_id: parseInt(usuario_id),
           rol: formulario_invitar.rol,
         });
       }
@@ -454,7 +486,9 @@ export default function Inventarios() {
         description: 'Usuarios invitados correctamente',
       });
       setDialogoInvitarAbierto(false);
-      await cargarDetalleInventario(inventario_seleccionado);
+      if (vista_actual === 'detalle') {
+        await cargarDetalleInventario(inventario_seleccionado);
+      }
     } catch (error: any) {
       console.error('Error al invitar usuarios:', error);
       toast({
@@ -502,14 +536,6 @@ export default function Inventarios() {
       unidad_medida: '',
       descripcion: '',
       notificar_stock_bajo: true,
-      registrar_compra: false,
-      cantidad: '',
-      costo_total: '',
-      fecha_compra: new Date(),
-      nro_lote: '',
-      fecha_vencimiento: undefined,
-      nro_serie: '',
-      nombre_asignado: '',
     });
     setModoEdicionProducto(false);
     setDialogoProductoAbierto(true);
@@ -523,14 +549,6 @@ export default function Inventarios() {
       unidad_medida: producto.unidad_medida,
       descripcion: producto.descripcion || '',
       notificar_stock_bajo: producto.notificar_stock_bajo,
-      registrar_compra: false,
-      cantidad: '',
-      costo_total: '',
-      fecha_compra: new Date(),
-      nro_lote: '',
-      fecha_vencimiento: undefined,
-      nro_serie: '',
-      nombre_asignado: '',
     });
     setProductoSeleccionado(producto);
     setModoEdicionProducto(true);
@@ -557,10 +575,8 @@ export default function Inventarios() {
         unidad_medida: formulario_producto.unidad_medida || 'unidad',
       };
 
-      let producto_creado_o_actualizado;
-
       if (modo_edicion_producto && producto_seleccionado) {
-        producto_creado_o_actualizado = await inventarioApi.actualizarProducto(
+        await inventarioApi.actualizarProducto(
           inventario_seleccionado.id,
           producto_seleccionado.id,
           datos_producto
@@ -570,64 +586,10 @@ export default function Inventarios() {
           description: 'Producto actualizado correctamente',
         });
       } else {
-        producto_creado_o_actualizado = await inventarioApi.crearProducto(datos_producto);
+        await inventarioApi.crearProducto(datos_producto);
         toast({
           title: 'Éxito',
           description: 'Producto creado correctamente',
-        });
-      }
-
-      if (!modo_edicion_producto && formulario_producto.registrar_compra) {
-        const producto_id = producto_creado_o_actualizado.id;
-
-        if (formulario_producto.tipo_gestion === 'consumible') {
-          if (!formulario_producto.nro_lote || !formulario_producto.fecha_vencimiento) {
-            toast({
-              title: 'Error',
-              description: 'Para productos consumibles se requiere número de lote y fecha de vencimiento',
-              variant: 'destructive',
-            });
-            setGuardando(false);
-            return;
-          }
-        }
-
-        if (!formulario_producto.cantidad || !formulario_producto.costo_total) {
-          toast({
-            title: 'Error',
-            description: 'Cantidad y costo total son obligatorios para registrar la compra',
-            variant: 'destructive',
-          });
-          setGuardando(false);
-          return;
-        }
-
-        const datos_compra: any = {
-          producto_id: producto_id,
-          cantidad: parseFloat(formulario_producto.cantidad),
-          costo_total: parseFloat(formulario_producto.costo_total),
-          fecha_compra: format(formulario_producto.fecha_compra, 'yyyy-MM-dd'),
-        };
-
-        if (formulario_producto.tipo_gestion === 'consumible') {
-          datos_compra.nro_lote = formulario_producto.nro_lote;
-          datos_compra.fecha_vencimiento = format(formulario_producto.fecha_vencimiento!, 'yyyy-MM-dd');
-        } else if (formulario_producto.tipo_gestion === 'activo_serializado') {
-          datos_compra.nro_serie = formulario_producto.nro_serie;
-          if (formulario_producto.nombre_asignado) {
-            datos_compra.nombre_asignado = formulario_producto.nombre_asignado;
-          }
-        } else if (formulario_producto.tipo_gestion === 'activo_general') {
-          if (formulario_producto.nombre_asignado) {
-            datos_compra.nombre_asignado = formulario_producto.nombre_asignado;
-          }
-        }
-
-        await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
-        
-        toast({
-          title: 'Éxito',
-          description: 'Producto creado y compra registrada correctamente',
         });
       }
 
@@ -669,6 +631,287 @@ export default function Inventarios() {
         description: error.response?.data?.mensaje || 'Error al eliminar el producto',
         variant: 'destructive',
       });
+    }
+  };
+
+  const abrirDialogoNuevoLote = (producto: Producto) => {
+    setProductoSeleccionado(producto);
+    setFormularioLote({
+      nro_lote: '',
+      cantidad: '',
+      costo_total: '',
+      fecha_vencimiento: undefined,
+      fecha_compra: new Date(),
+      registrar_egreso: false,
+    });
+    setModoEdicionLote(false);
+    setDialogoLoteAbierto(true);
+  };
+
+  const abrirDialogoEditarLote = (producto: Producto, lote: Lote) => {
+    setProductoSeleccionado(producto);
+    setLoteSeleccionado(lote);
+    setFormularioLote({
+      nro_lote: lote.nro_lote,
+      cantidad: lote.cantidad_actual.toString(),
+      costo_total: (lote.cantidad_actual * lote.costo_unitario_compra).toString(),
+      fecha_vencimiento: new Date(lote.fecha_vencimiento),
+      fecha_compra: new Date(lote.fecha_compra),
+      registrar_egreso: false,
+    });
+    setModoEdicionLote(true);
+    setDialogoLoteAbierto(true);
+  };
+
+  const manejarGuardarLote = async () => {
+    if (!inventario_seleccionado || !producto_seleccionado) return;
+
+    if (!formulario_lote.nro_lote || !formulario_lote.cantidad || !formulario_lote.costo_total || !formulario_lote.fecha_vencimiento) {
+      toast({
+        title: 'Error',
+        description: 'Todos los campos son obligatorios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const datos_compra = {
+        producto_id: producto_seleccionado.id,
+        cantidad: parseFloat(formulario_lote.cantidad),
+        costo_total: parseFloat(formulario_lote.costo_total),
+        fecha_compra: format(formulario_lote.fecha_compra, 'yyyy-MM-dd'),
+        nro_lote: formulario_lote.nro_lote,
+        fecha_vencimiento: format(formulario_lote.fecha_vencimiento, 'yyyy-MM-dd'),
+        generar_egreso: formulario_lote.registrar_egreso,
+      };
+
+      await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
+      
+      toast({
+        title: 'Éxito',
+        description: formulario_lote.registrar_egreso 
+          ? 'Lote registrado y egreso creado en finanzas'
+          : 'Lote registrado correctamente',
+      });
+
+      setDialogoLoteAbierto(false);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al guardar lote:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al guardar el lote',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const abrirDialogoConfirmarEliminarLote = (lote: Lote) => {
+    setLoteAEliminar(lote);
+    setDialogoConfirmarEliminarLoteAbierto(true);
+  };
+
+  const confirmarEliminarLote = async () => {
+    if (!inventario_seleccionado || !lote_a_eliminar) return;
+
+    try {
+      await inventarioApi.eliminarLote(inventario_seleccionado.id, lote_a_eliminar.id);
+      toast({
+        title: 'Éxito',
+        description: 'Lote eliminado correctamente',
+      });
+      setDialogoConfirmarEliminarLoteAbierto(false);
+      setLoteAEliminar(null);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al eliminar lote:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al eliminar el lote',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const abrirDialogoNuevoActivo = (producto: Producto) => {
+    setProductoSeleccionado(producto);
+    setFormularioActivo({
+      nro_serie: '',
+      nombre_asignado: '',
+      costo_compra: '',
+      fecha_compra: new Date(),
+      estado: 'disponible',
+      ubicacion: '',
+      registrar_egreso: false,
+    });
+    setModoEdicionActivo(false);
+    setDialogoActivoAbierto(true);
+  };
+
+  const abrirDialogoEditarActivo = (producto: Producto, activo: Activo) => {
+    setProductoSeleccionado(producto);
+    setActivoSeleccionado(activo);
+    setFormularioActivo({
+      nro_serie: activo.nro_serie || '',
+      nombre_asignado: activo.nombre_asignado || '',
+      costo_compra: activo.costo_compra.toString(),
+      fecha_compra: new Date(activo.fecha_compra),
+      estado: activo.estado,
+      ubicacion: activo.ubicacion || '',
+      registrar_egreso: false,
+    });
+    setModoEdicionActivo(true);
+    setDialogoActivoAbierto(true);
+  };
+
+  const manejarGuardarActivo = async () => {
+    if (!inventario_seleccionado || !producto_seleccionado) return;
+
+    if (!formulario_activo.costo_compra && !modo_edicion_activo) {
+      toast({
+        title: 'Error',
+        description: 'El costo de compra es obligatorio',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      if (modo_edicion_activo && activo_seleccionado) {
+        await inventarioApi.actualizarActivo(
+          inventario_seleccionado.id,
+          activo_seleccionado.id,
+          {
+            estado: formulario_activo.estado,
+            ubicacion: formulario_activo.ubicacion || undefined,
+            nombre_asignado: formulario_activo.nombre_asignado || undefined,
+          }
+        );
+        
+        toast({
+          title: 'Éxito',
+          description: 'Activo actualizado correctamente',
+        });
+      } else {
+        const datos_compra: any = {
+          producto_id: producto_seleccionado.id,
+          cantidad: 1,
+          costo_total: parseFloat(formulario_activo.costo_compra),
+          fecha_compra: format(formulario_activo.fecha_compra, 'yyyy-MM-dd'),
+          generar_egreso: formulario_activo.registrar_egreso,
+        };
+
+        if (producto_seleccionado.tipo_gestion === 'activo_serializado') {
+          datos_compra.nro_serie = formulario_activo.nro_serie;
+        }
+
+        if (formulario_activo.nombre_asignado) {
+          datos_compra.nombre_asignado = formulario_activo.nombre_asignado;
+        }
+
+        await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
+        
+        toast({
+          title: 'Éxito',
+          description: formulario_activo.registrar_egreso 
+            ? 'Activo registrado y egreso creado en finanzas'
+            : 'Activo registrado correctamente',
+        });
+      }
+
+      setDialogoActivoAbierto(false);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al guardar activo:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al guardar el activo',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const abrirDialogoConfirmarEliminarActivo = (activo: Activo) => {
+    setActivoAEliminar(activo);
+    setDialogoConfirmarEliminarActivoAbierto(true);
+  };
+
+  const confirmarEliminarActivo = async () => {
+    if (!inventario_seleccionado || !activo_a_eliminar) return;
+
+    try {
+      await inventarioApi.eliminarActivo(inventario_seleccionado.id, activo_a_eliminar.id);
+      toast({
+        title: 'Éxito',
+        description: 'Activo eliminado correctamente',
+      });
+      setDialogoConfirmarEliminarActivoAbierto(false);
+      setActivoAEliminar(null);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al eliminar activo:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al eliminar el activo',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const abrirDialogoAjusteStock = (producto: Producto) => {
+    setProductoSeleccionado(producto);
+    setFormularioAjuste({
+      tipo: 'entrada',
+      cantidad: '',
+      observaciones: '',
+    });
+    setDialogoAjusteStockAbierto(true);
+  };
+
+  const manejarAjusteStock = async () => {
+    if (!inventario_seleccionado || !producto_seleccionado) return;
+
+    if (!formulario_ajuste.cantidad || !formulario_ajuste.observaciones) {
+      toast({
+        title: 'Error',
+        description: 'Cantidad y observaciones son obligatorias',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      await inventarioApi.ajustarStock(inventario_seleccionado.id, {
+        producto_id: producto_seleccionado.id,
+        tipo: formulario_ajuste.tipo,
+        cantidad: parseFloat(formulario_ajuste.cantidad),
+        observaciones: formulario_ajuste.observaciones,
+      });
+
+      toast({
+        title: 'Éxito',
+        description: 'Stock ajustado correctamente',
+      });
+
+      setDialogoAjusteStockAbierto(false);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al ajustar stock:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al ajustar el stock',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -766,103 +1009,124 @@ export default function Inventarios() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Mis Inventarios</CardTitle>
-                  <CardDescription>
-                    {inventarios_filtrados.length} inventario(s) disponible(s)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {cargando ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                  ) : inventarios_filtrados.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">No hay inventarios disponibles</p>
-                      <Button onClick={abrirDialogoNuevo} variant="outline" className="mt-4">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Crear tu primer inventario
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Mis Inventarios</CardTitle>
+                <CardDescription>
+                  {inventarios_filtrados.length} inventario(s) disponible(s)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {cargando ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : inventarios_filtrados.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No hay inventarios disponibles</p>
+                    <Button onClick={abrirDialogoNuevo} variant="outline" className="mt-4">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Crear tu primer inventario
+                    </Button>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Visibilidad</TableHead>
+                        <TableHead>Propietario</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {inventarios_filtrados.map((inventario) => {
                         const IconoVisibilidad = obtenerIconoVisibilidad(inventario.visibilidad);
                         
                         return (
-                          <Card 
+                          <TableRow 
                             key={inventario.id}
-                            className="hover:shadow-md transition-shadow cursor-pointer group"
+                            className="hover:bg-secondary/50 transition-colors cursor-pointer"
                             onClick={() => cargarDetalleInventario(inventario)}
                           >
-                            <CardContent className="p-6">
-                              <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 rounded-lg bg-primary/10">
-                                    <Package className="h-5 w-5 text-primary" />
-                                  </div>
-                                  <div>
-                                    <h3 className="font-semibold group-hover:text-primary transition-colors">
-                                      {inventario.nombre}
-                                    </h3>
-                                    <p className="text-xs text-muted-foreground">
-                                      {inventario.propietario?.nombre}
-                                    </p>
-                                  </div>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-primary/10">
+                                  <Package className="h-4 w-4 text-primary" />
                                 </div>
-                                <div className="flex gap-2">
-                                  {inventario.es_propietario && (
-                                    <>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          abrirDialogoEditar(inventario);
-                                        }}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          abrirDialogoConfirmarEliminar(inventario);
-                                        }}
-                                      >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
+                                {inventario.nombre}
                               </div>
-
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Badge variant={inventario.visibilidad === 'privado' ? 'secondary' : 'default'}>
-                                    <IconoVisibilidad className="h-3 w-3 mr-1" />
-                                    {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
-                                  </Badge>
-                                  {inventario.es_propietario && (
-                                    <Badge variant="outline">Propietario</Badge>
-                                  )}
-                                </div>
-                                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={inventario.visibilidad === 'privado' ? 'secondary' : 'default'}>
+                                <IconoVisibilidad className="h-3 w-3 mr-1" />
+                                {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {inventario.propietario?.nombre}
+                              {inventario.es_propietario && (
+                                <Badge variant="outline" className="ml-2">Tú</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    cargarDetalleInventario(inventario);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {inventario.es_propietario && (
+                                  <>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        abrirDialogoEditar(inventario);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setInventarioSeleccionado(inventario);
+                                        abrirDialogoInvitar();
+                                      }}
+                                    >
+                                      <UserPlus className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        abrirDialogoConfirmarEliminar(inventario);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </>
+                                )}
                               </div>
-                            </CardContent>
-                          </Card>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       ) : (
@@ -881,6 +1145,25 @@ export default function Inventarios() {
                     Propietario: {inventario_seleccionado?.propietario?.nombre}
                   </p>
                 </div>
+                {inventario_seleccionado?.es_propietario && (
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => inventario_seleccionado && abrirDialogoEditar(inventario_seleccionado)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Editar
+                    </Button>
+                    <Button variant="outline" onClick={abrirDialogoInvitar}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Invitar Usuario
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => inventario_seleccionado && abrirDialogoConfirmarEliminar(inventario_seleccionado)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                      Eliminar
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -971,12 +1254,10 @@ export default function Inventarios() {
                           {productos_filtrados.length} producto(s)
                         </CardDescription>
                       </div>
-                      <div className="flex gap-2">
-                        <Button onClick={abrirDialogoNuevoProducto}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Nuevo Producto
-                        </Button>
-                      </div>
+                      <Button onClick={abrirDialogoNuevoProducto}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nuevo Producto
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -1019,7 +1300,7 @@ export default function Inventarios() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-4">
                         {productos_filtrados.map((producto) => {
                           const stock = obtenerStockTotal(producto);
                           const valor = obtenerValorTotal(producto);
@@ -1028,16 +1309,16 @@ export default function Inventarios() {
 
                           return (
                             <Card key={producto.id} className={`${stock_bajo ? 'border-yellow-500' : sin_stock ? 'border-red-500' : ''}`}>
-                              <CardContent className="p-4">
+                              <CardHeader>
                                 <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-4 flex-1">
-                                    <div className={`h-10 w-10 rounded-lg ${obtenerColorTipoGestion(producto.tipo_gestion)} flex items-center justify-center text-white`}>
-                                      <Package className="h-5 w-5" />
+                                  <div className="flex items-center gap-4">
+                                    <div className={`h-12 w-12 rounded-lg ${obtenerColorTipoGestion(producto.tipo_gestion)} flex items-center justify-center text-white`}>
+                                      <Package className="h-6 w-6" />
                                     </div>
-                                    <div className="flex-1">
+                                    <div>
                                       <div className="flex items-center gap-2">
-                                        <h3 className="font-semibold">{producto.nombre}</h3>
-                                        <Badge variant="outline" className="text-xs">
+                                        <h3 className="text-lg font-semibold">{producto.nombre}</h3>
+                                        <Badge variant="outline">
                                           {obtenerEtiquetaTipoGestion(producto.tipo_gestion)}
                                         </Badge>
                                         {stock_bajo && (
@@ -1062,6 +1343,32 @@ export default function Inventarios() {
                                   </div>
                                   <div className="flex gap-2">
                                     <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => abrirDialogoAjusteStock(producto)}
+                                    >
+                                      <Settings className="mr-2 h-4 w-4" />
+                                      Ajustar Stock
+                                    </Button>
+                                    {producto.tipo_gestion === 'consumible' && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => abrirDialogoNuevoLote(producto)}
+                                      >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Agregar Lote
+                                      </Button>
+                                    )}
+                                    {(producto.tipo_gestion === 'activo_serializado' || producto.tipo_gestion === 'activo_general') && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => abrirDialogoNuevoActivo(producto)}
+                                      >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Agregar Activo
+                                      </Button>
+                                    )}
+                                    <Button
                                       size="icon"
                                       variant="ghost"
                                       onClick={() => abrirDialogoEditarProducto(producto)}
@@ -1077,79 +1384,99 @@ export default function Inventarios() {
                                     </Button>
                                   </div>
                                 </div>
+                              </CardHeader>
 
-                                {producto.lotes && producto.lotes.length > 0 && (
-                                  <Accordion type="single" collapsible className="mt-4">
-                                    <AccordionItem value="lotes">
-                                      <AccordionTrigger className="text-sm">
-                                        Ver lotes ({producto.lotes.length})
-                                      </AccordionTrigger>
-                                      <AccordionContent>
-                                        <Table>
-                                          <TableHeader>
-                                            <TableRow>
-                                              <TableHead>Nro. Lote</TableHead>
-                                              <TableHead>Cantidad</TableHead>
-                                              <TableHead>Vencimiento</TableHead>
-                                              <TableHead>Costo Unit.</TableHead>
-                                            </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                            {producto.lotes.map((lote) => (
-                                              <TableRow key={lote.id}>
-                                                <TableCell>{lote.nro_lote}</TableCell>
-                                                <TableCell>{lote.cantidad_actual}</TableCell>
-                                                <TableCell>
-                                                  {format(new Date(lote.fecha_vencimiento), 'dd/MM/yyyy', { locale: es })}
-                                                </TableCell>
-                                                <TableCell>${lote.costo_unitario_compra}</TableCell>
-                                              </TableRow>
-                                            ))}
-                                          </TableBody>
-                                        </Table>
-                                      </AccordionContent>
-                                    </AccordionItem>
-                                  </Accordion>
-                                )}
+                              {producto.lotes && producto.lotes.length > 0 && (
+                                <CardContent>
+                                  <h4 className="font-medium mb-3">Lotes ({producto.lotes.length})</h4>
+                                  <div className="space-y-2">
+                                    {producto.lotes.map((lote) => (
+                                      <div key={lote.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                        <div className="flex-1 grid grid-cols-4 gap-4">
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Nro. Lote</p>
+                                            <p className="font-medium">{lote.nro_lote}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Cantidad</p>
+                                            <p className="font-medium">{lote.cantidad_actual}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Vencimiento</p>
+                                            <p className="font-medium">{format(new Date(lote.fecha_vencimiento), 'dd/MM/yyyy', { locale: es })}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Costo Unit.</p>
+                                            <p className="font-medium">${lote.costo_unitario_compra}</p>
+                                          </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => abrirDialogoEditarLote(producto, lote)}
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => abrirDialogoConfirmarEliminarLote(lote)}
+                                          >
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </CardContent>
+                              )}
 
-                                {producto.activos && producto.activos.length > 0 && (
-                                  <Accordion type="single" collapsible className="mt-4">
-                                    <AccordionItem value="activos">
-                                      <AccordionTrigger className="text-sm">
-                                        Ver activos ({producto.activos.length})
-                                      </AccordionTrigger>
-                                      <AccordionContent>
-                                        <Table>
-                                          <TableHeader>
-                                            <TableRow>
-                                              <TableHead>Serie/Nombre</TableHead>
-                                              <TableHead>Estado</TableHead>
-                                              <TableHead>Ubicación</TableHead>
-                                              <TableHead>Costo</TableHead>
-                                            </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                            {producto.activos.map((activo) => (
-                                              <TableRow key={activo.id}>
-                                                <TableCell>
-                                                  {activo.nro_serie || activo.nombre_asignado || 'Sin nombre'}
-                                                </TableCell>
-                                                <TableCell>
-                                                  <Badge>
-                                                    {activo.estado.replace('_', ' ')}
-                                                  </Badge>
-                                                </TableCell>
-                                                <TableCell>{activo.ubicacion || 'N/A'}</TableCell>
-                                                <TableCell>${activo.costo_compra}</TableCell>
-                                              </TableRow>
-                                            ))}
-                                          </TableBody>
-                                        </Table>
-                                      </AccordionContent>
-                                    </AccordionItem>
-                                  </Accordion>
-                                )}
-                              </CardContent>
+                              {producto.activos && producto.activos.length > 0 && (
+                                <CardContent>
+                                  <h4 className="font-medium mb-3">Activos ({producto.activos.length})</h4>
+                                  <div className="space-y-2">
+                                    {producto.activos.map((activo) => (
+                                      <div key={activo.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                        <div className="flex-1 grid grid-cols-4 gap-4">
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Serie/Nombre</p>
+                                            <p className="font-medium">{activo.nro_serie || activo.nombre_asignado || 'Sin nombre'}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Estado</p>
+                                            <Badge>{activo.estado.replace('_', ' ')}</Badge>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Ubicación</p>
+                                            <p className="font-medium">{activo.ubicacion || 'N/A'}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Costo</p>
+                                            <p className="font-medium">${activo.costo_compra}</p>
+                                          </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => abrirDialogoEditarActivo(producto, activo)}
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => abrirDialogoConfirmarEliminarActivo(activo)}
+                                          >
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </CardContent>
+                              )}
                             </Card>
                           );
                         })}
@@ -1183,6 +1510,7 @@ export default function Inventarios() {
                               <TableHead>Producto</TableHead>
                               <TableHead>Cantidad</TableHead>
                               <TableHead>Usuario</TableHead>
+                              <TableHead>Observaciones</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1192,13 +1520,19 @@ export default function Inventarios() {
                                   {format(new Date(mov.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
                                 </TableCell>
                                 <TableCell>
-                                  <Badge>{mov.tipo}</Badge>
+                                  <Badge variant={mov.tipo === 'entrada' ? 'default' : 'secondary'}>
+                                    {mov.tipo === 'entrada' ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                                    {mov.tipo}
+                                  </Badge>
                                 </TableCell>
                                 <TableCell>{mov.producto.nombre}</TableCell>
                                 <TableCell>
                                   {mov.tipo === 'entrada' ? '+' : '-'}{mov.cantidad}
                                 </TableCell>
                                 <TableCell>{mov.usuario.nombre}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {mov.observaciones || mov.referencia || '-'}
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -1219,12 +1553,6 @@ export default function Inventarios() {
                           Gestiona quién puede acceder a este inventario
                         </CardDescription>
                       </div>
-                      {inventario_seleccionado?.es_propietario && (
-                        <Button onClick={abrirDialogoInvitar}>
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Invitar Usuario
-                        </Button>
-                      )}
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -1397,15 +1725,14 @@ export default function Inventarios() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Usuarios</Label>
-              <Combobox
+              <MultiSelect
                 opciones={opciones_usuarios}
-                valor={formulario_invitar.usuarios_ids.map(id => id.toString())}
+                valores={formulario_invitar.usuarios_ids}
                 onChange={(valores) => setFormularioInvitar({
                   ...formulario_invitar,
-                  usuarios_ids: Array.isArray(valores) ? valores.map(v => parseInt(v)) : [parseInt(valores)]
+                  usuarios_ids: valores
                 })}
                 placeholder="Selecciona usuarios"
-                multiple
               />
             </div>
 
@@ -1458,7 +1785,7 @@ export default function Inventarios() {
       </Dialog>
 
       <Dialog open={dialogo_producto_abierto} onOpenChange={setDialogoProductoAbierto}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
               {modo_edicion_producto ? 'Editar Producto' : 'Nuevo Producto'}
@@ -1545,111 +1872,6 @@ export default function Inventarios() {
                 }
               />
             </div>
-
-            {!modo_edicion_producto && (
-              <>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="font-medium">Registrar compra inicial</p>
-                    <p className="text-sm text-muted-foreground">
-                      Agregar stock al crear el producto
-                    </p>
-                  </div>
-                  <Switch
-                    checked={formulario_producto.registrar_compra}
-                    onCheckedChange={(checked) =>
-                      setFormularioProducto({ ...formulario_producto, registrar_compra: checked })
-                    }
-                  />
-                </div>
-
-                {formulario_producto.registrar_compra && (
-                  <div className="space-y-4 border-t pt-4">
-                    <h4 className="font-medium">Datos de Compra</h4>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="cantidad_compra">Cantidad *</Label>
-                        <Input
-                          id="cantidad_compra"
-                          type="number"
-                          value={formulario_producto.cantidad}
-                          onChange={(e) => setFormularioProducto({ ...formulario_producto, cantidad: e.target.value })}
-                          placeholder="10"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="costo_total">Costo Total *</Label>
-                        <Input
-                          id="costo_total"
-                          type="number"
-                          value={formulario_producto.costo_total}
-                          onChange={(e) => setFormularioProducto({ ...formulario_producto, costo_total: e.target.value })}
-                          placeholder="1000"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="fecha_compra">Fecha de Compra *</Label>
-                      <DatePicker
-                        valor={formulario_producto.fecha_compra}
-                        onChange={(fecha) => fecha && setFormularioProducto({ ...formulario_producto, fecha_compra: fecha })}
-                      />
-                    </div>
-
-                    {formulario_producto.tipo_gestion === 'consumible' && (
-                      <>
-                        <div className="space-y-2">
-                          <Label htmlFor="nro_lote">Número de Lote *</Label>
-                          <Input
-                            id="nro_lote"
-                            value={formulario_producto.nro_lote}
-                            onChange={(e) => setFormularioProducto({ ...formulario_producto, nro_lote: e.target.value })}
-                            placeholder="LOTE-001"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="fecha_vencimiento">Fecha de Vencimiento *</Label>
-                          <DatePicker
-                            valor={formulario_producto.fecha_vencimiento}
-                            onChange={(fecha) => setFormularioProducto({ ...formulario_producto, fecha_vencimiento: fecha })}
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {(formulario_producto.tipo_gestion === 'activo_serializado' || formulario_producto.tipo_gestion === 'activo_general') && (
-                      <>
-                        {formulario_producto.tipo_gestion === 'activo_serializado' && (
-                          <div className="space-y-2">
-                            <Label htmlFor="nro_serie">Número de Serie</Label>
-                            <Input
-                              id="nro_serie"
-                              value={formulario_producto.nro_serie}
-                              onChange={(e) => setFormularioProducto({ ...formulario_producto, nro_serie: e.target.value })}
-                              placeholder="SN-001"
-                            />
-                          </div>
-                        )}
-
-                        <div className="space-y-2">
-                          <Label htmlFor="nombre_asignado">Nombre Asignado</Label>
-                          <Input
-                            id="nombre_asignado"
-                            value={formulario_producto.nombre_asignado}
-                            onChange={(e) => setFormularioProducto({ ...formulario_producto, nombre_asignado: e.target.value })}
-                            placeholder="Computadora Sala 1"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
           </div>
 
           <DialogFooter>
@@ -1662,6 +1884,279 @@ export default function Inventarios() {
             <Button onClick={manejarGuardarProducto} disabled={guardando}>
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {modo_edicion_producto ? 'Guardar Cambios' : 'Crear Producto'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_lote_abierto} onOpenChange={setDialogoLoteAbierto}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {modo_edicion_lote ? 'Editar Lote' : 'Agregar Lote'}
+            </DialogTitle>
+            <DialogDescription>
+              {modo_edicion_lote
+                ? 'Modifica la información del lote'
+                : `Agregar nuevo lote para ${producto_seleccionado?.nombre}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="nro_lote">Número de Lote *</Label>
+              <Input
+                id="nro_lote"
+                value={formulario_lote.nro_lote}
+                onChange={(e) => setFormularioLote({ ...formulario_lote, nro_lote: e.target.value })}
+                placeholder="LOTE-001"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cantidad_lote">Cantidad *</Label>
+                <Input
+                  id="cantidad_lote"
+                  type="number"
+                  value={formulario_lote.cantidad}
+                  onChange={(e) => setFormularioLote({ ...formulario_lote, cantidad: e.target.value })}
+                  placeholder="100"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="costo_total_lote">Costo Total *</Label>
+                <Input
+                  id="costo_total_lote"
+                  type="number"
+                  value={formulario_lote.costo_total}
+                  onChange={(e) => setFormularioLote({ ...formulario_lote, costo_total: e.target.value })}
+                  placeholder="1000"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fecha_compra_lote">Fecha de Compra *</Label>
+                <DatePicker
+                  valor={formulario_lote.fecha_compra}
+                  onChange={(fecha) => fecha && setFormularioLote({ ...formulario_lote, fecha_compra: fecha })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fecha_vencimiento">Fecha de Vencimiento *</Label>
+                <DatePicker
+                  valor={formulario_lote.fecha_vencimiento}
+                  onChange={(fecha) => setFormularioLote({ ...formulario_lote, fecha_vencimiento: fecha })}
+                />
+              </div>
+            </div>
+
+            {!modo_edicion_lote && (
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <p className="font-medium">Registrar egreso en finanzas</p>
+                  <p className="text-sm text-muted-foreground">
+                    Se creará un registro de egreso automáticamente
+                  </p>
+                </div>
+                <Switch
+                  checked={formulario_lote.registrar_egreso}
+                  onCheckedChange={(checked) =>
+                    setFormularioLote({ ...formulario_lote, registrar_egreso: checked })
+                  }
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoLoteAbierto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={manejarGuardarLote} disabled={guardando}>
+              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {modo_edicion_lote ? 'Guardar Cambios' : 'Agregar Lote'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_activo_abierto} onOpenChange={setDialogoActivoAbierto}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {modo_edicion_activo ? 'Editar Activo' : 'Agregar Activo'}
+            </DialogTitle>
+            <DialogDescription>
+              {modo_edicion_activo
+                ? 'Modifica la información del activo'
+                : `Agregar nuevo activo para ${producto_seleccionado?.nombre}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {producto_seleccionado?.tipo_gestion === 'activo_serializado' && (
+              <div className="space-y-2">
+                <Label htmlFor="nro_serie">Número de Serie</Label>
+                <Input
+                  id="nro_serie"
+                  value={formulario_activo.nro_serie}
+                  onChange={(e) => setFormularioActivo({ ...formulario_activo, nro_serie: e.target.value })}
+                  placeholder="SN-001"
+                  disabled={modo_edicion_activo}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="nombre_asignado">Nombre Asignado</Label>
+              <Input
+                id="nombre_asignado"
+                value={formulario_activo.nombre_asignado}
+                onChange={(e) => setFormularioActivo({ ...formulario_activo, nombre_asignado: e.target.value })}
+                placeholder="Computadora Sala 1"
+              />
+            </div>
+
+            {!modo_edicion_activo && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="costo_compra">Costo de Compra *</Label>
+                  <Input
+                    id="costo_compra"
+                    type="number"
+                    value={formulario_activo.costo_compra}
+                    onChange={(e) => setFormularioActivo({ ...formulario_activo, costo_compra: e.target.value })}
+                    placeholder="5000"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fecha_compra_activo">Fecha de Compra *</Label>
+                  <DatePicker
+                    valor={formulario_activo.fecha_compra}
+                    onChange={(fecha) => fecha && setFormularioActivo({ ...formulario_activo, fecha_compra: fecha })}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Estado</Label>
+              <Combobox
+                opciones={opciones_estados}
+                valor={formulario_activo.estado}
+                onChange={(valor) => setFormularioActivo({ ...formulario_activo, estado: valor })}
+                placeholder="Selecciona el estado"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ubicacion">Ubicación</Label>
+              <Input
+                id="ubicacion"
+                value={formulario_activo.ubicacion}
+                onChange={(e) => setFormularioActivo({ ...formulario_activo, ubicacion: e.target.value })}
+                placeholder="Consultorio 1"
+              />
+            </div>
+
+            {!modo_edicion_activo && (
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <p className="font-medium">Registrar egreso en finanzas</p>
+                  <p className="text-sm text-muted-foreground">
+                    Se creará un registro de egreso automáticamente
+                  </p>
+                </div>
+                <Switch
+                  checked={formulario_activo.registrar_egreso}
+                  onCheckedChange={(checked) =>
+                    setFormularioActivo({ ...formulario_activo, registrar_egreso: checked })
+                  }
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoActivoAbierto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={manejarGuardarActivo} disabled={guardando}>
+              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {modo_edicion_activo ? 'Guardar Cambios' : 'Agregar Activo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_ajuste_stock_abierto} onOpenChange={setDialogoAjusteStockAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Ajuste Manual de Stock</DialogTitle>
+            <DialogDescription>
+              Registra una entrada o salida manual para {producto_seleccionado?.nombre}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Tipo de Ajuste</Label>
+              <Select value={formulario_ajuste.tipo} onValueChange={(value: any) => setFormularioAjuste({ ...formulario_ajuste, tipo: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entrada">Entrada</SelectItem>
+                  <SelectItem value="salida">Salida</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cantidad_ajuste">Cantidad *</Label>
+              <Input
+                id="cantidad_ajuste"
+                type="number"
+                value={formulario_ajuste.cantidad}
+                onChange={(e) => setFormularioAjuste({ ...formulario_ajuste, cantidad: e.target.value })}
+                placeholder="10"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="observaciones_ajuste">Observaciones *</Label>
+              <Textarea
+                id="observaciones_ajuste"
+                value={formulario_ajuste.observaciones}
+                onChange={(e) => setFormularioAjuste({ ...formulario_ajuste, observaciones: e.target.value })}
+                placeholder="Motivo del ajuste..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoAjusteStockAbierto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={manejarAjusteStock} disabled={guardando}>
+              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Registrar Ajuste
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1683,6 +2178,50 @@ export default function Inventarios() {
               Cancelar
             </Button>
             <Button variant="destructive" onClick={confirmarEliminarProducto}>
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar_lote_abierto} onOpenChange={setDialogoConfirmarEliminarLoteAbierto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar lote?</DialogTitle>
+            <DialogDescription>
+              El lote será eliminado. Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoConfirmarEliminarLoteAbierto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmarEliminarLote}>
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar_activo_abierto} onOpenChange={setDialogoConfirmarEliminarActivoAbierto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar activo?</DialogTitle>
+            <DialogDescription>
+              El activo será eliminado. Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoConfirmarEliminarActivoAbierto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmarEliminarActivo}>
               Eliminar
             </Button>
           </DialogFooter>
