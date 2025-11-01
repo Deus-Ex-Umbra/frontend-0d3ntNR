@@ -546,7 +546,7 @@ export const inventarioApi = {
     const respuesta = await api.get(`/inventario/${inventario_id}/reporte-valor`);
     return respuesta.data;
   },
-    eliminarLote: async (inventario_id: number, lote_id: number) => {
+  eliminarLote: async (inventario_id: number, lote_id: number) => {
     const respuesta = await api.delete(`/inventario/${inventario_id}/lotes/${lote_id}`);
     return respuesta.data;
   },

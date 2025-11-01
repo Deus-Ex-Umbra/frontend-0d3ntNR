@@ -16,6 +16,10 @@ interface DatePickerProps {
   onChange: (fecha: Date | undefined) => void
   placeholder?: string
   className?: string
+  deshabilitarAnteriores?: boolean
+  deshabilitarPosteriores?: boolean
+  fechaMinima?: Date
+  fechaMaxima?: Date
 }
 
 export function DatePicker({
@@ -23,7 +27,29 @@ export function DatePicker({
   onChange,
   placeholder = "Selecciona una fecha",
   className,
+  deshabilitarAnteriores = false,
+  deshabilitarPosteriores = false,
+  fechaMinima,
+  fechaMaxima,
 }: DatePickerProps) {
+  const fecha_valida = valor && valor instanceof Date && !isNaN(valor.getTime()) ? valor : undefined;
+
+  const esDisabled = (fecha: Date) => {
+    if (deshabilitarAnteriores && fecha < new Date()) {
+      return true;
+    }
+    if (deshabilitarPosteriores && fecha > new Date()) {
+      return true;
+    }
+    if (fechaMinima && fecha < fechaMinima) {
+      return true;
+    }
+    if (fechaMaxima && fecha > fechaMaxima) {
+      return true;
+    }
+    return false;
+  };
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -31,13 +57,13 @@ export function DatePicker({
           variant={"outline"}
           className={cn(
             "w-full justify-between text-left font-normal hover:border-primary/50 transition-all duration-200",
-            !valor && "text-muted-foreground",
+            !fecha_valida && "text-muted-foreground",
             className
           )}
         >
           <div className="flex items-center gap-2">
             <CalendarIcon className="h-4 w-4" />
-            {valor ? format(valor, "PPP", { locale: es }) : <span>{placeholder}</span>}
+            {fecha_valida ? format(fecha_valida, "PPP", { locale: es }) : <span>{placeholder}</span>}
           </div>
           <ChevronDown className="h-4 w-4 opacity-50" />
         </Button>
@@ -45,11 +71,14 @@ export function DatePicker({
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
-          selected={valor}
+          selected={fecha_valida}
           onSelect={onChange}
           initialFocus
           locale={es}
           captionLayout="dropdown"
+          disabled={esDisabled}
+          fromYear={1900}
+          toYear={2100}
         />
       </PopoverContent>
     </Popover>
