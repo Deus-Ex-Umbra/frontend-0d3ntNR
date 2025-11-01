@@ -197,7 +197,7 @@ export default function Inventarios() {
   });
 
   const [formulario_invitar, setFormularioInvitar] = useState({
-    usuarios_ids: [] as string[],
+    usuario_id: '',
     rol: 'lector',
   });
 
@@ -263,7 +263,7 @@ export default function Inventarios() {
   const cargarInventarios = async () => {
     try {
       setCargando(true);
-      const respuesta = await inventarioApi.obtenerTodos();
+      const respuesta = await inventarioApi.obtenerInventarios();
       setInventarios(respuesta);
     } catch (error: any) {
       console.error('Error al cargar inventarios:', error);
@@ -343,13 +343,13 @@ export default function Inventarios() {
     setGuardando(true);
     try {
       if (modo_edicion && inventario_seleccionado) {
-        await inventarioApi.actualizar(inventario_seleccionado.id, formulario_inventario);
+        await inventarioApi.actualizarInventario(inventario_seleccionado.id, formulario_inventario);
         toast({
           title: 'Éxito',
           description: 'Inventario actualizado correctamente',
         });
       } else {
-        await inventarioApi.crear(formulario_inventario);
+        await inventarioApi.crearInventario(formulario_inventario);
         toast({
           title: 'Éxito',
           description: 'Inventario creado correctamente',
@@ -379,7 +379,7 @@ export default function Inventarios() {
     if (!inventario_a_eliminar) return;
 
     try {
-      await inventarioApi.eliminar(inventario_a_eliminar.id);
+      await inventarioApi.eliminarInventario(inventario_a_eliminar.id);
       toast({
         title: 'Éxito',
         description: 'Inventario eliminado correctamente',
@@ -405,19 +405,19 @@ export default function Inventarios() {
 
   const abrirDialogoInvitar = () => {
     setFormularioInvitar({
-      usuarios_ids: [],
+      usuario_id: '',
       rol: 'lector',
     });
     setDialogoInvitarAbierto(true);
   };
 
-  const manejarInvitarUsuarios = async () => {
+  const manejarInvitarUsuario = async () => {
     if (!inventario_seleccionado) return;
 
-    if (formulario_invitar.usuarios_ids.length === 0) {
+    if (!formulario_invitar.usuario_id) {
       toast({
         title: 'Error',
-        description: 'Selecciona al menos un usuario',
+        description: 'Selecciona un usuario',
         variant: 'destructive',
       });
       return;
@@ -425,14 +425,14 @@ export default function Inventarios() {
 
     setGuardando(true);
     try {
-      await inventarioApi.invitarUsuarios(inventario_seleccionado.id, {
-        usuarios_ids: formulario_invitar.usuarios_ids.map(id => parseInt(id)),
+      await inventarioApi.invitarUsuario(inventario_seleccionado.id, {
+        usuario_id: parseInt(formulario_invitar.usuario_id),
         rol: formulario_invitar.rol,
       });
 
       toast({
         title: 'Éxito',
-        description: 'Usuarios invitados correctamente',
+        description: 'Usuario invitado correctamente',
       });
 
       setDialogoInvitarAbierto(false);
@@ -445,10 +445,10 @@ export default function Inventarios() {
         }
       }
     } catch (error: any) {
-      console.error('Error al invitar usuarios:', error);
+      console.error('Error al invitar usuario:', error);
       toast({
         title: 'Error',
-        description: error.response?.data?.mensaje || 'Error al invitar usuarios',
+        description: error.response?.data?.mensaje || 'Error al invitar usuario',
         variant: 'destructive',
       });
     } finally {
@@ -465,7 +465,7 @@ export default function Inventarios() {
     if (!inventario_seleccionado || !usuario_a_remover) return;
 
     try {
-      await inventarioApi.removerUsuario(inventario_seleccionado.id, usuario_a_remover.id);
+      await inventarioApi.eliminarPermiso(inventario_seleccionado.id, usuario_a_remover.id);
       toast({
         title: 'Éxito',
         description: 'Usuario removido correctamente',
@@ -720,17 +720,8 @@ export default function Inventarios() {
         producto_id: producto_seleccionado.id,
         tipo: formulario_ajuste_lote.tipo,
         cantidad: cantidad,
-        observaciones: `Ajuste de stock en lote ${lote_seleccionado.nro_lote}`,
+        observaciones: `Ajuste ${formulario_ajuste_lote.tipo} manual`,
       });
-
-      if (formulario_ajuste_lote.tipo === 'entrada' && formulario_ajuste_lote.registrar_egreso) {
-        await inventarioApi.ajustarStock(inventario_seleccionado.id, {
-          producto_id: producto_seleccionado.id,
-          tipo: 'entrada',
-          cantidad: cantidad,
-          observaciones: `Compra adicional para lote ${lote_seleccionado.nro_lote}`,
-        });
-      }
 
       toast({
         title: 'Éxito',
@@ -748,24 +739,6 @@ export default function Inventarios() {
       });
     } finally {
       setGuardando(false);
-    }
-  };
-
-  const incrementarCantidadLote = () => {
-    const cantidad_actual = parseFloat(formulario_ajuste_lote.cantidad) || 0;
-    setFormularioAjusteLote({
-      ...formulario_ajuste_lote,
-      cantidad: (cantidad_actual + 1).toString(),
-    });
-  };
-
-  const decrementarCantidadLote = () => {
-    const cantidad_actual = parseFloat(formulario_ajuste_lote.cantidad) || 0;
-    if (cantidad_actual > 1) {
-      setFormularioAjusteLote({
-        ...formulario_ajuste_lote,
-        cantidad: (cantidad_actual - 1).toString(),
-      });
     }
   };
 
@@ -830,7 +803,7 @@ export default function Inventarios() {
   const manejarGuardarActivo = async () => {
     if (!inventario_seleccionado || !producto_seleccionado) return;
 
-    if (!formulario_activo.costo_compra && !modo_edicion_activo) {
+    if (!formulario_activo.costo_compra) {
       toast({
         title: 'Error',
         description: 'El costo de compra es obligatorio',
@@ -846,31 +819,26 @@ export default function Inventarios() {
           inventario_seleccionado.id,
           activo_seleccionado.id,
           {
-            ubicacion: formulario_activo.ubicacion || undefined,
+            nro_serie: formulario_activo.nro_serie || undefined,
             nombre_asignado: formulario_activo.nombre_asignado || undefined,
+            estado: formulario_activo.estado,
+            ubicacion: formulario_activo.ubicacion || undefined,
           }
         );
-        
         toast({
           title: 'Éxito',
           description: 'Activo actualizado correctamente',
         });
       } else {
-        const datos_compra: any = {
+        const datos_compra = {
           producto_id: producto_seleccionado.id,
           cantidad: 1,
           costo_total: parseFloat(formulario_activo.costo_compra),
           fecha_compra: format(formulario_activo.fecha_compra, 'yyyy-MM-dd'),
+          nro_serie: formulario_activo.nro_serie || undefined,
+          nombre_asignado: formulario_activo.nombre_asignado || undefined,
           generar_egreso: formulario_activo.registrar_egreso,
         };
-
-        if (producto_seleccionado.tipo_gestion === 'activo_serializado') {
-          datos_compra.nro_serie = formulario_activo.nro_serie;
-        }
-
-        if (formulario_activo.nombre_asignado) {
-          datos_compra.nombre_asignado = formulario_activo.nombre_asignado;
-        }
 
         await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
         
@@ -1078,76 +1046,71 @@ export default function Inventarios() {
                   <p className="text-sm text-muted-foreground max-w-md mx-auto">
                     {busqueda_inventarios 
                       ? 'Intenta con otros términos de búsqueda'
-                      : 'Crea tu primer inventario para comenzar a gestionar productos'
-                    }
+                      : 'Comienza creando tu primer inventario para gestionar productos y materiales'}
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {inventarios_filtrados.map((inventario) => {
                   const IconoVisibilidad = obtenerIconoVisibilidad(inventario.visibilidad);
                   
                   return (
-                    <Card
-                      key={inventario.id}
-                      className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 border-2"
-                      onClick={() => verDetalleInventario(inventario)}
-                    >
+                    <Card key={inventario.id} className="hover:shadow-lg transition-all duration-200 hover:border-primary/50 cursor-pointer">
                       <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <CardTitle className="text-xl mb-2">{inventario.nombre}</CardTitle>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant="outline" className="flex items-center gap-1">
-                                <IconoVisibilidad className="h-3 w-3" />
-                                {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
-                              </Badge>
-                              {inventario.rol_usuario && (
-                                <Badge variant="secondary" className="flex items-center gap-1">
-                                  <Shield className="h-3 w-3" />
-                                  {inventario.rol_usuario}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
+                        <div className="flex items-center justify-between mb-2">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Package className="h-5 w-5 text-primary" />
+                            {inventario.nombre}
+                          </CardTitle>
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <IconoVisibilidad className="h-3 w-3" />
+                            {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
+                          </Badge>
                         </div>
+                        {inventario.propietario && (
+                          <CardDescription className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            Propietario: {inventario.propietario.nombre}
+                          </CardDescription>
+                        )}
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Users className="h-4 w-4" />
-                            <span>
-                              {inventario.propietario?.nombre || 'Propietario'}
-                            </span>
-                          </div>
-                          
-                          {inventario.es_propietario && (
-                            <div className="flex gap-2 mt-4" onClick={(e) => e.stopPropagation()}>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  abrirDialogoEditarInventario(inventario);
-                                }}
-                              >
-                                <Edit className="h-3 w-3 mr-1" />
-                                Editar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  abrirDialogoConfirmarEliminar(inventario);
-                                }}
-                              >
-                                <Trash2 className="h-3 w-3 mr-1" />
-                                Eliminar
-                              </Button>
+                        <div className="space-y-2">
+                          {inventario.permisos && inventario.permisos.length > 0 && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Users className="h-4 w-4" />
+                              <span>{inventario.permisos.length} usuario{inventario.permisos.length !== 1 ? 's' : ''} con acceso</span>
                             </div>
                           )}
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              onClick={() => verDetalleInventario(inventario)}
+                              size="sm"
+                              className="flex-1"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Ver
+                            </Button>
+                            {inventario.es_propietario && (
+                              <>
+                                <Button
+                                  onClick={() => abrirDialogoEditarInventario(inventario)}
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  onClick={() => abrirDialogoConfirmarEliminar(inventario)}
+                                  variant="destructive"
+                                  size="sm"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1163,38 +1126,40 @@ export default function Inventarios() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <Button
-                  variant="ghost"
-                  size="icon"
                   onClick={volverALista}
-                  className="hover:scale-110 transition-all duration-200"
+                  variant="outline"
+                  size="sm"
+                  className="mr-2"
                 >
-                  <ArrowLeft className="h-5 w-5" />
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Volver
                 </Button>
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">{inventario_seleccionado?.nombre}</h1>
                   <p className="text-sm text-muted-foreground">
-                    {inventario_seleccionado?.propietario?.nombre}
+                    {inventario_seleccionado?.propietario && `Propietario: ${inventario_seleccionado.propietario.nombre}`}
                   </p>
                 </div>
               </div>
               <div className="flex gap-2">
-                {inventario_seleccionado?.rol_usuario === 'administrador' && (
-                  <Button
-                    variant="outline"
-                    onClick={abrirDialogoInvitar}
-                    className="hover:scale-105 transition-all duration-200"
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Invitar Usuarios
-                  </Button>
+                {inventario_seleccionado?.es_propietario && (
+                  <>
+                    <Button
+                      onClick={abrirDialogoInvitar}
+                      variant="outline"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Invitar Usuario
+                    </Button>
+                    <Button
+                      onClick={() => abrirDialogoEditarInventario(inventario_seleccionado)}
+                      variant="outline"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </Button>
+                  </>
                 )}
-                <Button
-                  onClick={abrirDialogoNuevoProducto}
-                  className="hover:scale-105 transition-all duration-200"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuevo Producto
-                </Button>
               </div>
             </div>
 
@@ -1202,53 +1167,50 @@ export default function Inventarios() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Valor Consumibles</CardTitle>
+                    <CardDescription>Valor Total</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-2xl font-bold text-foreground">
+                    <div className="text-2xl font-bold text-primary">
+                      ${reporte_valor.valor_total.toFixed(2)}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardDescription>Consumibles</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-500">
                       ${reporte_valor.valor_consumibles.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
                       {reporte_valor.cantidad_lotes} lotes
                     </p>
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Valor Activos</CardTitle>
+                    <CardDescription>Activos</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-2xl font-bold text-foreground">
+                    <div className="text-2xl font-bold text-blue-500">
                       ${reporte_valor.valor_activos.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
                       {reporte_valor.cantidad_activos} activos
                     </p>
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Valor Total</CardTitle>
+                    <CardDescription>Productos</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-2xl font-bold text-primary">
-                      ${reporte_valor.valor_total.toFixed(2)}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Activos por Estado</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-1">
-                    <p className="text-xs text-muted-foreground">
-                      Disponible: {reporte_valor.desglose_activos_por_estado.disponible}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      En uso: {reporte_valor.desglose_activos_por_estado.en_uso}
+                    <div className="text-2xl font-bold">
+                      {productos.length}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {productos.filter(p => obtenerStockTotal(p) < p.stock_minimo).length} con stock bajo
                     </p>
                   </CardContent>
                 </Card>
@@ -1256,403 +1218,408 @@ export default function Inventarios() {
             )}
           </div>
 
-          <Tabs value={tab_activo} onValueChange={setTabActivo as any} className="flex-1 flex flex-col overflow-hidden">
-            <div className="px-6 pt-4 border-b border-border">
-              <TabsList>
-                <TabsTrigger value="productos">Productos</TabsTrigger>
-                <TabsTrigger value="historial">Historial</TabsTrigger>
-                {inventario_seleccionado?.rol_usuario === 'administrador' && (
-                  <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
-                )}
+          <Tabs value={tab_activo} onValueChange={(value) => setTabActivo(value as any)} className="flex-1 flex flex-col overflow-hidden">
+            <div className="px-6 pt-4">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="productos">
+                  <Box className="h-4 w-4 mr-2" />
+                  Productos
+                </TabsTrigger>
+                <TabsTrigger value="historial">
+                  <History className="h-4 w-4 mr-2" />
+                  Historial
+                </TabsTrigger>
+                <TabsTrigger value="usuarios">
+                  <Users className="h-4 w-4 mr-2" />
+                  Usuarios
+                </TabsTrigger>
               </TabsList>
             </div>
 
-            <TabsContent value="productos" className="flex-1 overflow-hidden p-6 space-y-4">
-              <div className="flex gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar productos..."
-                    value={busqueda_productos}
-                    onChange={(e) => setBusquedaProductos(e.target.value)}
-                    className="pl-10"
-                  />
+            <TabsContent value="productos" className="flex-1 overflow-hidden flex flex-col m-0 p-6 pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex gap-2 flex-1">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar productos..."
+                      value={busqueda_productos}
+                      onChange={(e) => setBusquedaProductos(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select value={filtro_tipo_producto} onValueChange={setFiltroTipoProducto}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="consumible">Consumibles</SelectItem>
+                      <SelectItem value="activo_serializado">Serializados</SelectItem>
+                      <SelectItem value="activo_general">Generales</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Select value={filtro_tipo_producto} onValueChange={setFiltroTipoProducto}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Tipo de producto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos los tipos</SelectItem>
-                    <SelectItem value="consumible">Consumibles</SelectItem>
-                    <SelectItem value="activo_serializado">Activos Serializados</SelectItem>
-                    <SelectItem value="activo_general">Activos Generales</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Button onClick={abrirDialogoNuevoProducto} className="ml-2">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nuevo Producto
+                </Button>
               </div>
 
-              <ScrollArea className="h-[calc(100vh-400px)]">
-                {productos_filtrados.length === 0 ? (
-                  <div className="text-center py-12 space-y-4">
-                    <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center">
-                      <Package className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-semibold text-foreground">
-                        No hay productos
-                      </h3>
-                      <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                        Crea tu primer producto para este inventario
-                      </p>
-                    </div>
+              <ScrollArea className="flex-1">
+                {cargando_detalle ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : productos_filtrados.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Box className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No hay productos</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {busqueda_productos ? 'No se encontraron productos con ese nombre' : 'Comienza agregando productos al inventario'}
+                    </p>
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    {productos_filtrados.map((producto) => (
-                      <Card key={producto.id} className="border-2">
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <CardTitle className="text-xl">{producto.nombre}</CardTitle>
-                                <Badge className={obtenerColorTipoGestion(producto.tipo_gestion)}>
+                  <div className="space-y-4">
+                    {productos_filtrados.map((producto) => {
+                      const stock_total = obtenerStockTotal(producto);
+                      const valor_total = obtenerValorTotal(producto);
+                      const stock_bajo = stock_total < producto.stock_minimo;
+
+                      return (
+                        <Card key={producto.id} className={`${stock_bajo ? 'border-yellow-500' : ''}`}>
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <CardTitle className="text-lg">{producto.nombre}</CardTitle>
+                                <Badge className={`${obtenerColorTipoGestion(producto.tipo_gestion)} text-white`}>
                                   {obtenerEtiquetaTipoGestion(producto.tipo_gestion)}
                                 </Badge>
+                                {stock_bajo && (
+                                  <Badge variant="destructive" className="flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Stock Bajo
+                                  </Badge>
+                                )}
                               </div>
-                              {producto.descripcion && (
-                                <CardDescription>{producto.descripcion}</CardDescription>
-                              )}
+                              <div className="flex gap-2">
+                                {producto.tipo_gestion === 'consumible' && (
+                                  <Button
+                                    onClick={() => abrirDialogoNuevoLote(producto)}
+                                    size="sm"
+                                    variant="outline"
+                                  >
+                                    <ShoppingCart className="h-4 w-4 mr-1" />
+                                    Registrar Compra
+                                  </Button>
+                                )}
+                                {producto.tipo_gestion !== 'consumible' && (
+                                  <Button
+                                    onClick={() => abrirDialogoNuevoActivo(producto)}
+                                    size="sm"
+                                    variant="outline"
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Registrar Activo
+                                  </Button>
+                                )}
+                                <Button
+                                  onClick={() => abrirDialogoEditarProducto(producto)}
+                                  size="sm"
+                                  variant="outline"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  onClick={() => abrirDialogoConfirmarEliminarProducto(producto)}
+                                  size="sm"
+                                  variant="destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => abrirDialogoEditarProducto(producto)}
-                              >
-                                <Edit className="h-3 w-3 mr-1" />
-                                Editar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => abrirDialogoConfirmarEliminarProducto(producto)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-3 gap-4">
-                              <div>
-                                <p className="text-xs text-muted-foreground">Stock Total</p>
-                                <p className="text-lg font-semibold text-foreground">
-                                  {obtenerStockTotal(producto)} {producto.unidad_medida}
-                                </p>
+                            {producto.descripcion && (
+                              <CardDescription>{producto.descripcion}</CardDescription>
+                            )}
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                              <div className="flex items-center gap-2">
+                                <Package className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Stock Total</p>
+                                  <p className="text-lg font-semibold">
+                                    {stock_total} {producto.unidad_medida}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Stock Mínimo</p>
-                                <p className="text-lg font-semibold text-foreground">
-                                  {producto.stock_minimo} {producto.unidad_medida}
-                                </p>
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Stock Mínimo</p>
+                                  <p className="text-lg font-semibold">
+                                    {producto.stock_minimo} {producto.unidad_medida}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Valor Total</p>
-                                <p className="text-lg font-semibold text-primary">
-                                  ${obtenerValorTotal(producto).toFixed(2)}
-                                </p>
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Valor Total</p>
+                                  <p className="text-lg font-semibold">${valor_total.toFixed(2)}</p>
+                                </div>
                               </div>
                             </div>
 
                             {producto.tipo_gestion === 'consumible' && producto.lotes && producto.lotes.length > 0 && (
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="font-semibold text-foreground">Lotes</h4>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => abrirDialogoNuevoLote(producto)}
-                                  >
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    Nuevo Lote
-                                  </Button>
-                                </div>
-                                <div className="space-y-2">
-                                  {producto.lotes.map((lote) => (
-                                    <div
-                                      key={lote.id}
-                                      className="p-4 rounded-lg border border-border bg-secondary/30"
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <div className="grid grid-cols-4 gap-4 flex-1">
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Lote</p>
-                                            <p className="font-medium">{lote.nro_lote}</p>
-                                          </div>
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Cantidad</p>
-                                            <p className="font-medium">{lote.cantidad_actual}</p>
-                                          </div>
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Vencimiento</p>
-                                            <p className="font-medium">{format(new Date(lote.fecha_vencimiento), 'dd/MM/yyyy', { locale: es })}</p>
-                                          </div>
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Costo Unit.</p>
-                                            <p className="font-medium">${lote.costo_unitario_compra}</p>
-                                          </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                          <Button
-                                            size="icon"
-                                            variant="outline"
-                                            onClick={() => abrirDialogoAjusteStockLote(producto, lote)}
-                                            title="Ajustar Stock"
-                                          >
-                                            <Settings className="h-4 w-4" />
-                                          </Button>
-                                          <Button
-                                            size="icon"
-                                            variant="destructive"
-                                            onClick={() => abrirDialogoConfirmarEliminarLote(lote)}
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {producto.tipo_gestion === 'consumible' && (!producto.lotes || producto.lotes.length === 0) && (
-                              <Button
-                                onClick={() => abrirDialogoNuevoLote(producto)}
-                                variant="outline"
-                                className="w-full"
-                              >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Agregar Primer Lote
-                              </Button>
-                            )}
-
-                            {(producto.tipo_gestion === 'activo_serializado' || producto.tipo_gestion === 'activo_general') && (
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="font-semibold text-foreground">Activos</h4>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => abrirDialogoNuevoActivo(producto)}
-                                  >
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    Nuevo Activo
-                                  </Button>
-                                </div>
-                                {producto.activos && producto.activos.length > 0 ? (
-                                  <div className="space-y-2">
-                                    {producto.activos.map((activo) => (
-                                      <div
-                                        key={activo.id}
-                                        className="p-4 rounded-lg border border-border bg-secondary/30"
-                                      >
-                                        <div className="flex items-center justify-between">
-                                          <div className="grid grid-cols-5 gap-4 flex-1">
-                                            {producto.tipo_gestion === 'activo_serializado' && (
-                                              <div>
-                                                <p className="text-xs text-muted-foreground">N° Serie</p>
-                                                <p className="font-medium">{activo.nro_serie || 'N/A'}</p>
-                                              </div>
-                                            )}
-                                            {activo.nombre_asignado && (
-                                              <div>
-                                                <p className="text-xs text-muted-foreground">Nombre</p>
-                                                <p className="font-medium">{activo.nombre_asignado}</p>
-                                              </div>
-                                            )}
-                                            <div>
-                                              <p className="text-xs text-muted-foreground">Estado</p>
-                                              <Select
-                                                value={activo.estado}
-                                                onValueChange={(valor) => manejarCambioEstadoActivo(producto, activo, valor)}
-                                              >
-                                                <SelectTrigger className="h-8 text-xs">
-                                                  <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  {estados_activo.map((estado) => (
-                                                    <SelectItem key={estado.valor} value={estado.valor}>
-                                                      {estado.etiqueta}
-                                                    </SelectItem>
-                                                  ))}
-                                                </SelectContent>
-                                              </Select>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-muted-foreground">Costo</p>
-                                              <p className="font-medium">${activo.costo_compra}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-muted-foreground">Ubicación</p>
-                                              <p className="font-medium">{activo.ubicacion || 'N/A'}</p>
-                                            </div>
-                                          </div>
-                                          <div className="flex gap-2">
+                              <div className="border-t pt-4">
+                                <h4 className="font-semibold mb-2 text-sm">Lotes Disponibles</h4>
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Nro. Lote</TableHead>
+                                      <TableHead>Stock</TableHead>
+                                      <TableHead>Costo Unit.</TableHead>
+                                      <TableHead>Vencimiento</TableHead>
+                                      <TableHead className="text-right">Acciones</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {producto.lotes.map((lote) => (
+                                      <TableRow key={lote.id}>
+                                        <TableCell className="font-medium">{lote.nro_lote}</TableCell>
+                                        <TableCell>{lote.cantidad_actual} {producto.unidad_medida}</TableCell>
+                                        <TableCell>${Number(lote.costo_unitario_compra).toFixed(2)}</TableCell>
+                                        <TableCell>{format(new Date(lote.fecha_vencimiento), 'dd/MM/yyyy')}</TableCell>
+                                        <TableCell className="text-right">
+                                          <div className="flex gap-1 justify-end">
                                             <Button
-                                              size="icon"
+                                              onClick={() => abrirDialogoAjusteStockLote(producto, lote)}
+                                              size="sm"
                                               variant="outline"
-                                              onClick={() => abrirDialogoEditarActivo(producto, activo)}
                                             >
-                                              <Edit className="h-4 w-4" />
+                                              <Settings className="h-3 w-3" />
                                             </Button>
                                             <Button
-                                              size="icon"
+                                              onClick={() => abrirDialogoConfirmarEliminarLote(lote)}
+                                              size="sm"
                                               variant="destructive"
-                                              onClick={() => abrirDialogoConfirmarEliminarActivo(activo)}
                                             >
-                                              <Trash2 className="h-4 w-4" />
+                                              <Trash2 className="h-3 w-3" />
                                             </Button>
                                           </div>
-                                        </div>
-                                      </div>
+                                        </TableCell>
+                                      </TableRow>
                                     ))}
-                                  </div>
-                                ) : (
-                                  <div className="text-center py-8 text-muted-foreground">
-                                    No hay activos registrados
-                                  </div>
-                                )}
+                                  </TableBody>
+                                </Table>
                               </div>
                             )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </TabsContent>
 
-            <TabsContent value="historial" className="flex-1 overflow-hidden p-6">
-              <ScrollArea className="h-[calc(100vh-300px)]">
-                {movimientos.length === 0 ? (
-                  <div className="text-center py-12 space-y-4">
-                    <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center">
-                      <History className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-semibold text-foreground">
-                        No hay movimientos registrados
-                      </h3>
-                      <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                        Los movimientos de inventario aparecerán aquí
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {movimientos.map((movimiento) => (
-                      <Card key={movimiento.id} className="border-2">
-                        <CardContent className="pt-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className={`p-3 rounded-lg ${
-                                movimiento.tipo === 'entrada' ? 'bg-green-500/10' : 'bg-red-500/10'
-                              }`}>
-                                {movimiento.tipo === 'entrada' ? (
-                                  <TrendingUp className="h-5 w-5 text-green-500" />
-                                ) : (
-                                  <TrendingDown className="h-5 w-5 text-red-500" />
-                                )}
+                            {producto.tipo_gestion !== 'consumible' && producto.activos && producto.activos.length > 0 && (
+                              <div className="border-t pt-4">
+                                <h4 className="font-semibold mb-2 text-sm">Activos Registrados</h4>
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Identificación</TableHead>
+                                      <TableHead>Estado</TableHead>
+                                      <TableHead>Ubicación</TableHead>
+                                      <TableHead>Costo</TableHead>
+                                      <TableHead className="text-right">Acciones</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {producto.activos.map((activo) => (
+                                      <TableRow key={activo.id}>
+                                        <TableCell className="font-medium">
+                                          {activo.nombre_asignado || activo.nro_serie || '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                          <Select
+                                            value={activo.estado}
+                                            onValueChange={(value) => manejarCambioEstadoActivo(producto, activo, value)}
+                                          >
+                                            <SelectTrigger className="h-8 w-[140px]">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {estados_activo.map((estado) => (
+                                                <SelectItem key={estado.valor} value={estado.valor}>
+                                                  {estado.etiqueta}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </TableCell>
+                                        <TableCell>{activo.ubicacion || '-'}</TableCell>
+                                        <TableCell>${Number(activo.costo_compra).toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">
+                                          <div className="flex gap-1 justify-end">
+                                            <Button
+                                              onClick={() => abrirDialogoEditarActivo(producto, activo)}
+                                              size="sm"
+                                              variant="outline"
+                                            >
+                                              <Edit className="h-3 w-3" />
+                                            </Button>
+                                            <Button
+                                              onClick={() => abrirDialogoConfirmarEliminarActivo(activo)}
+                                              size="sm"
+                                              variant="destructive"
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
                               </div>
-                              <div>
-                                <p className="font-semibold text-foreground">
-                                  {movimiento.producto.nombre}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {movimiento.tipo === 'entrada' ? 'Entrada' : 'Salida'} de {movimiento.cantidad} unidades
-                                </p>
-                                {movimiento.observaciones && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {movimiento.observaciones}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-medium text-foreground">
-                                {format(new Date(movimiento.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {movimiento.usuario.nombre}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </TabsContent>
-
-            {inventario_seleccionado?.rol_usuario === 'administrador' && (
-              <TabsContent value="usuarios" className="flex-1 overflow-hidden p-6">
-                <ScrollArea className="h-[calc(100vh-300px)]">
-                  {inventario_seleccionado?.permisos && inventario_seleccionado.permisos.length > 0 ? (
-                    <div className="space-y-3">
-                      {inventario_seleccionado.permisos.map((permiso) => (
-                        <Card key={permiso.id} className="border-2">
-                          <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-lg bg-primary/10">
-                                  <Users className="h-5 w-5 text-primary" />
-                                </div>
-                                <div>
-                                  <p className="font-semibold text-foreground">
-                                    {permiso.usuario_invitado.nombre}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {permiso.usuario_invitado.correo}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <Badge variant="secondary">
-                                  {permiso.rol}
-                                </Badge>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => abrirDialogoRemoverUsuario(permiso)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            )}
                           </CardContent>
                         </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="historial" className="flex-1 overflow-hidden flex flex-col m-0 p-6 pt-4">
+              <ScrollArea className="flex-1">
+                {cargando_detalle ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : movimientos.length === 0 ? (
+                  <div className="text-center py-12">
+                    <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No hay movimientos</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Los movimientos de inventario aparecerán aquí
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Producto</TableHead>
+                        <TableHead>Cantidad</TableHead>
+                        <TableHead>Usuario</TableHead>
+                        <TableHead>Observaciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {movimientos.map((movimiento) => (
+                        <TableRow key={movimiento.id}>
+                          <TableCell>{format(new Date(movimiento.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={movimiento.tipo === 'entrada' ? 'default' : 'destructive'}
+                              className="flex items-center gap-1 w-fit"
+                            >
+                              {movimiento.tipo === 'entrada' ? (
+                                <TrendingUp className="h-3 w-3" />
+                              ) : (
+                                <TrendingDown className="h-3 w-3" />
+                              )}
+                              {movimiento.tipo.charAt(0).toUpperCase() + movimiento.tipo.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{movimiento.producto.nombre}</TableCell>
+                          <TableCell>{movimiento.cantidad}</TableCell>
+                          <TableCell>{movimiento.usuario.nombre}</TableCell>
+                          <TableCell className="max-w-md truncate">{movimiento.observaciones || '-'}</TableCell>
+                        </TableRow>
                       ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 space-y-4">
-                      <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center">
-                        <Users className="h-8 w-8 text-muted-foreground" />
-                      </div>
+                    </TableBody>
+                  </Table>
+                )}
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="usuarios" className="flex-1 overflow-hidden flex flex-col m-0 p-6 pt-4">
+              <ScrollArea className="flex-1">
+                {cargando_detalle ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {inventario_seleccionado?.propietario && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-primary" />
+                            Propietario
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{inventario_seleccionado.propietario.nombre}</p>
+                              <p className="text-sm text-muted-foreground">{inventario_seleccionado.propietario.correo}</p>
+                            </div>
+                            <Badge>Propietario</Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {inventario_seleccionado?.permisos && inventario_seleccionado.permisos.length > 0 && (
                       <div className="space-y-2">
-                        <h3 className="text-lg font-semibold text-foreground">
-                          No hay usuarios invitados
-                        </h3>
-                        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                          Invita a usuarios para colaborar en este inventario
-                        </p>
+                        <h3 className="font-semibold text-sm text-muted-foreground uppercase">Usuarios con Acceso</h3>
+                        {inventario_seleccionado.permisos.map((permiso) => (
+                          <Card key={permiso.id}>
+                            <CardContent className="py-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium">{permiso.usuario_invitado.nombre}</p>
+                                  <p className="text-sm text-muted-foreground">{permiso.usuario_invitado.correo}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge>{permiso.rol.charAt(0).toUpperCase() + permiso.rol.slice(1)}</Badge>
+                                  {inventario_seleccionado.es_propietario && (
+                                    <Button
+                                      onClick={() => abrirDialogoRemoverUsuario(permiso)}
+                                      variant="destructive"
+                                      size="sm"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                    </div>
-                  )}
-                </ScrollArea>
-              </TabsContent>
-            )}
+                    )}
+
+                    {(!inventario_seleccionado?.permisos || inventario_seleccionado.permisos.length === 0) && (
+                      <div className="text-center py-12">
+                        <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No hay usuarios invitados</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Invita usuarios para que puedan acceder a este inventario
+                        </p>
+                        {inventario_seleccionado?.es_propietario && (
+                          <Button onClick={abrirDialogoInvitar}>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Invitar Usuario
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
           </Tabs>
         </div>
       )}
@@ -1739,20 +1706,20 @@ export default function Inventarios() {
       <Dialog open={dialogo_invitar_abierto} onOpenChange={setDialogoInvitarAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Invitar Usuarios</DialogTitle>
+            <DialogTitle>Invitar Usuario</DialogTitle>
             <DialogDescription>
-              Selecciona usuarios y asigna un rol para este inventario
+              Selecciona un usuario y asigna un rol para este inventario
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="usuarios">Usuarios *</Label>
-              <MultiSelect
+              <Label htmlFor="usuario">Usuario *</Label>
+              <Combobox
                 opciones={opciones_usuarios}
-                valores={formulario_invitar.usuarios_ids}
-                onChange={(valores) => setFormularioInvitar({ ...formulario_invitar, usuarios_ids: valores })}
-                placeholder="Selecciona usuarios"
+                valor={formulario_invitar.usuario_id}
+                onChange={(valor) => setFormularioInvitar({ ...formulario_invitar, usuario_id: valor })}
+                placeholder="Selecciona un usuario"
               />
             </div>
 
@@ -1780,7 +1747,7 @@ export default function Inventarios() {
             <Button variant="outline" onClick={() => setDialogoInvitarAbierto(false)}>
               Cancelar
             </Button>
-            <Button onClick={manejarInvitarUsuarios} disabled={guardando}>
+            <Button onClick={manejarInvitarUsuario} disabled={guardando}>
               {guardando ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1864,7 +1831,7 @@ export default function Inventarios() {
                   id="unidad_medida"
                   value={formulario_producto.unidad_medida}
                   onChange={(e) => setFormularioProducto({ ...formulario_producto, unidad_medida: e.target.value })}
-                  placeholder="Unidades, ml, kg..."
+                  placeholder="unidades, ml, gramos..."
                 />
               </div>
             </div>
@@ -1876,7 +1843,6 @@ export default function Inventarios() {
                 type="number"
                 value={formulario_producto.stock_minimo}
                 onChange={(e) => setFormularioProducto({ ...formulario_producto, stock_minimo: e.target.value })}
-                placeholder="10"
               />
             </div>
 
@@ -1886,17 +1852,20 @@ export default function Inventarios() {
                 id="descripcion"
                 value={formulario_producto.descripcion}
                 onChange={(e) => setFormularioProducto({ ...formulario_producto, descripcion: e.target.value })}
-                placeholder="Descripción opcional del producto"
+                placeholder="Descripción del producto (opcional)"
+                rows={3}
               />
             </div>
 
             <div className="flex items-center space-x-2">
               <Switch
-                id="notificar"
+                id="notificar_stock_bajo"
                 checked={formulario_producto.notificar_stock_bajo}
                 onCheckedChange={(checked) => setFormularioProducto({ ...formulario_producto, notificar_stock_bajo: checked })}
               />
-              <Label htmlFor="notificar">Notificar cuando el stock esté bajo</Label>
+              <Label htmlFor="notificar_stock_bajo" className="cursor-pointer">
+                Notificar cuando el stock esté por debajo del mínimo
+              </Label>
             </div>
           </div>
 
@@ -1924,7 +1893,7 @@ export default function Inventarios() {
             <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
               ¿Estás seguro de que deseas eliminar el producto "{producto_a_eliminar?.nombre}"?
-              Esto eliminará todos sus lotes y activos asociados.
+              Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1941,57 +1910,53 @@ export default function Inventarios() {
       <Dialog open={dialogo_lote_abierto} onOpenChange={setDialogoLoteAbierto}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>
-              {modo_edicion_lote ? 'Editar Lote' : 'Agregar Lote'}
-            </DialogTitle>
+            <DialogTitle>Registrar Compra de Lote</DialogTitle>
             <DialogDescription>
-              {modo_edicion_lote
-                ? 'Modifica la información del lote'
-                : `Agregar nuevo lote para ${producto_seleccionado?.nombre}`}
+              Registra una nueva compra de {producto_seleccionado?.nombre}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nro_lote">Número de Lote *</Label>
+                <Input
+                  id="nro_lote"
+                  value={formulario_lote.nro_lote}
+                  onChange={(e) => setFormularioLote({ ...formulario_lote, nro_lote: e.target.value })}
+                  placeholder="L001-2024"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cantidad">Cantidad *</Label>
+                <Input
+                  id="cantidad"
+                  type="number"
+                  step="0.01"
+                  value={formulario_lote.cantidad}
+                  onChange={(e) => setFormularioLote({ ...formulario_lote, cantidad: e.target.value })}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="nro_lote">Número de Lote *</Label>
+              <Label htmlFor="costo_total">Costo Total *</Label>
               <Input
-                id="nro_lote"
-                value={formulario_lote.nro_lote}
-                onChange={(e) => setFormularioLote({ ...formulario_lote, nro_lote: e.target.value })}
-                placeholder="LOTE-001"
+                id="costo_total"
+                type="number"
+                step="0.01"
+                value={formulario_lote.costo_total}
+                onChange={(e) => setFormularioLote({ ...formulario_lote, costo_total: e.target.value })}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="cantidad_lote">Cantidad *</Label>
-                <Input
-                  id="cantidad_lote"
-                  type="number"
-                  value={formulario_lote.cantidad}
-                  onChange={(e) => setFormularioLote({ ...formulario_lote, cantidad: e.target.value })}
-                  placeholder="100"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="costo_total_lote">Costo Total *</Label>
-                <Input
-                  id="costo_total_lote"
-                  type="number"
-                  value={formulario_lote.costo_total}
-                  onChange={(e) => setFormularioLote({ ...formulario_lote, costo_total: e.target.value })}
-                  placeholder="1000"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fecha_compra_lote">Fecha de Compra *</Label>
+                <Label htmlFor="fecha_compra">Fecha de Compra *</Label>
                 <DatePicker
                   valor={formulario_lote.fecha_compra}
-                  onChange={(fecha) => fecha && setFormularioLote({ ...formulario_lote, fecha_compra: fecha })}
+                  onChange={(fecha) => setFormularioLote({ ...formulario_lote, fecha_compra: fecha || new Date() })}
                 />
               </div>
 
@@ -2004,16 +1969,16 @@ export default function Inventarios() {
               </div>
             </div>
 
-            {!modo_edicion_lote && (
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="registrar_egreso_lote"
-                  checked={formulario_lote.registrar_egreso}
-                  onCheckedChange={(checked) => setFormularioLote({ ...formulario_lote, registrar_egreso: checked })}
-                />
-                <Label htmlFor="registrar_egreso_lote">Registrar egreso en finanzas</Label>
-              </div>
-            )}
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="registrar_egreso_lote"
+                checked={formulario_lote.registrar_egreso}
+                onCheckedChange={(checked) => setFormularioLote({ ...formulario_lote, registrar_egreso: checked })}
+              />
+              <Label htmlFor="registrar_egreso_lote" className="cursor-pointer">
+                Registrar egreso en finanzas
+              </Label>
+            </div>
           </div>
 
           <DialogFooter>
@@ -2027,117 +1992,7 @@ export default function Inventarios() {
                   Guardando...
                 </>
               ) : (
-                modo_edicion_lote ? 'Guardar Cambios' : 'Agregar Lote'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={dialogo_ajuste_stock_lote_abierto} onOpenChange={setDialogoAjusteStockLoteAbierto}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Ajustar Stock del Lote</DialogTitle>
-            <DialogDescription>
-              Lote: {lote_seleccionado?.nro_lote} - Stock actual: {lote_seleccionado?.cantidad_actual} {producto_seleccionado?.unidad_medida}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="tipo_ajuste">Tipo de Ajuste</Label>
-              <Select
-                value={formulario_ajuste_lote.tipo}
-                onValueChange={(value) => setFormularioAjusteLote({ ...formulario_ajuste_lote, tipo: value as 'entrada' | 'salida' })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="entrada">Entrada</SelectItem>
-                  <SelectItem value="salida">Salida</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cantidad_ajuste">Cantidad</Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  onClick={decrementarCantidadLote}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <Input
-                  id="cantidad_ajuste"
-                  type="number"
-                  value={formulario_ajuste_lote.cantidad}
-                  onChange={(e) => setFormularioAjusteLote({ ...formulario_ajuste_lote, cantidad: e.target.value })}
-                  className="text-center"
-                  min="1"
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  onClick={incrementarCantidadLote}
-                >
-                  <PlusIcon className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {formulario_ajuste_lote.tipo === 'entrada' && (
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="registrar_egreso_ajuste"
-                  checked={formulario_ajuste_lote.registrar_egreso}
-                  onCheckedChange={(checked) => setFormularioAjusteLote({ ...formulario_ajuste_lote, registrar_egreso: checked })}
-                />
-                <Label htmlFor="registrar_egreso_ajuste">Registrar como egreso en finanzas</Label>
-              </div>
-            )}
-
-            {lote_seleccionado && (
-              <div className="p-4 bg-secondary/30 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-2">Vista Previa:</p>
-                <div className="space-y-1">
-                  <p className="text-sm">
-                    <span className="font-medium">Stock actual:</span> {lote_seleccionado.cantidad_actual} {producto_seleccionado?.unidad_medida}
-                  </p>
-                  <p className="text-sm">
-                    <span className="font-medium">Nuevo stock:</span>{' '}
-                    {formulario_ajuste_lote.tipo === 'entrada'
-                      ? lote_seleccionado.cantidad_actual + (parseFloat(formulario_ajuste_lote.cantidad) || 0)
-                      : lote_seleccionado.cantidad_actual - (parseFloat(formulario_ajuste_lote.cantidad) || 0)
-                    } {producto_seleccionado?.unidad_medida}
-                  </p>
-                  {formulario_ajuste_lote.tipo === 'entrada' && formulario_ajuste_lote.registrar_egreso && lote_seleccionado && (
-                    <p className="text-sm text-orange-600">
-                      <span className="font-medium">Costo estimado:</span> $
-                      {(lote_seleccionado.costo_unitario_compra * (parseFloat(formulario_ajuste_lote.cantidad) || 0)).toFixed(2)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoAjusteStockLoteAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={manejarAjusteStockLote} disabled={guardando}>
-              {guardando ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Ajustando...
-                </>
-              ) : (
-                'Ajustar Stock'
+                'Registrar Compra'
               )}
             </Button>
           </DialogFooter>
@@ -2164,28 +2019,90 @@ export default function Inventarios() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogo_activo_abierto} onOpenChange={setDialogoActivoAbierto}>
-        <DialogContent className="sm:max-w-[600px]">
+      <Dialog open={dialogo_ajuste_stock_lote_abierto} onOpenChange={setDialogoAjusteStockLoteAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>
-              {modo_edicion_activo ? 'Editar Activo' : 'Agregar Activo'}
-            </DialogTitle>
+            <DialogTitle>Ajustar Stock</DialogTitle>
             <DialogDescription>
-              {modo_edicion_activo
-                ? 'Modifica la información del activo'
-                : `Agregar nuevo activo para ${producto_seleccionado?.nombre}`}
+              Ajusta el stock del lote {lote_seleccionado?.nro_lote}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {producto_seleccionado?.tipo_gestion === 'activo_serializado' && !modo_edicion_activo && (
+            <div className="space-y-2">
+              <Label htmlFor="tipo_ajuste">Tipo de Ajuste *</Label>
+              <Select
+                value={formulario_ajuste_lote.tipo}
+                onValueChange={(value) => setFormularioAjusteLote({ ...formulario_ajuste_lote, tipo: value as 'entrada' | 'salida' })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entrada">Entrada (Incrementar)</SelectItem>
+                  <SelectItem value="salida">Salida (Decrementar)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cantidad_ajuste">Cantidad *</Label>
+              <Input
+                id="cantidad_ajuste"
+                type="number"
+                step="0.01"
+                value={formulario_ajuste_lote.cantidad}
+                onChange={(e) => setFormularioAjusteLote({ ...formulario_ajuste_lote, cantidad: e.target.value })}
+              />
+              {lote_seleccionado && (
+                <p className="text-sm text-muted-foreground">
+                  Stock actual: {lote_seleccionado.cantidad_actual} {producto_seleccionado?.unidad_medida}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogoAjusteStockLoteAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={manejarAjusteStockLote} disabled={guardando}>
+              {guardando ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Ajustando...
+                </>
+              ) : (
+                'Ajustar Stock'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_activo_abierto} onOpenChange={setDialogoActivoAbierto}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {modo_edicion_activo ? 'Editar Activo' : 'Registrar Nuevo Activo'}
+            </DialogTitle>
+            <DialogDescription>
+              {modo_edicion_activo
+                ? `Modifica la información del activo`
+                : `Registra un nuevo activo de ${producto_seleccionado?.nombre}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {producto_seleccionado?.tipo_gestion === 'activo_serializado' && (
               <div className="space-y-2">
-                <Label htmlFor="nro_serie">Número de Serie *</Label>
+                <Label htmlFor="nro_serie">Número de Serie</Label>
                 <Input
                   id="nro_serie"
                   value={formulario_activo.nro_serie}
                   onChange={(e) => setFormularioActivo({ ...formulario_activo, nro_serie: e.target.value })}
-                  placeholder="SN-001"
+                  placeholder="SN-123456"
+                  disabled={modo_edicion_activo}
                 />
               </div>
             )}
@@ -2196,34 +2113,51 @@ export default function Inventarios() {
                 id="nombre_asignado"
                 value={formulario_activo.nombre_asignado}
                 onChange={(e) => setFormularioActivo({ ...formulario_activo, nombre_asignado: e.target.value })}
-                placeholder="Equipo Consultorio 1"
+                placeholder="Equipo Sala 1"
               />
             </div>
 
             {!modo_edicion_activo && (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="costo_compra">Costo de Compra *</Label>
-                    <Input
-                      id="costo_compra"
-                      type="number"
-                      value={formulario_activo.costo_compra}
-                      onChange={(e) => setFormularioActivo({ ...formulario_activo, costo_compra: e.target.value })}
-                      placeholder="1500"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="costo_compra">Costo de Compra *</Label>
+                  <Input
+                    id="costo_compra"
+                    type="number"
+                    step="0.01"
+                    value={formulario_activo.costo_compra}
+                    onChange={(e) => setFormularioActivo({ ...formulario_activo, costo_compra: e.target.value })}
+                  />
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="fecha_compra_activo">Fecha de Compra *</Label>
-                    <DatePicker
-                      valor={formulario_activo.fecha_compra}
-                      onChange={(fecha) => fecha && setFormularioActivo({ ...formulario_activo, fecha_compra: fecha })}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fecha_compra">Fecha de Compra *</Label>
+                  <DatePicker
+                    valor={formulario_activo.fecha_compra}
+                    onChange={(fecha) => setFormularioActivo({ ...formulario_activo, fecha_compra: fecha || new Date() })}
+                  />
                 </div>
               </>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="estado">Estado *</Label>
+              <Select
+                value={formulario_activo.estado}
+                onValueChange={(value) => setFormularioActivo({ ...formulario_activo, estado: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {estados_activo.map((estado) => (
+                    <SelectItem key={estado.valor} value={estado.valor}>
+                      {estado.etiqueta}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="ubicacion">Ubicación</Label>
@@ -2242,7 +2176,9 @@ export default function Inventarios() {
                   checked={formulario_activo.registrar_egreso}
                   onCheckedChange={(checked) => setFormularioActivo({ ...formulario_activo, registrar_egreso: checked })}
                 />
-                <Label htmlFor="registrar_egreso_activo">Registrar egreso en finanzas</Label>
+                <Label htmlFor="registrar_egreso_activo" className="cursor-pointer">
+                  Registrar egreso en finanzas
+                </Label>
               </div>
             )}
           </div>
@@ -2258,7 +2194,7 @@ export default function Inventarios() {
                   Guardando...
                 </>
               ) : (
-                modo_edicion_activo ? 'Guardar Cambios' : 'Agregar Activo'
+                modo_edicion_activo ? 'Guardar Cambios' : 'Registrar Activo'
               )}
             </Button>
           </DialogFooter>
