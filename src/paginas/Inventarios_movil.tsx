@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { MenuLateral } from '@/componentes/MenuLateral_movil';
+import { MenuLateralMovil } from '@/componentes/MenuLateral_movil';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from '@/componentes/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/componentes/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Switch } from '@/componentes/ui/switch';
@@ -34,7 +34,6 @@ import {
   TrendingUp,
   TrendingDown,
   Settings,
-  ChevronRight,
   Eye
 } from 'lucide-react';
 import { inventarioApi, usuariosApi } from '@/lib/api';
@@ -47,110 +46,17 @@ import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { format } from 'date-fns';
 import { ajustarFechaParaBackend, formatearFechaSoloFecha } from '@/lib/utilidades';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
+import { 
+  UsuarioInventario as Usuario, 
+  Inventario, 
+  Producto, 
+  Lote, 
+  Activo, 
+  ReporteValor, 
+  MovimientoInventario 
+} from '@/tipos';
 
-interface Usuario {
-  id: number;
-  nombre: string;
-  correo: string;
-}
-
-interface Inventario {
-  id: number;
-  nombre: string;
-  visibilidad: 'privado' | 'publico';
-  activo: boolean;
-  propietario?: {
-    id: number;
-    nombre: string;
-    correo: string;
-  };
-  permisos?: Array<{
-    id: number;
-    rol: string;
-    usuario_invitado: {
-      id: number;
-      nombre: string;
-      correo: string;
-    };
-  }>;
-  productos?: Producto[];
-  rol_usuario?: string;
-  es_propietario?: boolean;
-  resumen?: {
-    valor_total: number;
-    total_productos: number;
-    total_consumibles: number;
-    total_activos: number;
-  };
-}
-
-interface Lote {
-  id: number;
-  nro_lote: string;
-  fecha_vencimiento?: Date | null;
-  cantidad_actual: number;
-  costo_unitario_compra: number;
-  fecha_compra: Date;
-}
-
-interface Activo {
-  id: number;
-  nro_serie?: string;
-  nombre_asignado?: string;
-  costo_compra: number;
-  fecha_compra: Date;
-  estado: string;
-  ubicacion?: string;
-}
-
-interface Producto {
-  id: number;
-  nombre: string;
-  tipo_gestion: 'consumible' | 'activo_serializado' | 'activo_general';
-  stock_minimo: number;
-  unidad_medida: string;
-  activo: boolean;
-  descripcion?: string;
-  notificar_stock_bajo: boolean;
-  lotes?: Lote[];
-  activos?: Activo[];
-}
-
-interface ReporteValor {
-  valor_consumibles: number;
-  valor_activos: number;
-  valor_total: number;
-  cantidad_lotes: number;
-  cantidad_activos: number;
-  desglose_activos_por_estado: {
-    disponible: number;
-    en_uso: number;
-    en_mantenimiento: number;
-    roto: number;
-  };
-}
-
-interface MovimientoInventario {
-  id: number;
-  tipo: string;
-  cantidad: number;
-  stock_anterior: number;
-  stock_nuevo: number;
-  referencia?: string;
-  observaciones?: string;
-  fecha: Date;
-  costo_total?: number;
-  producto: {
-    id: number;
-    nombre: string;
-  };
-  usuario: {
-    id: number;
-    nombre: string;
-  };
-}
-
-export default function Inventarios() {
+export default function InventariosMovil() {
   const { usuario: usuario_actual } = useAutenticacion();
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -246,40 +152,54 @@ export default function Inventarios() {
     registrar_pago: true,
   });
 
-  const visibilidades = [
-    { valor: 'privado', etiqueta: 'Privado', icono: Lock },
-    { valor: 'publico', etiqueta: 'Público', icono: Globe },
-  ];
-
-  const roles = [
-    { valor: 'lector', etiqueta: 'Lector', descripcion: 'Solo puede ver' },
-    { valor: 'editor', etiqueta: 'Editor', descripcion: 'Puede editar' },
-  ];
-
   const tipos_gestion = [
-    { valor: 'consumible', etiqueta: 'Consumible', descripcion: 'Material que se gasta' },
-    { valor: 'activo_serializado', etiqueta: 'Activo Serializado', descripcion: 'Con número de serie' },
-    { valor: 'activo_general', etiqueta: 'Activo General', descripcion: 'Sin número de serie' },
+    { valor: 'consumible', etiqueta: 'Activo por Lotes' },
+    { valor: 'activo_serializado', etiqueta: 'Activo Serializado' },
+    { valor: 'activo_general', etiqueta: 'Activo General' },
   ];
 
-  const tipos_movimiento: { [key: string]: { etiqueta: string; color: string } } = {
-    compra: { etiqueta: 'Compra', color: 'bg-green-500' },
-    ajuste: { etiqueta: 'Ajuste', color: 'bg-blue-500' },
-    uso_cita: { etiqueta: 'Uso en Cita', color: 'bg-purple-500' },
-    uso_tratamiento: { etiqueta: 'Uso en Tratamiento', color: 'bg-orange-500' },
-    devolucion: { etiqueta: 'Devolución', color: 'bg-cyan-500' },
+  const estados_activo = [
+    { valor: 'disponible', etiqueta: 'Disponible' },
+    { valor: 'en_uso', etiqueta: 'En Uso' },
+    { valor: 'en_mantenimiento', etiqueta: 'En Mantenimiento' },
+    { valor: 'roto', etiqueta: 'Roto' },
+    { valor: 'desechado', etiqueta: 'Desechado' },
+  ];
+
+  const estaVencido = (fecha_vencimiento: Date | null | undefined): boolean => {
+    if (!fecha_vencimiento) return false;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fecha_venc = new Date(fecha_vencimiento);
+    fecha_venc.setHours(0, 0, 0, 0);
+    return fecha_venc < hoy;
   };
 
   useEffect(() => {
-    cargarInventarios();
+    const cargarInicial = async () => {
+      await cargarInventarios();
+      await cargarUsuarios();
+      const inventario_id_guardado = localStorage.getItem('inventario_seleccionado_id');
+      if (inventario_id_guardado) {
+        try {
+          const inventario = await inventarioApi.obtenerInventarioPorId(parseInt(inventario_id_guardado));
+          await verDetalleInventario(inventario);
+        } catch (error) {
+          console.log('No se pudo restaurar el inventario guardado:', error);
+          localStorage.removeItem('inventario_seleccionado_id');
+        }
+      }
+    };
+    
+    cargarInicial();
   }, []);
 
   const cargarInventarios = async () => {
-    setCargando(true);
     try {
-      const datos = await inventarioApi.obtenerInventarios();
-      setInventarios(datos);
-    } catch (error) {
+      setCargando(true);
+      const respuesta = await inventarioApi.obtenerInventarios();
+      setInventarios(respuesta);
+    } catch (error: any) {
       console.error('Error al cargar inventarios:', error);
       toast({
         title: 'Error',
@@ -291,23 +211,32 @@ export default function Inventarios() {
     }
   };
 
-  const cargarDetalleInventario = async (inventario: Inventario) => {
-    setCargandoDetalle(true);
+  const cargarUsuarios = async () => {
     try {
-      const [detalle, productos_data, reporte, movimientos_data] = await Promise.all([
+      const respuesta = await usuariosApi.obtenerTodos();
+      setUsuarios(respuesta);
+    } catch (error: any) {
+      console.error('Error al cargar usuarios:', error);
+    }
+  };
+
+  const cargarDetalleInventario = async (inventario: Inventario) => {
+    try {
+      setCargandoDetalle(true);
+      
+      const [inventario_actualizado, productos_respuesta, reporte_respuesta, movimientos_respuesta] = await Promise.all([
         inventarioApi.obtenerInventarioPorId(inventario.id),
         inventarioApi.obtenerProductos(inventario.id),
         inventarioApi.obtenerReporteValor(inventario.id),
         inventarioApi.obtenerHistorialMovimientos(inventario.id),
       ]);
-      
-      setInventarioSeleccionado(detalle);
-      setProductos(productos_data);
-      setReporteValor(reporte);
-      setMovimientos(movimientos_data);
-      setVistaActual('detalle');
-    } catch (error) {
-      console.error('Error al cargar detalle:', error);
+
+      setInventarioSeleccionado(inventario_actualizado);
+      setProductos(productos_respuesta);
+      setReporteValor(reporte_respuesta);
+      setMovimientos(movimientos_respuesta);
+    } catch (error: any) {
+      console.error('Error al cargar detalle del inventario:', error);
       toast({
         title: 'Error',
         description: 'No se pudo cargar el detalle del inventario',
@@ -318,7 +247,7 @@ export default function Inventarios() {
     }
   };
 
-  const abrirDialogoNuevo = () => {
+  const abrirDialogoNuevoInventario = () => {
     setFormularioInventario({
       nombre: '',
       visibilidad: 'privado',
@@ -327,18 +256,18 @@ export default function Inventarios() {
     setDialogoInventarioAbierto(true);
   };
 
-  const abrirDialogoEditar = (inventario: Inventario) => {
+  const abrirDialogoEditarInventario = (inventario: Inventario) => {
+    setInventarioSeleccionado(inventario);
     setFormularioInventario({
       nombre: inventario.nombre,
       visibilidad: inventario.visibilidad,
     });
-    setInventarioSeleccionado(inventario);
     setModoEdicion(true);
     setDialogoInventarioAbierto(true);
   };
 
   const manejarGuardarInventario = async () => {
-    if (!formulario_inventario.nombre) {
+    if (!formulario_inventario.nombre.trim()) {
       toast({
         title: 'Error',
         description: 'El nombre es obligatorio',
@@ -350,28 +279,43 @@ export default function Inventarios() {
     setGuardando(true);
     try {
       if (modo_edicion && inventario_seleccionado) {
+        if (formulario_inventario.visibilidad === 'privado' && inventario_seleccionado.visibilidad === 'publico') {
+          if (inventario_seleccionado.permisos && inventario_seleccionado.permisos.length > 0) {
+            await Promise.all(
+              inventario_seleccionado.permisos.map(permiso =>
+                inventarioApi.eliminarPermiso(inventario_seleccionado.id, permiso.id)
+              )
+            );
+          }
+        }
+        
         await inventarioApi.actualizarInventario(inventario_seleccionado.id, formulario_inventario);
         toast({
           title: 'Éxito',
           description: 'Inventario actualizado correctamente',
         });
+        
+        await cargarInventarios();
+        
+        if (vista_actual === 'detalle') {
+          const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
+          setInventarioSeleccionado(inventario_actualizado);
+        }
       } else {
         await inventarioApi.crearInventario(formulario_inventario);
         toast({
           title: 'Éxito',
           description: 'Inventario creado correctamente',
         });
+        await cargarInventarios();
       }
+      
       setDialogoInventarioAbierto(false);
-      await cargarInventarios();
-      if (inventario_seleccionado) {
-        await cargarDetalleInventario(inventario_seleccionado);
-      }
     } catch (error: any) {
       console.error('Error al guardar inventario:', error);
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'No se pudo guardar el inventario',
+        description: error.response?.data?.mensaje || 'Error al guardar el inventario',
         variant: 'destructive',
       });
     } finally {
@@ -395,26 +339,26 @@ export default function Inventarios() {
       });
       setDialogoConfirmarEliminarAbierto(false);
       setInventarioAEliminar(null);
-      
-      if (inventario_seleccionado?.id === inventario_a_eliminar.id) {
-        setVistaActual('lista');
-        setInventarioSeleccionado(null);
-      }
-      
       await cargarInventarios();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al eliminar inventario:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo eliminar el inventario',
+        description: error.response?.data?.mensaje || 'Error al eliminar el inventario',
         variant: 'destructive',
       });
     }
   };
 
+  const verDetalleInventario = async (inventario: Inventario) => {
+    setInventarioSeleccionado(inventario);
+    setVistaActual('detalle');
+    localStorage.setItem('inventario_seleccionado_id', inventario.id.toString());
+    await cargarDetalleInventario(inventario);
+  };
+
   const abrirDialogoInvitar = () => {
     setFormularioInvitar({
-      correo_busqueda: '',
       usuario_id: '',
       rol: 'lector',
     });
@@ -422,10 +366,12 @@ export default function Inventarios() {
   };
 
   const manejarInvitarUsuario = async () => {
-    if (!formulario_invitar.usuario_id || !inventario_seleccionado) {
+    if (!inventario_seleccionado) return;
+
+    if (!formulario_invitar.usuario_id) {
       toast({
         title: 'Error',
-        description: 'Debes seleccionar un usuario',
+        description: 'Selecciona un usuario',
         variant: 'destructive',
       });
       return;
@@ -437,17 +383,22 @@ export default function Inventarios() {
         usuario_id: parseInt(formulario_invitar.usuario_id),
         rol: formulario_invitar.rol,
       });
+
       toast({
         title: 'Éxito',
         description: 'Usuario invitado correctamente',
       });
+
       setDialogoInvitarAbierto(false);
-      await cargarDetalleInventario(inventario_seleccionado);
+      
+      await cargarInventarios();
+      const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
+      setInventarioSeleccionado(inventario_actualizado);
     } catch (error: any) {
       console.error('Error al invitar usuario:', error);
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'No se pudo invitar al usuario',
+        description: error.response?.data?.mensaje || 'Error al invitar usuario',
         variant: 'destructive',
       });
     } finally {
@@ -455,24 +406,522 @@ export default function Inventarios() {
     }
   };
 
-  const manejarEliminarPermiso = async (permiso_id: number) => {
-    if (!inventario_seleccionado) return;
+  const abrirDialogoRemoverUsuario = (permiso: any) => {
+    setUsuarioARemover(permiso);
+    setDialogoRemoverUsuarioAbierto(true);
+  };
+
+  const confirmarRemoverUsuario = async () => {
+    if (!inventario_seleccionado || !usuario_a_remover) return;
 
     try {
-      await inventarioApi.eliminarPermiso(inventario_seleccionado.id, permiso_id);
+      await inventarioApi.eliminarPermiso(inventario_seleccionado.id, usuario_a_remover.id);
       toast({
         title: 'Éxito',
-        description: 'Permiso eliminado correctamente',
+        description: 'Usuario removido correctamente',
       });
-      await cargarDetalleInventario(inventario_seleccionado);
-    } catch (error) {
-      console.error('Error al eliminar permiso:', error);
+      setDialogoRemoverUsuarioAbierto(false);
+      setUsuarioARemover(null);
+      
+      await cargarInventarios();
+      const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
+      setInventarioSeleccionado(inventario_actualizado);
+    } catch (error: any) {
+      console.error('Error al remover usuario:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo eliminar el permiso',
+        description: error.response?.data?.mensaje || 'Error al remover el usuario',
         variant: 'destructive',
       });
     }
+  };
+
+  const abrirDialogoNuevoProducto = () => {
+    setFormularioProducto({
+      nombre: '',
+      tipo_gestion: 'consumible',
+      stock_minimo: '10',
+      unidad_medida: '',
+      descripcion: '',
+      notificar_stock_bajo: true,
+    });
+    setModoEdicionProducto(false);
+    setDialogoProductoAbierto(true);
+  };
+
+  const abrirDialogoEditarProducto = (producto: Producto) => {
+    setProductoSeleccionado(producto);
+    setFormularioProducto({
+      nombre: producto.nombre,
+      tipo_gestion: producto.tipo_gestion,
+      stock_minimo: (producto.stock_minimo ?? 0).toString(),
+      unidad_medida: producto.unidad_medida ?? '',
+      descripcion: producto.descripcion || '',
+      notificar_stock_bajo: producto.notificar_stock_bajo ?? false,
+    });
+    setModoEdicionProducto(true);
+    setDialogoProductoAbierto(true);
+  };
+
+  const manejarGuardarProducto = async () => {
+    if (!inventario_seleccionado) return;
+
+    if (!formulario_producto.nombre.trim() || !formulario_producto.unidad_medida.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Nombre y unidad de medida son obligatorios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const datos = {
+        ...formulario_producto,
+        stock_minimo: formulario_producto.tipo_gestion === 'consumible' 
+          ? parseInt(formulario_producto.stock_minimo) 
+          : 0,
+        inventario_id: inventario_seleccionado.id,
+      };
+
+      if (modo_edicion_producto && producto_seleccionado) {
+        await inventarioApi.actualizarProducto(
+          inventario_seleccionado.id,
+          producto_seleccionado.id,
+          datos
+        );
+        toast({
+          title: 'Éxito',
+          description: 'Producto actualizado correctamente',
+        });
+      } else {
+        await inventarioApi.crearProducto(datos);
+        toast({
+          title: 'Éxito',
+          description: 'Producto creado correctamente',
+        });
+      }
+
+      setDialogoProductoAbierto(false);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al guardar producto:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al guardar el producto',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const abrirDialogoConfirmarEliminarProducto = (producto: Producto) => {
+    setProductoAEliminar(producto);
+    setDialogoConfirmarEliminarProductoAbierto(true);
+  };
+
+  const confirmarEliminarProducto = async () => {
+    if (!inventario_seleccionado || !producto_a_eliminar) return;
+
+    try {
+      await inventarioApi.eliminarProducto(inventario_seleccionado.id, producto_a_eliminar.id);
+      toast({
+        title: 'Éxito',
+        description: 'Producto eliminado correctamente',
+      });
+      setDialogoConfirmarEliminarProductoAbierto(false);
+      setProductoAEliminar(null);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al eliminar producto:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al eliminar el producto',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const abrirDialogoNuevoLote = (producto: Producto) => {
+    setProductoSeleccionado(producto);
+    setFormularioLote({
+      nro_lote: '',
+      cantidad: '',
+      costo_total: '',
+      fecha_vencimiento: undefined,
+      fecha_compra: new Date(),
+      registrar_egreso: false,
+    });
+    setDialogoLoteAbierto(true);
+  };
+
+  const manejarGuardarLote = async () => {
+    if (!inventario_seleccionado || !producto_seleccionado) return;
+
+    if (!formulario_lote.nro_lote || !formulario_lote.cantidad || !formulario_lote.costo_total) {
+      toast({
+        title: 'Error',
+        description: 'Los campos Nro de Lote, Cantidad y Costo Total son obligatorios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const datos_compra = {
+        producto_id: producto_seleccionado.id,
+        cantidad: parseFloat(formulario_lote.cantidad),
+        costo_total: parseFloat(formulario_lote.costo_total),
+        fecha_compra: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_lote.fecha_compra)),
+        nro_lote: formulario_lote.nro_lote,
+        fecha_vencimiento: formulario_lote.fecha_vencimiento 
+          ? format(formulario_lote.fecha_vencimiento, 'yyyy-MM-dd')
+          : undefined,
+        generar_egreso: formulario_lote.registrar_egreso,
+      };
+
+      await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
+      
+      toast({
+        title: 'Éxito',
+        description: formulario_lote.registrar_egreso 
+          ? 'Lote registrado y egreso creado en finanzas'
+          : 'Lote registrado correctamente',
+      });
+
+      setDialogoLoteAbierto(false);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al guardar lote:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al guardar el lote',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const abrirDialogoAjusteStockLote = (producto: Producto, lote: Lote) => {
+    setProductoSeleccionado(producto);
+    setLoteSeleccionado(lote);
+    const costo_estimado = Number(lote.costo_unitario_compra || 0);
+    setFormularioAjusteLote({
+      tipo: 'entrada',
+      cantidad: '1',
+      generar_movimiento_financiero: true,
+      monto: costo_estimado.toFixed(2),
+    });
+    setDialogoAjusteStockLoteAbierto(true);
+  };
+
+  const manejarAjusteStockLote = async () => {
+    if (!inventario_seleccionado || !producto_seleccionado || !lote_seleccionado) return;
+
+    if (!formulario_ajuste_lote.cantidad) {
+      toast({
+        title: 'Error',
+        description: 'La cantidad es obligatoria',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const cantidad = parseFloat(formulario_ajuste_lote.cantidad);
+    if (cantidad <= 0) {
+      toast({
+        title: 'Error',
+        description: 'La cantidad debe ser mayor a 0',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (formulario_ajuste_lote.tipo === 'salida' && cantidad > lote_seleccionado.cantidad_actual) {
+      toast({
+        title: 'Error',
+        description: 'No hay suficiente stock en este lote',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const monto = parseFloat(formulario_ajuste_lote.monto || '0');
+      
+      await inventarioApi.ajustarStock(inventario_seleccionado.id, {
+        producto_id: producto_seleccionado.id,
+        tipo: formulario_ajuste_lote.tipo,
+        cantidad: cantidad,
+        observaciones: `Ajuste ${formulario_ajuste_lote.tipo} manual`,
+        generar_movimiento_financiero: formulario_ajuste_lote.generar_movimiento_financiero,
+        monto: monto,
+      });
+
+      toast({
+        title: 'Éxito',
+        description: 'Stock ajustado correctamente',
+      });
+
+      setDialogoAjusteStockLoteAbierto(false);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al ajustar stock:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al ajustar el stock',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const abrirDialogoConfirmarEliminarLote = (lote: Lote) => {
+    setLoteAEliminar(lote);
+    setDialogoConfirmarEliminarLoteAbierto(true);
+  };
+
+  const confirmarEliminarLote = async () => {
+    if (!inventario_seleccionado || !lote_a_eliminar) return;
+
+    try {
+      await inventarioApi.eliminarLote(inventario_seleccionado.id, lote_a_eliminar.id);
+      toast({
+        title: 'Éxito',
+        description: 'Lote eliminado correctamente',
+      });
+      setDialogoConfirmarEliminarLoteAbierto(false);
+      setLoteAEliminar(null);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al eliminar lote:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al eliminar el lote',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const abrirDialogoNuevoActivo = (producto: Producto) => {
+    setProductoSeleccionado(producto);
+    setFormularioActivo({
+      nro_serie: '',
+      nombre_asignado: '',
+      costo_compra: '',
+      fecha_compra: new Date(),
+      estado: 'disponible',
+      ubicacion: '',
+      registrar_egreso: false,
+    });
+    setModoEdicionActivo(false);
+    setDialogoActivoAbierto(true);
+  };
+
+  const abrirDialogoEditarActivo = (producto: Producto, activo: Activo) => {
+    setProductoSeleccionado(producto);
+    setActivoSeleccionado(activo);
+    setFormularioActivo({
+      nro_serie: activo.nro_serie || '',
+      nombre_asignado: activo.nombre_asignado || '',
+      costo_compra: (activo.costo_compra ?? 0).toString(),
+      fecha_compra: activo.fecha_compra ? new Date(activo.fecha_compra) : new Date(),
+      estado: activo.estado,
+      ubicacion: activo.ubicacion || '',
+      registrar_egreso: false,
+    });
+    setModoEdicionActivo(true);
+    setDialogoActivoAbierto(true);
+  };
+
+  const manejarGuardarActivo = async () => {
+    if (!inventario_seleccionado || !producto_seleccionado) return;
+
+    if (!formulario_activo.costo_compra) {
+      toast({
+        title: 'Error',
+        description: 'El costo de compra es obligatorio',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      if (modo_edicion_activo && activo_seleccionado) {
+        await inventarioApi.actualizarActivo(
+          inventario_seleccionado.id,
+          activo_seleccionado.id,
+          {
+            nro_serie: formulario_activo.nro_serie || undefined,
+            nombre_asignado: formulario_activo.nombre_asignado || undefined,
+            estado: formulario_activo.estado,
+            ubicacion: formulario_activo.ubicacion || undefined,
+          }
+        );
+        toast({
+          title: 'Éxito',
+          description: 'Activo actualizado correctamente',
+        });
+      } else {
+        const datos_compra = {
+          producto_id: producto_seleccionado.id,
+          cantidad: 1,
+          costo_total: parseFloat(formulario_activo.costo_compra),
+          fecha_compra: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_activo.fecha_compra)),
+          nro_serie: formulario_activo.nro_serie || undefined,
+          nombre_asignado: formulario_activo.nombre_asignado || undefined,
+          generar_egreso: formulario_activo.registrar_egreso,
+        };
+
+        await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
+        
+        toast({
+          title: 'Éxito',
+          description: formulario_activo.registrar_egreso 
+            ? 'Activo registrado y egreso creado en finanzas'
+            : 'Activo registrado correctamente',
+        });
+      }
+
+      setDialogoActivoAbierto(false);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al guardar activo:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al guardar el activo',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const manejarCambioEstadoActivo = async (_producto: Producto, activo: Activo, nuevo_estado: string) => {
+    if (!inventario_seleccionado) return;
+
+    try {
+      await inventarioApi.actualizarActivo(
+        inventario_seleccionado.id,
+        activo.id,
+        {
+          estado: nuevo_estado,
+          ubicacion: activo.ubicacion,
+          nombre_asignado: activo.nombre_asignado,
+        }
+      );
+      
+      toast({
+        title: 'Éxito',
+        description: 'Estado actualizado correctamente',
+      });
+
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al cambiar estado:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al cambiar el estado',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const abrirDialogoConfirmarEliminarActivo = (activo: Activo) => {
+    setActivoAEliminar(activo);
+    setDialogoConfirmarEliminarActivoAbierto(true);
+  };
+
+  const confirmarEliminarActivo = async () => {
+    if (!inventario_seleccionado || !activo_a_eliminar) return;
+
+    try {
+      await inventarioApi.eliminarActivo(inventario_seleccionado.id, activo_a_eliminar.id);
+      toast({
+        title: 'Éxito',
+        description: 'Activo eliminado correctamente',
+      });
+      setDialogoConfirmarEliminarActivoAbierto(false);
+      setActivoAEliminar(null);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al eliminar activo:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al eliminar el activo',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const abrirDialogoVenderActivo = (activo: Activo) => {
+    setActivoSeleccionado(activo);
+    const precio_sugerido = (Number(activo.costo_compra) * 0.7).toFixed(2);
+    setFormularioVentaActivo({
+      monto_venta: precio_sugerido,
+      registrar_pago: true,
+    });
+    setDialogoVenderActivoAbierto(true);
+  };
+
+  const manejarVenderActivo = async () => {
+    if (!inventario_seleccionado || !activo_seleccionado) return;
+
+    if (!formulario_venta_activo.monto_venta) {
+      toast({
+        title: 'Error',
+        description: 'El monto de venta es obligatorio',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const monto = parseFloat(formulario_venta_activo.monto_venta);
+    if (monto <= 0) {
+      toast({
+        title: 'Error',
+        description: 'El monto debe ser mayor a 0',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      await inventarioApi.venderActivo(inventario_seleccionado.id, activo_seleccionado.id, {
+        monto_venta: monto,
+        registrar_pago: formulario_venta_activo.registrar_pago,
+      });
+
+      toast({
+        title: 'Éxito',
+        description: 'Activo vendido correctamente',
+      });
+
+      setDialogoVenderActivoAbierto(false);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al vender activo:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al vender el activo',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const verDetalleProducto = (producto: Producto) => {
+    setProductoSeleccionado(producto);
+    setSheetProductoDetalleAbierto(true);
   };
 
   const volverALista = () => {
@@ -481,31 +930,8 @@ export default function Inventarios() {
     setProductos([]);
     setReporteValor(null);
     setMovimientos([]);
-  };
-
-  const formatearMoneda = (monto: number): string => {
-    return new Intl.NumberFormat('es-BO', {
-      style: 'currency',
-      currency: 'BOB',
-    }).format(monto);
-  };
-
-  const formatearFecha = (fecha: Date): string => {
-    return new Date(fecha).toLocaleDateString('es-BO', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-
-  const formatearFechaHora = (fecha: Date): string => {
-    return new Date(fecha).toLocaleString('es-BO', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    setTabActivo('productos');
+    localStorage.removeItem('inventario_seleccionado_id');
   };
 
   const obtenerIconoVisibilidad = (visibilidad: string) => {
@@ -524,8 +950,8 @@ export default function Inventarios() {
   const obtenerEtiquetaTipoGestion = (tipo: string): string => {
     const tipos: { [key: string]: string } = {
       consumible: 'Consumible',
-      activo_serializado: 'Activo S.',
-      activo_general: 'Activo G.',
+      activo_serializado: 'Serializado',
+      activo_general: 'General',
     };
     return tipos[tipo] || tipo;
   };
@@ -537,811 +963,1597 @@ export default function Inventarios() {
     return producto.activos?.length || 0;
   };
 
-  const obtenerActivosDisponibles = (producto: Producto): number => {
-    if (producto.tipo_gestion !== 'consumible' && producto.activos) {
-      return producto.activos.filter(a => a.estado === 'disponible').length;
+  const obtenerValorTotal = (producto: Producto): number => {
+    if (producto.tipo_gestion === 'consumible' && producto.lotes) {
+      return producto.lotes.reduce((total, lote) => total + (Number(lote.cantidad_actual) * Number(lote.costo_unitario_compra)), 0);
+    }
+    if (producto.activos) {
+      return producto.activos.reduce((total, activo) => total + Number(activo.costo_compra), 0);
     }
     return 0;
   };
 
-  const cumpleFiltroInventario = (inventario: Inventario): boolean => {
-    if (!busqueda_inventarios) return true;
+  const inventarios_filtrados = inventarios.filter(inv =>
+    inv.nombre.toLowerCase().includes(busqueda_inventarios.toLowerCase())
+  );
+
+  const productos_filtrados = productos.filter(p => {
+    const coincide_busqueda = p.nombre.toLowerCase().includes(busqueda_productos.toLowerCase());
+    const coincide_tipo = filtro_tipo_producto === 'todos' || p.tipo_gestion === filtro_tipo_producto;
+    return coincide_busqueda && coincide_tipo && p.activo;
+  });
+
+  const usuarios_disponibles_para_invitar = usuarios.filter(u => {
+    if (usuario_actual && u.id === usuario_actual.id) return false;
     
-    const termino = busqueda_inventarios.toLowerCase();
-    const nombre_lower = inventario.nombre.toLowerCase();
-    const propietario_lower = inventario.propietario?.nombre.toLowerCase() || '';
+    if (inventario_seleccionado?.permisos) {
+      const ya_invitado = inventario_seleccionado.permisos.some(
+        permiso => permiso.usuario_invitado.id === u.id
+      );
+      if (ya_invitado) return false;
+    }
     
-    return nombre_lower.includes(termino) || propietario_lower.includes(termino);
-  };
+    return true;
+  });
 
-  const inventarios_filtrados = inventarios.filter(cumpleFiltroInventario);
-
-  const opciones_visibilidad: OpcionCombobox[] = visibilidades.map(v => ({
-    valor: v.valor,
-    etiqueta: v.etiqueta,
-  }));
-
-  const opciones_roles: OpcionCombobox[] = roles.map(r => ({
-    valor: r.valor,
-    etiqueta: r.etiqueta,
+  const opciones_usuarios: OpcionCombobox[] = usuarios_disponibles_para_invitar.map(u => ({
+    valor: u.id.toString(),
+    etiqueta: `${u.nombre} (${u.correo})`
   }));
 
   if (cargando) {
     return (
-      <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
-        <MenuLateral />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Cargando inventarios...</p>
-          </div>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-10 w-10 md:h-12 md:w-12 animate-spin text-primary mx-auto" />
+          <p className="text-sm md:text-base text-muted-foreground">Cargando inventarios...</p>
         </div>
-      </div>
-    );
-  }
-
-  if (vista_actual === 'detalle' && inventario_seleccionado) {
-    return (
-      <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
-        <MenuLateral />
-        
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-8 space-y-8">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={volverALista}
-                className="hover:bg-primary/20 hover:scale-110 transition-all duration-200"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-3">
-                  <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
-                    {inventario_seleccionado.nombre}
-                  </h1>
-                  <Badge variant={inventario_seleccionado.visibilidad === 'privado' ? 'secondary' : 'default'}>
-                    {inventario_seleccionado.visibilidad === 'privado' ? (
-                      <><Lock className="h-3 w-3 mr-1" /> Privado</>
-                    ) : (
-                      <><Globe className="h-3 w-3 mr-1" /> Público</>
-                    )}
-                  </Badge>
-                  {inventario_seleccionado.rol_usuario && (
-                    <Badge variant="outline">
-                      <Shield className="h-3 w-3 mr-1" />
-                      {inventario_seleccionado.rol_usuario === 'propietario' 
-                        ? 'Propietario' 
-                        : inventario_seleccionado.rol_usuario === 'editor' 
-                          ? 'Editor' 
-                          : 'Lector'
-                      }
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-lg text-muted-foreground">
-                  Gestión de productos y materiales
-                </p>
-              </div>
-
-              {inventario_seleccionado.es_propietario && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => abrirDialogoEditar(inventario_seleccionado)}
-                    className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => abrirDialogoConfirmarEliminar(inventario_seleccionado)}
-                    className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Eliminar
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {reporte_valor && (
-              <div className="grid gap-6 md:grid-cols-3">
-                <Card className="border-2 border-purple-500/30 shadow-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] hover:scale-105 transition-all duration-300">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Valor Consumibles
-                    </CardTitle>
-                    <div className="bg-purple-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                      <Package className="h-5 w-5 text-purple-500" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-purple-500">
-                      {formatearMoneda(reporte_valor.valor_consumibles)}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {reporte_valor.cantidad_lotes} lotes
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-2 border-blue-500/30 shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:scale-105 transition-all duration-300">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Valor Activos
-                    </CardTitle>
-                    <div className="bg-blue-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                      <Box className="h-5 w-5 text-blue-500" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-blue-500">
-                      {formatearMoneda(reporte_valor.valor_activos)}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {reporte_valor.cantidad_activos} activos
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-2 border-primary/30 shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 transition-all duration-300 bg-gradient-to-br from-primary/5 to-transparent">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Valor Total
-                    </CardTitle>
-                    <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                      <DollarSign className="h-5 w-5 text-primary" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-primary">
-                      {formatearMoneda(reporte_valor.valor_total)}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {cargando_detalle ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <Tabs defaultValue="productos" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 h-11">
-                  <TabsTrigger value="productos" className="text-base">
-                    <Package className="h-4 w-4 mr-2" />
-                    Productos
-                  </TabsTrigger>
-                  {inventario_seleccionado.es_propietario && (
-                    <TabsTrigger value="permisos" className="text-base">
-                      <Users className="h-4 w-4 mr-2" />
-                      Permisos
-                    </TabsTrigger>
-                  )}
-                  <TabsTrigger value="movimientos" className="text-base">
-                    <History className="h-4 w-4 mr-2" />
-                    Historial
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="productos" className="space-y-6 mt-6">
-                  <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                            <Package className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <CardTitle className="text-xl">Productos del Inventario</CardTitle>
-                            <CardDescription>
-                              {productos.length} productos registrados
-                            </CardDescription>
-                          </div>
-                        </div>
-                        {(inventario_seleccionado.es_propietario || inventario_seleccionado.rol_usuario === 'editor') && (
-                          <Button
-                            size="lg"
-                            className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-                          >
-                            <Plus className="h-5 w-5 mr-2" />
-                            Nuevo Producto
-                          </Button>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {productos.length === 0 ? (
-                        <div className="text-center py-12 space-y-4">
-                          <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 transition-transform duration-200">
-                            <AlertCircle className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                          <div className="space-y-2">
-                            <h3 className="text-lg font-semibold text-foreground">
-                              No hay productos registrados
-                            </h3>
-                            <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                              Comienza agregando productos para gestionar tu inventario
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {productos.map((producto) => {
-                            const stock_total = obtenerStockTotal(producto);
-                            const activos_disponibles = obtenerActivosDisponibles(producto);
-                            const stock_bajo = producto.tipo_gestion === 'consumible' && stock_total < producto.stock_minimo;
-                            
-                            return (
-                              <div
-                                key={producto.id}
-                                className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
-                              >
-                                <div className="flex items-center gap-4 flex-1">
-                                  <div className="bg-primary/10 p-3 rounded-lg hover:scale-110 transition-transform duration-200">
-                                    <Package className="h-6 w-6 text-primary" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-3">
-                                      <p className="font-semibold text-foreground text-lg">
-                                        {producto.nombre}
-                                      </p>
-                                      <Badge className={`${obtenerColorTipoGestion(producto.tipo_gestion)} text-white`}>
-                                        {obtenerEtiquetaTipoGestion(producto.tipo_gestion)}
-                                      </Badge>
-                                      {stock_bajo && (
-                                        <Badge variant="destructive" className="animate-pulse">
-                                          <AlertTriangle className="h-3 w-3 mr-1" />
-                                          Stock Bajo
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                      {producto.tipo_gestion === 'consumible' ? (
-                                        <>
-                                          <span>Stock: {stock_total} {producto.unidad_medida}</span>
-                                          <span>Mínimo: {producto.stock_minimo}</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <span>Total: {stock_total} unidades</span>
-                                          <span>Disponibles: {activos_disponibles}</span>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
-                                    title="Ver detalles"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                  {(inventario_seleccionado.es_propietario || inventario_seleccionado.rol_usuario === 'editor') && (
-                                    <>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
-                                        title="Editar"
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
-                                        title="Eliminar"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {inventario_seleccionado.es_propietario && (
-                  <TabsContent value="permisos" className="space-y-6 mt-6">
-                    <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                              <Users className="h-5 w-5 text-primary" />
-                            </div>
-                            <div>
-                              <CardTitle className="text-xl">Usuarios con Acceso</CardTitle>
-                              <CardDescription>
-                                {inventario_seleccionado.permisos?.length || 0} usuarios invitados
-                              </CardDescription>
-                            </div>
-                          </div>
-                          <Button
-                            size="lg"
-                            onClick={abrirDialogoInvitar}
-                            className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-                          >
-                            <UserPlus className="h-5 w-5 mr-2" />
-                            Invitar Usuario
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        {!inventario_seleccionado.permisos || inventario_seleccionado.permisos.length === 0 ? (
-                          <div className="text-center py-12 space-y-4">
-                            <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 transition-transform duration-200">
-                              <Users className="h-8 w-8 text-muted-foreground" />
-                            </div>
-                            <div className="space-y-2">
-                              <h3 className="text-lg font-semibold text-foreground">
-                                No hay usuarios invitados
-                              </h3>
-                              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                                Invita a otros usuarios para que puedan acceder a este inventario
-                              </p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {inventario_seleccionado.permisos.map((permiso) => (
-                              <div
-                                key={permiso.id}
-                                className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 transition-all duration-200"
-                              >
-                                <div className="flex items-center gap-4">
-                                  <div className="bg-primary/10 p-3 rounded-full">
-                                    <Users className="h-5 w-5 text-primary" />
-                                  </div>
-                                  <div>
-                                    <p className="font-semibold text-foreground">
-                                      {permiso.usuario_invitado.nombre}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                      {permiso.usuario_invitado.correo}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <Badge variant={permiso.rol === 'editor' ? 'default' : 'secondary'}>
-                                    {permiso.rol === 'editor' ? 'Editor' : 'Lector'}
-                                  </Badge>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => manejarEliminarPermiso(permiso.id)}
-                                    className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
-                                    title="Eliminar acceso"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                )}
-
-                <TabsContent value="movimientos" className="space-y-6 mt-6">
-                  <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-                    <CardHeader>
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                          <History className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-xl">Historial de Movimientos</CardTitle>
-                          <CardDescription>
-                            Últimos {movimientos.length} movimientos registrados
-                          </CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {movimientos.length === 0 ? (
-                        <div className="text-center py-12 space-y-4">
-                          <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 transition-transform duration-200">
-                            <History className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                          <div className="space-y-2">
-                            <h3 className="text-lg font-semibold text-foreground">
-                              No hay movimientos registrados
-                            </h3>
-                            <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                              Los movimientos de inventario aparecerán aquí
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {movimientos.map((movimiento) => (
-                            <div
-                              key={movimiento.id}
-                              className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 transition-all duration-200"
-                            >
-                              <div className="flex items-center gap-4 flex-1">
-                                <Badge className={`${tipos_movimiento[movimiento.tipo]?.color || 'bg-gray-500'} text-white`}>
-                                  {tipos_movimiento[movimiento.tipo]?.etiqueta || movimiento.tipo}
-                                </Badge>
-                                <div className="flex-1">
-                                  <p className="font-medium text-foreground">
-                                    {movimiento.producto.nombre}
-                                  </p>
-                                  <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                                    <span>Cantidad: {movimiento.cantidad}</span>
-                                    <span>•</span>
-                                    <span>Stock: {movimiento.stock_anterior} → {movimiento.stock_nuevo}</span>
-                                    {movimiento.referencia && (
-                                      <>
-                                        <span>•</span>
-                                        <span>{movimiento.referencia}</span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm text-muted-foreground">
-                                  {formatearFechaHora(movimiento.fecha)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Por: {movimiento.usuario.nombre}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            )}
-          </div>
-        </div>
-
-        <Toaster />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
-      <MenuLateral />
+    <div className="flex h-screen bg-background overflow-hidden">
+      <MenuLateralMovil />
+      <Toaster />
       
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-8 space-y-8">
-          <div className="flex justify-between items-start">
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
-                Inventarios
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                Gestiona tus inventarios y productos
-              </p>
-            </div>
-
-            <Button
-              size="lg"
-              className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-              onClick={abrirDialogoNuevo}
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Nuevo Inventario
-            </Button>
-          </div>
-
-          <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                    <Package className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">Mis Inventarios</CardTitle>
-                    <CardDescription>
-                      {inventarios_filtrados.length} de {inventarios.length} inventarios
-                      {busqueda_inventarios && ' (filtrados)'}
-                    </CardDescription>
-                  </div>
+      {vista_actual === 'lista' ? (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-4 md:p-6 border-b border-border bg-card">
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg">
+                  <Package className="h-4 w-4 md:h-6 md:w-6 text-primary" />
                 </div>
-                <div className="w-80">
-                  <SearchInput
-                    valor={busqueda_inventarios}
-                    onChange={setBusquedaInventarios}
-                    placeholder="Buscar inventario por nombre..."
-                  />
+                <div>
+                  <h1 className="text-xl md:text-3xl font-bold text-foreground">Inventarios</h1>
+                  <p className="text-xs md:text-sm text-muted-foreground">Gestiona tus inventarios</p>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              {inventarios_filtrados.length === 0 ? (
-                <div className="text-center py-12 space-y-4">
-                  <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-12 transition-all duration-300">
-                    <AlertCircle className="h-8 w-8 text-muted-foreground" />
+              <Button
+                onClick={abrirDialogoNuevoInventario}
+                size="sm"
+                className="hover:scale-105 transition-all duration-200"
+              >
+                <Plus className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Nuevo</span>
+              </Button>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar inventarios..."
+                value={busqueda_inventarios}
+                onChange={(e) => setBusquedaInventarios(e.target.value)}
+                className="pl-8 md:pl-10 text-sm md:text-base"
+              />
+            </div>
+          </div>
+
+          <ScrollArea className="flex-1 p-4 md:p-6">
+            {inventarios_filtrados.length === 0 ? (
+              <div className="text-center py-8 md:py-12 space-y-4">
+                <div className="mx-auto w-12 h-12 md:w-16 md:h-16 bg-secondary/50 rounded-full flex items-center justify-center">
+                  <Package className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-base md:text-lg font-semibold text-foreground">
+                    {busqueda_inventarios ? 'No se encontraron inventarios' : 'No hay inventarios'}
+                  </h3>
+                  <p className="text-xs md:text-sm text-muted-foreground max-w-md mx-auto">
+                    {busqueda_inventarios 
+                      ? 'Intenta con otros términos de búsqueda'
+                      : 'Comienza creando tu primer inventario'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 md:space-y-4">
+                {inventarios_filtrados.map((inventario) => {
+                  const IconoVisibilidad = obtenerIconoVisibilidad(inventario.visibilidad);
+                  
+                  return (
+                    <Card 
+                      key={inventario.id} 
+                      className="hover:shadow-md transition-all duration-200 hover:border-primary/50 cursor-pointer"
+                      onClick={() => verDetalleInventario(inventario)}
+                    >
+                      <CardHeader className="p-3 md:p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 md:gap-3 flex-1">
+                            <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg">
+                              <Package className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-sm md:text-lg flex items-center gap-2 flex-wrap">
+                                <span className="truncate">{inventario.nombre}</span>
+                                <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                                  <IconoVisibilidad className="h-2 w-2 md:h-3 md:w-3" />
+                                  {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
+                                </Badge>
+                              </CardTitle>
+                              {inventario.propietario && (
+                                <CardDescription className="flex items-center gap-1 mt-1 text-xs md:text-sm">
+                                  <Users className="h-2 w-2 md:h-3 md:w-3" />
+                                  <span className="truncate">Propietario: {inventario.propietario.nombre}</span>
+                                </CardDescription>
+                              )}
+                            </div>
+                          </div>
+                          {inventario.es_propietario && (
+                            <div className="flex gap-1 md:gap-2 ml-2">
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  abrirDialogoEditarInventario(inventario);
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="h-7 w-7 md:h-8 md:w-8 p-0"
+                              >
+                                <Edit className="h-3 w-3 md:h-4 md:w-4" />
+                              </Button>
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  abrirDialogoConfirmarEliminar(inventario);
+                                }}
+                                variant="destructive"
+                                size="sm"
+                                className="h-7 w-7 md:h-8 md:w-8 p-0"
+                              >
+                                <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-3 md:p-6 pt-0">
+                        <div className="space-y-3">
+                          {inventario.resumen && (
+                            <div className="grid grid-cols-4 gap-1.5 md:gap-2">
+                              <div className="group p-1.5 md:p-2 bg-muted/50 rounded-md border border-border hover:bg-muted hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                                <div className="flex items-center gap-1 mb-0.5">
+                                  <DollarSign className="h-2.5 w-2.5 md:h-3.5 md:w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                  <span className="text-[9px] md:text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">Valor</span>
+                                </div>
+                                <span className="text-xs md:text-sm font-semibold text-foreground">
+                                  ${inventario.resumen.valor_total.toFixed(2)}
+                                </span>
+                              </div>
+
+                              <div className="group p-1.5 md:p-2 bg-muted/50 rounded-md border border-border hover:bg-muted hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                                <div className="flex items-center gap-1 mb-0.5">
+                                  <Package className="h-2.5 w-2.5 md:h-3.5 md:w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                  <span className="text-[9px] md:text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">Prods</span>
+                                </div>
+                                <span className="text-xs md:text-sm font-semibold text-foreground">
+                                  {inventario.resumen.total_productos}
+                                </span>
+                              </div>
+
+                              <div className="group p-1.5 md:p-2 bg-muted/50 rounded-md border border-border hover:bg-muted hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                                <div className="flex items-center gap-1 mb-0.5">
+                                  <Box className="h-2.5 w-2.5 md:h-3.5 md:w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                  <span className="text-[9px] md:text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">Cons</span>
+                                </div>
+                                <span className="text-xs md:text-sm font-semibold text-foreground">
+                                  {inventario.resumen.total_consumibles}
+                                </span>
+                              </div>
+
+                              <div className="group p-1.5 md:p-2 bg-muted/50 rounded-md border border-border hover:bg-muted hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                                <div className="flex items-center gap-1 mb-0.5">
+                                  <Settings className="h-2.5 w-2.5 md:h-3.5 md:w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                  <span className="text-[9px] md:text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">Act</span>
+                                </div>
+                                <span className="text-xs md:text-sm font-semibold text-foreground">
+                                  {inventario.resumen.total_activos}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          {inventario.permisos && inventario.permisos.length > 0 && (
+                            <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground pt-2 border-t">
+                              <Users className="h-3 w-3 md:h-4 md:w-4" />
+                              <span>{inventario.permisos.length} usuario{inventario.permisos.length !== 1 ? 's' : ''} con acceso</span>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-4 md:p-6 border-b border-border bg-card">
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <Button
+                  onClick={volverALista}
+                  variant="outline"
+                  size="sm"
+                  className="mr-1 md:mr-2 h-8 w-8 md:h-9 md:w-auto p-0 md:px-3"
+                >
+                  <ArrowLeft className="h-3 w-3 md:h-4 md:w-4 md:mr-1" />
+                  <span className="hidden md:inline">Volver</span>
+                </Button>
+                <div>
+                  <h1 className="text-lg md:text-2xl font-bold text-foreground">{inventario_seleccionado?.nombre}</h1>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    {inventario_seleccionado?.propietario && `Propietario: ${inventario_seleccionado.propietario.nombre}`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-1 md:gap-2">
+                {inventario_seleccionado?.es_propietario && (
+                  <>
+                    {(inventario_seleccionado?.visibilidad === 'publico' || 
+                     (inventario_seleccionado?.visibilidad === 'privado' && (inventario_seleccionado?.permisos?.length || 0) > 0)) && (
+                      <Button
+                        onClick={abrirDialogoInvitar}
+                        variant="outline"
+                        size="sm"
+                        className="h-8 md:h-9"
+                      >
+                        <UserPlus className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                        <span className="hidden md:inline">Invitar</span>
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => abrirDialogoEditarInventario(inventario_seleccionado)}
+                      variant="outline"
+                      size="sm"
+                      className="h-8 md:h-9"
+                    >
+                      <Edit className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                      <span className="hidden md:inline">Editar</span>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {reporte_valor && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mt-3 md:mt-4">
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+                    <CardDescription className="text-xs md:text-sm">Valor Total</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-2 md:p-6 pt-0">
+                    <div className="text-lg md:text-2xl font-bold text-primary">
+                      ${reporte_valor.valor_total.toFixed(2)}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+                    <CardDescription className="text-xs md:text-sm">Consumibles</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-2 md:p-6 pt-0">
+                    <div className="text-lg md:text-2xl font-bold text-purple-500">
+                      ${reporte_valor.valor_consumibles.toFixed(2)}
+                    </div>
+                    <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
+                      {reporte_valor.cantidad_lotes} lotes
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+                    <CardDescription className="text-xs md:text-sm">Activos</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-2 md:p-6 pt-0">
+                    <div className="text-lg md:text-2xl font-bold text-blue-500">
+                      ${reporte_valor.valor_activos.toFixed(2)}
+                    </div>
+                    <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
+                      {reporte_valor.cantidad_activos} activos
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+                    <CardDescription className="text-xs md:text-sm">Productos</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-2 md:p-6 pt-0">
+                    <div className="text-lg md:text-2xl font-bold">
+                      {productos.length}
+                    </div>
+                    <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
+                      {productos.filter(p => obtenerStockTotal(p) < (p.stock_minimo ?? 0)).length} con stock bajo
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
+
+          <Tabs value={tab_activo} onValueChange={(value) => setTabActivo(value as any)} className="flex-1 flex flex-col overflow-hidden">
+            <div className="px-4 md:px-6 pt-3 md:pt-4 border-b">
+              <TabsList className="grid w-full grid-cols-3 h-9 md:h-11">
+                <TabsTrigger value="productos" className="text-xs md:text-base">
+                  <Box className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                  Productos
+                </TabsTrigger>
+                <TabsTrigger value="historial" className="text-xs md:text-base">
+                  <History className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                  Historial
+                </TabsTrigger>
+                <TabsTrigger value="usuarios" className="text-xs md:text-base">
+                  <Users className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                  Usuarios
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="productos" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <div className="p-3 md:p-6 md:pb-4 border-b">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex gap-2 flex-1">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar productos..."
+                        value={busqueda_productos}
+                        onChange={(e) => setBusquedaProductos(e.target.value)}
+                        className="pl-8 md:pl-10 text-sm md:text-base"
+                      />
+                    </div>
+                    <Select value={filtro_tipo_producto} onValueChange={setFiltroTipoProducto}>
+                      <SelectTrigger className="w-[100px] md:w-[140px] text-xs md:text-sm">
+                        <SelectValue placeholder="Tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="consumible">Cons.</SelectItem>
+                        <SelectItem value="activo_serializado">Ser.</SelectItem>
+                        <SelectItem value="activo_general">Gen.</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {busqueda_inventarios 
-                        ? 'No se encontraron inventarios'
-                        : 'No tienes inventarios registrados'
-                      }
-                    </h3>
-                    <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                      {busqueda_inventarios
-                        ? 'Intenta con otro término de búsqueda'
-                        : 'Crea tu primer inventario para comenzar a gestionar productos'
-                      }
+                  <Button onClick={abrirDialogoNuevoProducto} size="sm" className="h-8 md:h-9">
+                    <Plus className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                    <span className="hidden md:inline">Nuevo</span>
+                  </Button>
+                </div>
+              </div>
+
+              <ScrollArea className="flex-1 p-3 md:p-6">
+                {cargando_detalle ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-primary" />
+                  </div>
+                ) : productos_filtrados.length === 0 ? (
+                  <div className="text-center py-8 md:py-12">
+                    <Box className="h-10 w-10 md:h-12 md:w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-base md:text-lg font-semibold mb-2">No hay productos</h3>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      {busqueda_productos ? 'No se encontraron productos' : 'Comienza agregando productos'}
                     </p>
                   </div>
-                </div>
-              ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {inventarios_filtrados.map((inventario) => {
-                    const IconoVisibilidad = obtenerIconoVisibilidad(inventario.visibilidad);
-                    
-                    return (
-                      <Card
-                        key={inventario.id}
-                        className="group cursor-pointer border-2 border-border hover:border-primary/50 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 transition-all duration-300"
-                        onClick={() => cargarDetalleInventario(inventario)}
-                      >
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="bg-primary/10 p-2 rounded-lg group-hover:scale-110 transition-transform duration-200">
-                                <Package className="h-6 w-6 text-primary" />
-                              </div>
-                              <div className="flex-1">
-                                <CardTitle className="text-lg group-hover:text-primary transition-colors duration-200">
-                                  {inventario.nombre}
-                                </CardTitle>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant={inventario.visibilidad === 'privado' ? 'secondary' : 'default'} className="text-xs">
-                                    <IconoVisibilidad className="h-3 w-3 mr-1" />
-                                    {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
+                ) : (
+                  <div className="space-y-3 md:space-y-4">
+                    {productos_filtrados.map((producto) => {
+                      const stock_total = obtenerStockTotal(producto);
+                      const valor_total = obtenerValorTotal(producto);
+                      const stock_bajo = stock_total < (producto.stock_minimo ?? 0);
+
+                      return (
+                        <Card 
+                          key={producto.id} 
+                          className={`${stock_bajo ? 'border-yellow-500' : ''} cursor-pointer hover:shadow-md transition-all`}
+                          onClick={() => verDetalleProducto(producto)}
+                        >
+                          <CardHeader className="p-3 md:p-6">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <CardTitle className="text-sm md:text-lg truncate">{producto.nombre}</CardTitle>
+                                <Badge className={`${obtenerColorTipoGestion(producto.tipo_gestion)} text-white text-[10px] md:text-xs`}>
+                                  {obtenerEtiquetaTipoGestion(producto.tipo_gestion)}
+                                </Badge>
+                                {stock_bajo && (
+                                  <Badge variant="destructive" className="flex items-center gap-1 text-[10px] md:text-xs">
+                                    <AlertTriangle className="h-2 w-2 md:h-3 md:w-3" />
+                                    Bajo
                                   </Badge>
-                                  {inventario.rol_usuario && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {inventario.rol_usuario === 'propietario' 
-                                        ? 'Propietario' 
-                                        : inventario.rol_usuario === 'editor' 
-                                          ? 'Editor' 
-                                          : 'Lector'
-                                      }
-                                    </Badge>
-                                  )}
+                                )}
+                              </div>
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  verDetalleProducto(producto);
+                                }}
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 md:h-8 md:w-8 p-0"
+                              >
+                                <Eye className="h-3 w-3 md:h-4 md:w-4" />
+                              </Button>
+                            </div>
+                            {producto.descripcion && (
+                              <CardDescription className="text-xs md:text-sm">{producto.descripcion}</CardDescription>
+                            )}
+                          </CardHeader>
+                          <CardContent className="p-3 md:p-6 pt-0">
+                            <div className="grid grid-cols-3 gap-2 md:gap-4">
+                              <div className="flex items-center gap-1 md:gap-2">
+                                <Package className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="text-[10px] md:text-sm text-muted-foreground">Stock</p>
+                                  <p className="text-sm md:text-lg font-semibold">
+                                    {stock_total} {producto.unidad_medida}
+                                  </p>
+                                </div>
+                              </div>
+                              {producto.tipo_gestion === 'consumible' && (
+                                <div className="flex items-center gap-1 md:gap-2">
+                                  <AlertCircle className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+                                  <div>
+                                    <p className="text-[10px] md:text-sm text-muted-foreground">Mínimo</p>
+                                    <p className="text-sm md:text-lg font-semibold">
+                                      {producto.stock_minimo}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1 md:gap-2">
+                                <DollarSign className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="text-[10px] md:text-sm text-muted-foreground">Valor</p>
+                                  <p className="text-sm md:text-lg font-semibold">${valor_total.toFixed(2)}</p>
                                 </div>
                               </div>
                             </div>
-                            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-200" />
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          {inventario.propietario && (
-                            <div className="space-y-2">
-                              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                                <Users className="h-4 w-4" />
-                                Propietario: {inventario.propietario.nombre}
-                              </p>
-                              {inventario.permisos && inventario.permisos.length > 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                  {inventario.permisos.length} usuario(s) con acceso
-                                </p>
-                              )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="historial" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <ScrollArea className="flex-1 p-3 md:p-6">
+                {cargando_detalle ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-primary" />
+                  </div>
+                ) : movimientos.length === 0 ? (
+                  <div className="text-center py-8 md:py-12">
+                    <History className="h-10 w-10 md:h-12 md:w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-base md:text-lg font-semibold mb-2">No hay movimientos</h3>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Los movimientos aparecerán aquí
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {movimientos.map((movimiento) => (
+                      <Card key={movimiento.id}>
+                        <CardContent className="p-3 md:p-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Badge
+                                variant={movimiento.tipo === 'entrada' ? 'default' : 'destructive'}
+                                className="flex items-center gap-1 text-xs"
+                              >
+                                {movimiento.tipo === 'entrada' ? (
+                                  <TrendingUp className="h-2 w-2 md:h-3 md:w-3" />
+                                ) : (
+                                  <TrendingDown className="h-2 w-2 md:h-3 md:w-3" />
+                                )}
+                                {movimiento.tipo}
+                              </Badge>
+                              <span className="text-xs md:text-sm text-muted-foreground">
+                                {format(new Date(movimiento.fecha), 'dd/MM/yy HH:mm')}
+                              </span>
                             </div>
-                          )}
+                            <p className="font-medium text-sm md:text-base">{movimiento.producto.nombre}</p>
+                            <div className="text-xs md:text-sm text-muted-foreground space-y-1">
+                              <p>Cantidad: {movimiento.cantidad}</p>
+                              <p>Stock: {movimiento.stock_anterior} → {movimiento.stock_nuevo}</p>
+                              <p>Usuario: {movimiento.usuario.nombre}</p>
+                              {movimiento.observaciones && <p>{movimiento.observaciones}</p>}
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
 
+            <TabsContent value="usuarios" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <ScrollArea className="flex-1 p-3 md:p-6">
+                {cargando_detalle ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="space-y-3 md:space-y-4">
+                    {inventario_seleccionado?.propietario && (
+                      <Card>
+                        <CardHeader className="p-3 md:p-6">
+                          <CardTitle className="text-sm md:text-base flex items-center gap-2">
+                            <Shield className="h-3 w-3 md:h-4 md:w-4 text-primary" />
+                            Propietario
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-3 md:p-6 pt-0">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-sm md:text-base">{inventario_seleccionado.propietario.nombre}</p>
+                              <p className="text-xs md:text-sm text-muted-foreground">{inventario_seleccionado.propietario.correo}</p>
+                            </div>
+                            <Badge className="text-xs">Propietario</Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {inventario_seleccionado?.permisos && inventario_seleccionado.permisos.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-xs md:text-sm text-muted-foreground uppercase">Usuarios con Acceso</h3>
+                        {inventario_seleccionado.permisos.map((permiso) => (
+                          <Card key={permiso.id}>
+                            <CardContent className="py-3 md:py-4 px-3 md:px-6">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-sm md:text-base">{permiso.usuario_invitado.nombre}</p>
+                                  <p className="text-xs md:text-sm text-muted-foreground">{permiso.usuario_invitado.correo}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge className="text-xs">{permiso.rol.charAt(0).toUpperCase() + permiso.rol.slice(1)}</Badge>
+                                  {inventario_seleccionado.es_propietario && (
+                                    <Button
+                                      onClick={() => abrirDialogoRemoverUsuario(permiso)}
+                                      variant="destructive"
+                                      size="sm"
+                                      className="h-7 w-7 p-0"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+
+                    {(!inventario_seleccionado?.permisos || inventario_seleccionado.permisos.length === 0) && (
+                      <div className="text-center py-8 md:py-12">
+                        <Users className="h-10 w-10 md:h-12 md:w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-base md:text-lg font-semibold mb-2">No hay usuarios invitados</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground mb-4">
+                          Invita usuarios para compartir el inventario
+                        </p>
+                        {inventario_seleccionado?.es_propietario && 
+                         inventario_seleccionado?.visibilidad === 'publico' && (
+                          <Button onClick={abrirDialogoInvitar} size="sm">
+                            <UserPlus className="h-3 w-3 md:h-4 md:w-4 mr-2" />
+                            Invitar Usuario
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
+
+      {}
       <Dialog open={dialogo_inventario_abierto} onOpenChange={setDialogoInventarioAbierto}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[425px] md:sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-base md:text-lg">
               {modo_edicion ? 'Editar Inventario' : 'Nuevo Inventario'}
             </DialogTitle>
-            <DialogDescription>
-              {modo_edicion 
+            <DialogDescription className="text-xs md:text-sm">
+              {modo_edicion
                 ? 'Modifica la información del inventario'
-                : 'Crea un nuevo inventario para gestionar productos'
-              }
+                : 'Crea un nuevo inventario para gestionar productos'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-3 md:space-y-4 py-3 md:py-4">
             <div className="space-y-2">
-              <Label htmlFor="nombre">Nombre del Inventario *</Label>
+              <Label htmlFor="nombre" className="text-sm md:text-base">Nombre *</Label>
               <Input
                 id="nombre"
                 value={formulario_inventario.nombre}
                 onChange={(e) => setFormularioInventario({ ...formulario_inventario, nombre: e.target.value })}
-                placeholder="Ej: Inventario Principal, Materiales Dentales"
-                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                placeholder="Inventario Principal"
+                className="text-sm md:text-base"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="visibilidad">Visibilidad</Label>
-              <Combobox
-                opciones={opciones_visibilidad}
-                valor={formulario_inventario.visibilidad}
-                onChange={(valor) => setFormularioInventario({ ...formulario_inventario, visibilidad: valor })}
-                placeholder="Selecciona visibilidad"
-              />
-              <p className="text-xs text-muted-foreground">
-                {formulario_inventario.visibilidad === 'privado' 
-                  ? 'Solo tú y los usuarios invitados pueden ver este inventario'
-                  : 'Este inventario será visible para todos los usuarios'
-                }
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogoInventarioAbierto(false)}
-              disabled={guardando}
-              className="hover:scale-105 transition-all duration-200"
-            >
-              Cancelar
-            </Button>
-            <Button 
-              onClick={manejarGuardarInventario} 
-              disabled={guardando}
-              className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-            >
-              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {modo_edicion ? 'Actualizar' : 'Crear'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={dialogo_invitar_abierto} onOpenChange={setDialogoInvitarAbierto}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Invitar Usuario al Inventario</DialogTitle>
-            <DialogDescription>
-              Comparte el acceso a tu inventario con otros usuarios
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="usuario">Usuario *</Label>
-              <Input
-                id="usuario"
-                placeholder="Buscar por correo o nombre..."
-                value={formulario_invitar.correo_busqueda}
-                onChange={(e) => setFormularioInvitar({ ...formulario_invitar, correo_busqueda: e.target.value })}
-                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-              />
-              <p className="text-xs text-muted-foreground">
-                Nota: Por ahora, deberás ingresar el ID del usuario manualmente
-              </p>
-              <Input
-                type="number"
-                placeholder="ID del usuario"
-                value={formulario_invitar.usuario_id}
-                onChange={(e) => setFormularioInvitar({ ...formulario_invitar, usuario_id: e.target.value })}
-                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="rol">Rol *</Label>
-              <Combobox
-                opciones={opciones_roles}
-                valor={formulario_invitar.rol}
-                onChange={(valor) => setFormularioInvitar({ ...formulario_invitar, rol: valor })}
-                placeholder="Selecciona un rol"
-              />
-              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <p className="text-xs text-blue-600 dark:text-blue-400">
-                  {formulario_invitar.rol === 'lector' 
-                    ? '📖 Lector: Solo puede ver el inventario y sus productos'
-                    : '✏️ Editor: Puede ver y modificar productos, registrar compras'
-                  }
+            <div className="flex items-center justify-between space-x-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="visibilidad" className="text-sm md:text-base">Inventario Público</Label>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Permite invitar usuarios para colaborar
                 </p>
               </div>
+              <Switch
+                id="visibilidad"
+                checked={formulario_inventario.visibilidad === 'publico'}
+                onCheckedChange={(checked) => setFormularioInventario({ 
+                  ...formulario_inventario, 
+                  visibilidad: checked ? 'publico' : 'privado' 
+                })}
+              />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogoInvitarAbierto(false)}
-              disabled={guardando}
-              className="hover:scale-105 transition-all duration-200"
-            >
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoInventarioAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
               Cancelar
             </Button>
-            <Button 
-              onClick={manejarInvitarUsuario} 
-              disabled={guardando}
-              className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-            >
-              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Invitar Usuario
+            <Button onClick={manejarGuardarInventario} disabled={guardando} className="w-full sm:w-auto text-sm md:text-base">
+              {guardando ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                modo_edicion ? 'Guardar Cambios' : 'Crear Inventario'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>Confirmar Eliminación</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que deseas eliminar este inventario?
+            <DialogTitle className="text-base md:text-lg">Confirmar Eliminación</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              ¿Estás seguro de que deseas eliminar el inventario "{inventario_a_eliminar?.nombre}"?
+              Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
-          
-          {inventario_a_eliminar && (
-            <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
-              <p className="font-semibold text-foreground">{inventario_a_eliminar.nombre}</p>
-              <Badge variant={inventario_a_eliminar.visibilidad === 'privado' ? 'secondary' : 'default'}>
-                {inventario_a_eliminar.visibilidad === 'privado' ? 'Privado' : 'Público'}
-              </Badge>
-            </div>
-          )}
-
-          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-            <p className="text-sm text-destructive">
-              Esta acción no se puede deshacer. Se eliminará el inventario y todos sus productos.
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDialogoConfirmarEliminarAbierto(false);
-                setInventarioAEliminar(null);
-              }}
-              className="hover:scale-105 transition-all duration-200"
-            >
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
               Cancelar
             </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmarEliminarInventario}
-              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
-            >
+            <Button variant="destructive" onClick={confirmarEliminarInventario} className="w-full sm:w-auto text-sm md:text-base">
               Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Toaster />
+      <Dialog open={dialogo_invitar_abierto} onOpenChange={setDialogoInvitarAbierto}>
+        <DialogContent className="sm:max-w-[425px] md:sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">Invitar Usuario</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              Selecciona un usuario y asigna un rol para este inventario
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 md:space-y-4 py-3 md:py-4">
+            <div className="space-y-2">
+              <Label htmlFor="usuario" className="text-sm md:text-base">Usuario *</Label>
+              <Combobox
+                opciones={opciones_usuarios}
+                valor={formulario_invitar.usuario_id}
+                onChange={(valor) => setFormularioInvitar({ ...formulario_invitar, usuario_id: valor })}
+                placeholder="Selecciona un usuario"
+              />
+            </div>
+
+            <div className="flex items-center justify-between space-x-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="rol" className="text-sm md:text-base">Permitir edición</Label>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  El usuario podrá {formulario_invitar.rol === 'editor' ? 'editar productos' : 'solo ver'}
+                </p>
+              </div>
+              <Switch
+                id="rol"
+                checked={formulario_invitar.rol === 'editor'}
+                onCheckedChange={(checked) => setFormularioInvitar({ 
+                  ...formulario_invitar, 
+                  rol: checked ? 'editor' : 'lector' 
+                })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoInvitarAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
+              Cancelar
+            </Button>
+            <Button onClick={manejarInvitarUsuario} disabled={guardando} className="w-full sm:w-auto text-sm md:text-base">
+              {guardando ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                  Invitando...
+                </>
+              ) : (
+                'Invitar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_remover_usuario_abierto} onOpenChange={setDialogoRemoverUsuarioAbierto}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">Confirmar Eliminación</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              ¿Estás seguro de que deseas remover a {usuario_a_remover?.usuario_invitado?.nombre} de este inventario?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoRemoverUsuarioAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmarRemoverUsuario} className="w-full sm:w-auto text-sm md:text-base">
+              Remover
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_producto_abierto} onOpenChange={setDialogoProductoAbierto}>
+        <DialogContent className="sm:max-w-[500px] md:sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">
+              {modo_edicion_producto ? 'Editar Producto' : 'Nuevo Producto'}
+            </DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              {modo_edicion_producto
+                ? 'Modifica la información del producto'
+                : 'Crea un nuevo producto en el inventario'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 md:space-y-4 py-3 md:py-4">
+            <div className="space-y-2">
+              <Label htmlFor="nombre_producto" className="text-sm md:text-base">Nombre *</Label>
+              <Input
+                id="nombre_producto"
+                value={formulario_producto.nombre}
+                onChange={(e) => setFormularioProducto({ ...formulario_producto, nombre: e.target.value })}
+                placeholder="Alcohol 70%"
+                className="text-sm md:text-base"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="tipo_gestion" className="text-sm md:text-base">Tipo de Gestión *</Label>
+                <Select
+                  value={formulario_producto.tipo_gestion}
+                  onValueChange={(value) => setFormularioProducto({ ...formulario_producto, tipo_gestion: value })}
+                  disabled={modo_edicion_producto}
+                >
+                  <SelectTrigger className="text-sm md:text-base">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tipos_gestion.map((tipo) => (
+                      <SelectItem key={tipo.valor} value={tipo.valor} className="text-sm md:text-base">
+                        {tipo.etiqueta}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="unidad_medida" className="text-sm md:text-base">Unidad de Medida *</Label>
+                <Input
+                  id="unidad_medida"
+                  value={formulario_producto.unidad_medida}
+                  onChange={(e) => setFormularioProducto({ ...formulario_producto, unidad_medida: e.target.value })}
+                  placeholder="unidades, ml, gramos..."
+                  className="text-sm md:text-base"
+                />
+              </div>
+            </div>
+
+            {formulario_producto.tipo_gestion === 'consumible' && (
+              <div className="space-y-2">
+                <Label htmlFor="stock_minimo" className="text-sm md:text-base">Stock Mínimo *</Label>
+                <Input
+                  id="stock_minimo"
+                  type="number"
+                  value={formulario_producto.stock_minimo}
+                  onChange={(e) => setFormularioProducto({ ...formulario_producto, stock_minimo: e.target.value })}
+                  className="text-sm md:text-base"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="descripcion" className="text-sm md:text-base">Descripción</Label>
+              <Textarea
+                id="descripcion"
+                value={formulario_producto.descripcion}
+                onChange={(e) => setFormularioProducto({ ...formulario_producto, descripcion: e.target.value })}
+                placeholder="Descripción del producto (opcional)"
+                rows={3}
+                className="text-sm md:text-base"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="notificar_stock_bajo"
+                checked={formulario_producto.notificar_stock_bajo}
+                onCheckedChange={(checked) => setFormularioProducto({ ...formulario_producto, notificar_stock_bajo: checked })}
+              />
+              <Label htmlFor="notificar_stock_bajo" className="cursor-pointer text-sm md:text-base">
+                Notificar cuando el stock esté por debajo del mínimo
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoProductoAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
+              Cancelar
+            </Button>
+            <Button onClick={manejarGuardarProducto} disabled={guardando} className="w-full sm:w-auto text-sm md:text-base">
+              {guardando ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                modo_edicion_producto ? 'Guardar Cambios' : 'Crear Producto'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar_producto_abierto} onOpenChange={setDialogoConfirmarEliminarProductoAbierto}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">Confirmar Eliminación</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              ¿Estás seguro de que deseas eliminar el producto "{producto_a_eliminar?.nombre}"?
+              Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarProductoAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmarEliminarProducto} className="w-full sm:w-auto text-sm md:text-base">
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_lote_abierto} onOpenChange={setDialogoLoteAbierto}>
+        <DialogContent className="sm:max-w-[500px] md:sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">Registrar Nuevo Lote</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              Registra un nuevo lote de {producto_seleccionado?.nombre}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 md:space-y-4 py-3 md:py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nro_lote" className="text-sm md:text-base">Número de Lote *</Label>
+                <Input
+                  id="nro_lote"
+                  value={formulario_lote.nro_lote}
+                  onChange={(e) => setFormularioLote({ ...formulario_lote, nro_lote: e.target.value })}
+                  placeholder="L001-2024"
+                  className="text-sm md:text-base"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cantidad" className="text-sm md:text-base">Cantidad *</Label>
+                <Input
+                  id="cantidad"
+                  type="number"
+                  step="0.01"
+                  value={formulario_lote.cantidad}
+                  onChange={(e) => setFormularioLote({ ...formulario_lote, cantidad: e.target.value })}
+                  className="text-sm md:text-base"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="costo_total" className="text-sm md:text-base">Costo Total *</Label>
+              <Input
+                id="costo_total"
+                type="number"
+                step="0.01"
+                value={formulario_lote.costo_total}
+                onChange={(e) => setFormularioLote({ ...formulario_lote, costo_total: e.target.value })}
+                className="text-sm md:text-base"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fecha_compra" className="text-sm md:text-base">Fecha de Compra *</Label>
+                <DateTimePicker
+                  valor={formulario_lote.fecha_compra}
+                  onChange={(fecha) => setFormularioLote({ ...formulario_lote, fecha_compra: fecha || new Date() })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fecha_vencimiento" className="text-sm md:text-base">Fecha de Vencimiento (Opcional)</Label>
+                <DatePicker
+                  valor={formulario_lote.fecha_vencimiento}
+                  onChange={(fecha) => setFormularioLote({ ...formulario_lote, fecha_vencimiento: fecha })}
+                  fromYear={2025}
+                  toYear={2125}
+                  deshabilitarAnteriores
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="registrar_egreso_lote"
+                checked={formulario_lote.registrar_egreso}
+                onCheckedChange={(checked) => setFormularioLote({ ...formulario_lote, registrar_egreso: checked })}
+              />
+              <Label htmlFor="registrar_egreso_lote" className="cursor-pointer text-sm md:text-base">
+                Registrar egreso en finanzas
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoLoteAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
+              Cancelar
+            </Button>
+            <Button onClick={manejarGuardarLote} disabled={guardando} className="w-full sm:w-auto text-sm md:text-base">
+              {guardando ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                'Registrar Lote'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar_lote_abierto} onOpenChange={setDialogoConfirmarEliminarLoteAbierto}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">Confirmar Eliminación</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              ¿Estás seguro de que deseas eliminar el lote "{lote_a_eliminar?.nro_lote}"?
+              Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarLoteAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmarEliminarLote} className="w-full sm:w-auto text-sm md:text-base">
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_ajuste_stock_lote_abierto} onOpenChange={setDialogoAjusteStockLoteAbierto}>
+        <DialogContent className="sm:max-w-[425px] md:sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">Ajustar Stock</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              Ajusta el stock del lote {lote_seleccionado?.nro_lote}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 md:space-y-4 py-3 md:py-4">
+            <div className="space-y-2">
+              <Label htmlFor="tipo_ajuste" className="text-sm md:text-base">Tipo de Ajuste *</Label>
+              <div className="flex items-center space-x-4">
+                <Switch
+                  id="tipo_ajuste"
+                  checked={formulario_ajuste_lote.tipo === 'salida'}
+                  onCheckedChange={(checked) => setFormularioAjusteLote({ ...formulario_ajuste_lote, tipo: checked ? 'salida' : 'entrada' })}
+                />
+                <Label htmlFor="tipo_ajuste" className="cursor-pointer text-sm md:text-base">
+                  {formulario_ajuste_lote.tipo === 'entrada' ? (
+                    <span className="flex items-center gap-2">
+                      <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
+                      Entrada (Incrementar)
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <TrendingDown className="h-3 w-3 md:h-4 md:w-4 text-red-600" />
+                      Salida (Decrementar)
+                    </span>
+                  )}
+                </Label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cantidad_ajuste" className="text-sm md:text-base">Cantidad *</Label>
+              <Input
+                id="cantidad_ajuste"
+                type="number"
+                step="0.01"
+                value={formulario_ajuste_lote.cantidad}
+                onChange={(e) => {
+                  const nueva_cantidad = e.target.value;
+                  const cantidad_num = parseFloat(nueva_cantidad || '0');
+                  const costo_unitario = lote_seleccionado ? Number(lote_seleccionado.costo_unitario_compra || 0) : 0;
+                  const nuevo_monto = (cantidad_num * costo_unitario).toFixed(2);
+                  setFormularioAjusteLote({ 
+                    ...formulario_ajuste_lote, 
+                    cantidad: nueva_cantidad,
+                    monto: nuevo_monto
+                  });
+                }}
+                className="text-sm md:text-base"
+              />
+              {lote_seleccionado && (
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Stock actual: {lote_seleccionado.cantidad_actual} {producto_seleccionado?.unidad_medida}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="monto_ajuste" className="text-sm md:text-base">
+                Monto {formulario_ajuste_lote.tipo === 'entrada' ? '(Costo)' : '(Venta)'} *
+              </Label>
+              <Input
+                id="monto_ajuste"
+                type="number"
+                step="0.01"
+                value={formulario_ajuste_lote.monto}
+                onChange={(e) => {
+                  const valor = parseFloat(e.target.value || '0').toFixed(2);
+                  setFormularioAjusteLote({ ...formulario_ajuste_lote, monto: valor });
+                }}
+                className="text-sm md:text-base"
+              />
+              <p className="text-[10px] md:text-xs text-muted-foreground">
+                {formulario_ajuste_lote.tipo === 'entrada' 
+                  ? 'Se registrará como egreso en finanzas' 
+                  : 'Se registrará como ingreso en finanzas'}
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="generar_movimiento_ajuste"
+                checked={formulario_ajuste_lote.generar_movimiento_financiero}
+                onCheckedChange={(checked) => setFormularioAjusteLote({ ...formulario_ajuste_lote, generar_movimiento_financiero: checked })}
+              />
+              <Label htmlFor="generar_movimiento_ajuste" className="cursor-pointer text-sm md:text-base">
+                Registrar movimiento en finanzas
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoAjusteStockLoteAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
+              Cancelar
+            </Button>
+            <Button onClick={manejarAjusteStockLote} disabled={guardando} className="w-full sm:w-auto text-sm md:text-base">
+              {guardando ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                  Ajustando...
+                </>
+              ) : (
+                'Ajustar Stock'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_activo_abierto} onOpenChange={setDialogoActivoAbierto}>
+        <DialogContent className="sm:max-w-[500px] md:sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">
+              {modo_edicion_activo ? 'Editar Activo' : 'Registrar Nuevo Activo'}
+            </DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              {modo_edicion_activo
+                ? `Modifica la información del activo`
+                : `Registra un nuevo activo de ${producto_seleccionado?.nombre}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 md:space-y-4 py-3 md:py-4">
+            {producto_seleccionado?.tipo_gestion === 'activo_serializado' && (
+              <div className="space-y-2">
+                <Label htmlFor="nro_serie" className="text-sm md:text-base">Número de Serie</Label>
+                <Input
+                  id="nro_serie"
+                  value={formulario_activo.nro_serie}
+                  onChange={(e) => setFormularioActivo({ ...formulario_activo, nro_serie: e.target.value })}
+                  placeholder="SN-123456"
+                  disabled={modo_edicion_activo}
+                  className="text-sm md:text-base"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="nombre_asignado" className="text-sm md:text-base">Nombre Asignado</Label>
+              <Input
+                id="nombre_asignado"
+                value={formulario_activo.nombre_asignado}
+                onChange={(e) => setFormularioActivo({ ...formulario_activo, nombre_asignado: e.target.value })}
+                placeholder="Equipo Sala 1"
+                className="text-sm md:text-base"
+              />
+            </div>
+
+            {!modo_edicion_activo && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="costo_compra" className="text-sm md:text-base">Costo de Compra *</Label>
+                  <Input
+                    id="costo_compra"
+                    type="number"
+                    step="0.01"
+                    value={formulario_activo.costo_compra}
+                    onChange={(e) => setFormularioActivo({ ...formulario_activo, costo_compra: e.target.value })}
+                    className="text-sm md:text-base"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fecha_compra" className="text-sm md:text-base">Fecha de Compra *</Label>
+                  <DateTimePicker
+                    valor={formulario_activo.fecha_compra}
+                    onChange={(fecha) => setFormularioActivo({ ...formulario_activo, fecha_compra: fecha || new Date() })}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="estado" className="text-sm md:text-base">Estado *</Label>
+              <Select
+                value={formulario_activo.estado}
+                onValueChange={(value) => setFormularioActivo({ ...formulario_activo, estado: value })}
+              >
+                <SelectTrigger className="text-sm md:text-base">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {estados_activo.map((estado) => (
+                    <SelectItem key={estado.valor} value={estado.valor} className="text-sm md:text-base">
+                      {estado.etiqueta}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ubicacion" className="text-sm md:text-base">Ubicación</Label>
+              <Input
+                id="ubicacion"
+                value={formulario_activo.ubicacion}
+                onChange={(e) => setFormularioActivo({ ...formulario_activo, ubicacion: e.target.value })}
+                placeholder="Consultorio 1, Almacén..."
+                className="text-sm md:text-base"
+              />
+            </div>
+
+            {!modo_edicion_activo && (
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="registrar_egreso_activo"
+                  checked={formulario_activo.registrar_egreso}
+                  onCheckedChange={(checked) => setFormularioActivo({ ...formulario_activo, registrar_egreso: checked })}
+                />
+                <Label htmlFor="registrar_egreso_activo" className="cursor-pointer text-sm md:text-base">
+                  Registrar egreso en finanzas
+                </Label>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoActivoAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
+              Cancelar
+            </Button>
+            <Button onClick={manejarGuardarActivo} disabled={guardando} className="w-full sm:w-auto text-sm md:text-base">
+              {guardando ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                modo_edicion_activo ? 'Guardar Cambios' : 'Registrar Activo'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar_activo_abierto} onOpenChange={setDialogoConfirmarEliminarActivoAbierto}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">Confirmar Eliminación</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              ¿Estás seguro de que deseas eliminar este activo?
+              Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarActivoAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmarEliminarActivo} className="w-full sm:w-auto text-sm md:text-base">
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_vender_activo_abierto} onOpenChange={setDialogoVenderActivoAbierto}>
+        <DialogContent className="sm:max-w-[425px] md:sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-base md:text-lg">Vender Activo</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
+              Registra la venta de {activo_seleccionado?.nombre_asignado || activo_seleccionado?.nro_serie || 'este activo'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 md:space-y-4 py-3 md:py-4">
+            <div className="space-y-2">
+              <Label htmlFor="monto_venta" className="text-sm md:text-base">Monto de Venta *</Label>
+              <Input
+                id="monto_venta"
+                type="number"
+                step="0.01"
+                value={formulario_venta_activo.monto_venta}
+                onChange={(e) => {
+                  const valor = parseFloat(e.target.value || '0').toFixed(2);
+                  setFormularioVentaActivo({ ...formulario_venta_activo, monto_venta: valor });
+                }}
+                onBlur={(e) => {
+                  const valor = parseFloat(e.target.value || '0').toFixed(2);
+                  setFormularioVentaActivo({ ...formulario_venta_activo, monto_venta: valor });
+                }}
+                className="text-sm md:text-base"
+              />
+              {activo_seleccionado && (
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Costo de compra: ${Number(activo_seleccionado.costo_compra).toFixed(2)}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="registrar_pago_venta"
+                checked={formulario_venta_activo.registrar_pago}
+                onCheckedChange={(checked) => setFormularioVentaActivo({ ...formulario_venta_activo, registrar_pago: checked })}
+              />
+              <Label htmlFor="registrar_pago_venta" className="cursor-pointer text-sm md:text-base">
+                Registrar ingreso en finanzas
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDialogoVenderActivoAbierto(false)} className="w-full sm:w-auto text-sm md:text-base">
+              Cancelar
+            </Button>
+            <Button onClick={manejarVenderActivo} disabled={guardando} className="w-full sm:w-auto text-sm md:text-base">
+              {guardando ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                  Vendiendo...
+                </>
+              ) : (
+                'Vender Activo'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Sheet open={sheet_producto_detalle_abierto} onOpenChange={setSheetProductoDetalleAbierto}>
+        <SheetContent side="bottom" className="h-[90vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="text-lg md:text-xl">
+              {producto_seleccionado?.nombre}
+            </SheetTitle>
+            <SheetDescription className="text-xs md:text-sm">
+              Detalles del producto y gestión de inventario
+            </SheetDescription>
+          </SheetHeader>
+          
+          {producto_seleccionado && (
+            <div className="py-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <Badge className={`${obtenerColorTipoGestion(producto_seleccionado.tipo_gestion)} text-white text-xs md:text-sm`}>
+                  {obtenerEtiquetaTipoGestion(producto_seleccionado.tipo_gestion)}
+                </Badge>
+                {obtenerStockTotal(producto_seleccionado) < (producto_seleccionado.stock_minimo ?? 0) && (
+                  <Badge variant="destructive" className="text-xs md:text-sm">
+                    Stock Bajo
+                  </Badge>
+                )}
+              </div>
+
+              {producto_seleccionado.descripcion && (
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {producto_seleccionado.descripcion}
+                </p>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs md:text-sm text-muted-foreground">Stock Total</p>
+                  <p className="text-base md:text-lg font-semibold">
+                    {obtenerStockTotal(producto_seleccionado)} {producto_seleccionado.unidad_medida}
+                  </p>
+                </div>
+                {producto_seleccionado.tipo_gestion === 'consumible' && (
+                  <div>
+                    <p className="text-xs md:text-sm text-muted-foreground">Stock Mínimo</p>
+                    <p className="text-base md:text-lg font-semibold">
+                      {producto_seleccionado.stock_minimo} {producto_seleccionado.unidad_medida}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs md:text-sm text-muted-foreground">Valor Total</p>
+                  <p className="text-base md:text-lg font-semibold">
+                    ${obtenerValorTotal(producto_seleccionado).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                {producto_seleccionado.tipo_gestion === 'consumible' && (
+                  <Button
+                    onClick={() => {
+                      setSheetProductoDetalleAbierto(false);
+                      abrirDialogoNuevoLote(producto_seleccionado);
+                    }}
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <ShoppingCart className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                    <span className="text-xs md:text-sm">Nuevo Lote</span>
+                  </Button>
+                )}
+                {producto_seleccionado.tipo_gestion !== 'consumible' && (
+                  <Button
+                    onClick={() => {
+                      setSheetProductoDetalleAbierto(false);
+                      abrirDialogoNuevoActivo(producto_seleccionado);
+                    }}
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <Plus className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                    <span className="text-xs md:text-sm">Registrar Activo</span>
+                  </Button>
+                )}
+                <Button
+                  onClick={() => {
+                    setSheetProductoDetalleAbierto(false);
+                    abrirDialogoEditarProducto(producto_seleccionado);
+                  }}
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <Edit className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                  <span className="text-xs md:text-sm">Editar</span>
+                </Button>
+                <Button
+                  onClick={() => {
+                    setSheetProductoDetalleAbierto(false);
+                    abrirDialogoConfirmarEliminarProducto(producto_seleccionado);
+                  }}
+                  size="sm"
+                  variant="destructive"
+                  className="flex-1"
+                >
+                  <Trash2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                  <span className="text-xs md:text-sm">Eliminar</span>
+                </Button>
+              </div>
+
+              {producto_seleccionado.tipo_gestion === 'consumible' && producto_seleccionado.lotes && producto_seleccionado.lotes.length > 0 && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2 text-sm md:text-base">Lotes Disponibles</h4>
+                  <div className="space-y-2">
+                    {producto_seleccionado.lotes.map((lote) => {
+                      const vencido = estaVencido(lote.fecha_vencimiento);
+                      return (
+                        <Card key={lote.id} className={vencido ? 'border-destructive' : ''}>
+                          <CardContent className="p-3">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <p className={`font-medium text-sm md:text-base ${vencido ? 'text-destructive' : ''}`}>
+                                  {lote.nro_lote}
+                                </p>
+                                {vencido && (
+                                  <Badge variant="destructive" className="text-xs">VENCIDO</Badge>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs md:text-sm text-muted-foreground">
+                                <p>Stock: {lote.cantidad_actual} {producto_seleccionado.unidad_medida}</p>
+                                <p>Costo: ${Number(lote.costo_unitario_compra).toFixed(2)}</p>
+                                {lote.fecha_vencimiento && (
+                                  <p className="col-span-2">
+                                    Vence: {format(new Date(lote.fecha_vencimiento), 'dd/MM/yyyy')}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex gap-1 pt-2">
+                                <Button
+                                  onClick={() => {
+                                    setSheetProductoDetalleAbierto(false);
+                                    abrirDialogoAjusteStockLote(producto_seleccionado, lote);
+                                  }}
+                                  size="sm"
+                                  variant="outline"
+                                  className="flex-1 h-8"
+                                >
+                                  <Settings className="h-3 w-3 mr-1" />
+                                  <span className="text-xs">Ajustar</span>
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    setSheetProductoDetalleAbierto(false);
+                                    abrirDialogoConfirmarEliminarLote(lote);
+                                  }}
+                                  size="sm"
+                                  variant="destructive"
+                                  className="flex-1 h-8"
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  <span className="text-xs">Eliminar</span>
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {producto_seleccionado.tipo_gestion !== 'consumible' && producto_seleccionado.activos && producto_seleccionado.activos.length > 0 && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2 text-sm md:text-base">Activos Registrados</h4>
+                  <div className="space-y-2">
+                    {producto_seleccionado.activos.map((activo) => (
+                      <Card key={activo.id}>
+                        <CardContent className="p-3">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium text-sm md:text-base">
+                                {activo.nombre_asignado || activo.nro_serie || '-'}
+                              </p>
+                              <Badge className="text-xs">{activo.estado}</Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs md:text-sm text-muted-foreground">
+                              {activo.ubicacion && <p>Ubicación: {activo.ubicacion}</p>}
+                              <p>Costo: ${Number(activo.costo_compra).toFixed(2)}</p>
+                            </div>
+                            <div className="flex gap-1 pt-2">
+                              <Select
+                                value={activo.estado}
+                                onValueChange={(value) => manejarCambioEstadoActivo(producto_seleccionado, activo, value)}
+                              >
+                                <SelectTrigger className="h-8 text-xs flex-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {estados_activo.map((estado) => (
+                                    <SelectItem key={estado.valor} value={estado.valor} className="text-xs">
+                                      {estado.etiqueta}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                onClick={() => {
+                                  setSheetProductoDetalleAbierto(false);
+                                  abrirDialogoVenderActivo(activo);
+                                }}
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2"
+                                title="Vender"
+                              >
+                                <DollarSign className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setSheetProductoDetalleAbierto(false);
+                                  abrirDialogoEditarActivo(producto_seleccionado, activo);
+                                }}
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2"
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setSheetProductoDetalleAbierto(false);
+                                  abrirDialogoConfirmarEliminarActivo(activo);
+                                }}
+                                size="sm"
+                                variant="destructive"
+                                className="h-8 px-2"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

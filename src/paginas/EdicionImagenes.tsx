@@ -28,8 +28,9 @@ import { VisualizadorArchivos } from '@/componentes/archivos/visualizador-archiv
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
+import { useEdicionImagenes } from '@/contextos/edicion-imagenes-contexto';
 
-interface Paciente {
+interface PacienteEdicion {
   id: number;
   nombre: string;
   apellidos: string;
@@ -62,11 +63,11 @@ interface EdicionVersion {
 
 export default function EdicionImagenes() {
   const [busqueda, setBusqueda] = useState('');
-  const [todos_pacientes, setTodosPacientes] = useState<Paciente[]>([]);
-  const [pacientes_filtrados, setPacientesFiltrados] = useState<Paciente[]>([]);
-  const [paciente_seleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
+  const [todos_pacientes, setTodosPacientes] = useState<PacienteEdicion[]>([]);
+  const [pacientes_filtrados, setPacientesFiltrados] = useState<PacienteEdicion[]>([]);
+  const [paciente_seleccionado, setPacienteSeleccionadoState] = useState<PacienteEdicion | null>(null);
   const [archivos, setArchivos] = useState<ArchivoAdjunto[]>([]);
-  const [archivo_seleccionado, setArchivoSeleccionado] = useState<ArchivoAdjunto | null>(null);
+  const [archivo_seleccionado, setArchivoSeleccionadoState] = useState<ArchivoAdjunto | null>(null);
   const [versiones, setVersiones] = useState<EdicionVersion[]>([]);
   const [version_editar, setVersionEditar] = useState<EdicionVersion | null>(null);
   
@@ -82,6 +83,18 @@ export default function EdicionImagenes() {
   const [dialogo_confirmar_eliminar_version_abierto, setDialogoConfirmarEliminarVersionAbierto] = useState(false);
   const [version_a_eliminar, setVersionAEliminar] = useState<EdicionVersion | null>(null);
 
+  const { paciente_id, setPacienteId, archivo_id, setArchivoId } = useEdicionImagenes();
+
+  const setPacienteSeleccionado = (paciente: PacienteEdicion | null) => {
+    setPacienteSeleccionadoState(paciente);
+    setPacienteId(paciente?.id || null);
+  };
+
+  const setArchivoSeleccionado = (archivo: ArchivoAdjunto | null) => {
+    setArchivoSeleccionadoState(archivo);
+    setArchivoId(archivo?.id || null);
+  };
+
   const abrirDialogoConfirmarEliminarVersion = (version: EdicionVersion) => {
     setVersionAEliminar(version);
     setDialogoConfirmarEliminarVersionAbierto(true);
@@ -90,6 +103,30 @@ export default function EdicionImagenes() {
   useEffect(() => {
     cargarTodosPacientes();
   }, []);
+
+  useEffect(() => {
+    const cargarEstadoGuardado = async () => {
+      if (paciente_id && todos_pacientes.length > 0) {
+        const paciente = todos_pacientes.find(p => p.id === paciente_id);
+        if (paciente) {
+          setPacienteSeleccionadoState(paciente);
+        }
+      }
+    };
+    cargarEstadoGuardado();
+  }, [paciente_id, todos_pacientes]);
+
+  useEffect(() => {
+    const cargarArchivoGuardado = async () => {
+      if (archivo_id && archivos.length > 0) {
+        const archivo = archivos.find(a => a.id === archivo_id);
+        if (archivo) {
+          setArchivoSeleccionadoState(archivo);
+        }
+      }
+    };
+    cargarArchivoGuardado();
+  }, [archivo_id, archivos]);
 
   useEffect(() => {
     filtrarPacientes();
@@ -177,7 +214,7 @@ export default function EdicionImagenes() {
     }
   };
 
-  const seleccionarPaciente = (paciente: Paciente) => {
+  const seleccionarPaciente = (paciente: PacienteEdicion) => {
     setPacienteSeleccionado(paciente);
     setArchivoSeleccionado(null);
     setVersiones([]);

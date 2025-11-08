@@ -45,108 +45,15 @@ import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { format } from 'date-fns';
 import { ajustarFechaParaBackend, formatearFechaSoloFecha } from '@/lib/utilidades';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
-
-interface Usuario {
-  id: number;
-  nombre: string;
-  correo: string;
-}
-
-interface Inventario {
-  id: number;
-  nombre: string;
-  visibilidad: 'privado' | 'publico';
-  activo: boolean;
-  propietario?: {
-    id: number;
-    nombre: string;
-    correo: string;
-  };
-  permisos?: Array<{
-    id: number;
-    rol: string;
-    usuario_invitado: {
-      id: number;
-      nombre: string;
-      correo: string;
-    };
-  }>;
-  productos?: Producto[];
-  rol_usuario?: string;
-  es_propietario?: boolean;
-  resumen?: {
-    valor_total: number;
-    total_productos: number;
-    total_consumibles: number;
-    total_activos: number;
-  };
-}
-
-interface Lote {
-  id: number;
-  nro_lote: string;
-  fecha_vencimiento?: Date | null; // Puede o no tener fecha de vencimiento
-  cantidad_actual: number;
-  costo_unitario_compra: number;
-  fecha_compra: Date;
-}
-
-interface Activo {
-  id: number;
-  nro_serie?: string;
-  nombre_asignado?: string;
-  costo_compra: number;
-  fecha_compra: Date;
-  estado: string;
-  ubicacion?: string;
-}
-
-interface Producto {
-  id: number;
-  nombre: string;
-  tipo_gestion: 'consumible' | 'activo_serializado' | 'activo_general';
-  stock_minimo: number;
-  unidad_medida: string;
-  activo: boolean;
-  descripcion?: string;
-  notificar_stock_bajo: boolean;
-  lotes?: Lote[];
-  activos?: Activo[];
-}
-
-interface ReporteValor {
-  valor_consumibles: number;
-  valor_activos: number;
-  valor_total: number;
-  cantidad_lotes: number;
-  cantidad_activos: number;
-  desglose_activos_por_estado: {
-    disponible: number;
-    en_uso: number;
-    en_mantenimiento: number;
-    roto: number;
-  };
-}
-
-interface MovimientoInventario {
-  id: number;
-  tipo: string;
-  cantidad: number;
-  stock_anterior: number;
-  stock_nuevo: number;
-  referencia?: string;
-  observaciones?: string;
-  fecha: Date;
-  costo_total?: number;
-  producto: {
-    id: number;
-    nombre: string;
-  };
-  usuario: {
-    id: number;
-    nombre: string;
-  };
-}
+import { 
+  UsuarioInventario as Usuario, 
+  Inventario, 
+  Producto, 
+  Lote, 
+  Activo, 
+  ReporteValor, 
+  MovimientoInventario 
+} from '@/tipos';
 
 export default function Inventarios() {
   const { usuario: usuario_actual } = useAutenticacion();
@@ -172,6 +79,7 @@ export default function Inventarios() {
   const [dialogo_confirmar_eliminar_lote_abierto, setDialogoConfirmarEliminarLoteAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_activo_abierto, setDialogoConfirmarEliminarActivoAbierto] = useState(false);
   const [dialogo_remover_usuario_abierto, setDialogoRemoverUsuarioAbierto] = useState(false);
+  const [dialogo_editar_permiso_abierto, setDialogoEditarPermisoAbierto] = useState(false);
   const [dialogo_vender_activo_abierto, setDialogoVenderActivoAbierto] = useState(false);
   
   const [modo_edicion, setModoEdicion] = useState(false);
@@ -196,11 +104,17 @@ export default function Inventarios() {
   const [formulario_inventario, setFormularioInventario] = useState({
     nombre: '',
     visibilidad: 'privado' as 'privado' | 'publico',
+    modo_estricto: false,
   });
 
   const [formulario_invitar, setFormularioInvitar] = useState({
     usuario_id: '',
     rol: 'lector',
+  });
+
+  const [formulario_editar_permiso, setFormularioEditarPermiso] = useState({
+    permiso_id: 0,
+    rol: '',
   });
 
   const [formulario_producto, setFormularioProducto] = useState({
@@ -343,6 +257,7 @@ export default function Inventarios() {
     setFormularioInventario({
       nombre: '',
       visibilidad: 'privado',
+      modo_estricto: false,
     });
     setModoEdicion(false);
     setDialogoInventarioAbierto(true);
@@ -353,6 +268,7 @@ export default function Inventarios() {
     setFormularioInventario({
       nombre: inventario.nombre,
       visibilidad: inventario.visibilidad,
+      modo_estricto: inventario.modo_estricto || false,
     });
     setModoEdicion(true);
     setDialogoInventarioAbierto(true);
@@ -535,6 +451,43 @@ export default function Inventarios() {
     }
   };
 
+  const abrirDialogoEditarPermiso = (permiso: any) => {
+    setFormularioEditarPermiso({
+      permiso_id: permiso.id,
+      rol: permiso.rol,
+    });
+    setDialogoEditarPermisoAbierto(true);
+  };
+
+  const manejarEditarPermiso = async () => {
+    if (!inventario_seleccionado || !formulario_editar_permiso.permiso_id) return;
+
+    try {
+      await inventarioApi.actualizarPermiso(
+        inventario_seleccionado.id,
+        formulario_editar_permiso.permiso_id,
+        { rol: formulario_editar_permiso.rol }
+      );
+      toast({
+        title: 'Éxito',
+        description: 'Permiso actualizado correctamente',
+      });
+      setDialogoEditarPermisoAbierto(false);
+      
+      // Recargar inventarios y actualizar el seleccionado
+      await cargarInventarios();
+      const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
+      setInventarioSeleccionado(inventario_actualizado);
+    } catch (error: any) {
+      console.error('Error al editar permiso:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al actualizar el permiso',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const abrirDialogoNuevoProducto = () => {
     setFormularioProducto({
       nombre: '',
@@ -553,10 +506,10 @@ export default function Inventarios() {
     setFormularioProducto({
       nombre: producto.nombre,
       tipo_gestion: producto.tipo_gestion,
-      stock_minimo: producto.stock_minimo.toString(),
-      unidad_medida: producto.unidad_medida,
+      stock_minimo: (producto.stock_minimo ?? 0).toString(),
+      unidad_medida: producto.unidad_medida ?? '',
       descripcion: producto.descripcion || '',
-      notificar_stock_bajo: producto.notificar_stock_bajo,
+      notificar_stock_bajo: producto.notificar_stock_bajo ?? false,
     });
     setModoEdicionProducto(true);
     setDialogoProductoAbierto(true);
@@ -829,8 +782,8 @@ export default function Inventarios() {
     setFormularioActivo({
       nro_serie: activo.nro_serie || '',
       nombre_asignado: activo.nombre_asignado || '',
-      costo_compra: activo.costo_compra.toString(),
-      fecha_compra: new Date(activo.fecha_compra),
+      costo_compra: (activo.costo_compra ?? 0).toString(),
+      fecha_compra: activo.fecha_compra ? new Date(activo.fecha_compra) : new Date(),
       estado: activo.estado,
       ubicacion: activo.ubicacion || '',
       registrar_egreso: false,
@@ -1377,7 +1330,7 @@ export default function Inventarios() {
                       {productos.length}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {productos.filter(p => obtenerStockTotal(p) < p.stock_minimo).length} con stock bajo
+                      {productos.filter(p => obtenerStockTotal(p) < (p.stock_minimo ?? 0)).length} con stock bajo
                     </p>
                   </CardContent>
                 </Card>
@@ -1453,7 +1406,7 @@ export default function Inventarios() {
                     {productos_filtrados.map((producto) => {
                       const stock_total = obtenerStockTotal(producto);
                       const valor_total = obtenerValorTotal(producto);
-                      const stock_bajo = stock_total < producto.stock_minimo;
+                      const stock_bajo = stock_total < (producto.stock_minimo ?? 0);
 
                       return (
                         <Card key={producto.id} className={`${stock_bajo ? 'border-yellow-500' : ''}`}>
@@ -1782,13 +1735,22 @@ export default function Inventarios() {
                                 <div className="flex items-center gap-2">
                                   <Badge>{permiso.rol.charAt(0).toUpperCase() + permiso.rol.slice(1)}</Badge>
                                   {inventario_seleccionado.es_propietario && (
-                                    <Button
-                                      onClick={() => abrirDialogoRemoverUsuario(permiso)}
-                                      variant="destructive"
-                                      size="sm"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
+                                    <>
+                                      <Button
+                                        onClick={() => abrirDialogoEditarPermiso(permiso)}
+                                        variant="outline"
+                                        size="sm"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        onClick={() => abrirDialogoRemoverUsuario(permiso)}
+                                        variant="destructive"
+                                        size="sm"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </>
                                   )}
                                 </div>
                               </div>
@@ -1859,6 +1821,23 @@ export default function Inventarios() {
                 onCheckedChange={(checked) => setFormularioInventario({ 
                   ...formulario_inventario, 
                   visibilidad: checked ? 'publico' : 'privado' 
+                })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between space-x-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="modo-estricto">Modo Estricto</Label>
+                <p className="text-sm text-muted-foreground">
+                  Validar disponibilidad de stock antes de permitir crear citas con materiales
+                </p>
+              </div>
+              <Switch
+                id="modo-estricto"
+                checked={formulario_inventario.modo_estricto}
+                onCheckedChange={(checked) => setFormularioInventario({ 
+                  ...formulario_inventario, 
+                  modo_estricto: checked 
                 })}
               />
             </div>
@@ -1972,6 +1951,46 @@ export default function Inventarios() {
             </Button>
             <Button variant="destructive" onClick={confirmarRemoverUsuario}>
               Remover
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {}
+      <Dialog open={dialogo_editar_permiso_abierto} onOpenChange={setDialogoEditarPermisoAbierto}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Editar Permiso de Usuario</DialogTitle>
+            <DialogDescription>
+              Modifica el rol del usuario en este inventario
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rol_editar">Rol *</Label>
+              <Combobox
+                opciones={[
+                  { valor: 'lector', etiqueta: 'Lector (Solo lectura)' },
+                  { valor: 'editor', etiqueta: 'Editor (Puede editar)' },
+                  { valor: 'admin', etiqueta: 'Administrador (Control total)' },
+                ]}
+                valor={formulario_editar_permiso.rol}
+                onChange={(valor) => setFormularioEditarPermiso({ ...formulario_editar_permiso, rol: valor })}
+                placeholder="Selecciona un rol"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoEditarPermisoAbierto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={manejarEditarPermiso}>
+              Guardar Cambios
             </Button>
           </DialogFooter>
         </DialogContent>

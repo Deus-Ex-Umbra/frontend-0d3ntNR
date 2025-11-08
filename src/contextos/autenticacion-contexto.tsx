@@ -1,12 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { autenticacionApi, usuariosApi } from '@/lib/api';
-
-interface Usuario {
-  id: number;
-  nombre: string;
-  correo: string;
-  avatar?: string;
-}
+import { Usuario } from '@/tipos';
 
 interface AutenticacionContexto {
   usuario: Usuario | null;

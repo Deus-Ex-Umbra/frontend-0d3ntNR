@@ -118,6 +118,10 @@ export const tratamientosApi = {
     const respuesta = await api.get(`/tratamientos/${id}`);
     return respuesta.data;
   },
+  obtenerMaterialesPlantilla: async (id: number) => {
+    const respuesta = await api.get(`/tratamientos/${id}/materiales`);
+    return respuesta.data;
+  },
   actualizar: async (id: number, datos: any) => {
     const respuesta = await api.put(`/tratamientos/${id}`, datos);
     return respuesta.data;
@@ -139,6 +143,10 @@ export const planesTratamientoApi = {
   },
   obtenerPorPaciente: async (paciente_id: number) => {
     const respuesta = await api.get(`/planes-tratamiento/paciente/${paciente_id}`);
+    return respuesta.data;
+  },
+  actualizar: async (id: number, datos: { costo_total: number }) => {
+    const respuesta = await api.put(`/planes-tratamiento/${id}`, datos);
     return respuesta.data;
   },
   eliminar: async (id: number) => {
@@ -461,6 +469,10 @@ export const inventarioApi = {
     const respuesta = await api.delete(`/inventario/${inventario_id}/permisos/${permiso_id}`);
     return respuesta.data;
   },
+  actualizarPermiso: async (inventario_id: number, permiso_id: number, datos: { rol: string }) => {
+    const respuesta = await api.put(`/inventario/${inventario_id}/permisos/${permiso_id}`, datos);
+    return respuesta.data;
+  },
   crearProducto: async (datos: {
     inventario_id: number;
     nombre: string;
@@ -527,6 +539,14 @@ export const inventarioApi = {
     materiales: Array<{ producto_id: number; tipo: string; cantidad_planeada: number }>;
   }) => {
     const respuesta = await api.post(`/inventario/tratamientos/${plan_tratamiento_id}/asignar-materiales`, datos);
+    return respuesta.data;
+  },
+  obtenerMaterialesTratamiento: async (plan_tratamiento_id: number) => {
+    const respuesta = await api.get(`/inventario/tratamientos/${plan_tratamiento_id}/materiales`);
+    return respuesta.data;
+  },
+  confirmarMaterialesGenerales: async (plan_tratamiento_id: number, datos: any) => {
+    const respuesta = await api.post(`/inventario/tratamientos/${plan_tratamiento_id}/confirmar-materiales-generales`, datos);
     return respuesta.data;
   },
   cambiarEstadoActivo: async (inventario_id: number, activo_id: number, datos: { estado: string }) => {

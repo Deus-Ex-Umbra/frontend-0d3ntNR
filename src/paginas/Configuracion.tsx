@@ -17,14 +17,7 @@ import { GestionCatalogo } from '@/componentes/catalogo/gestion-catalogo';
 import { MarkdownRenderer } from '@/componentes/ui/markdown-rendered';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-
-interface ItemCatalogo {
-  id: number;
-  nombre: string;
-  descripcion?: string;
-  color?: string;
-  activo: boolean;
-}
+import { ItemCatalogo } from '@/tipos';
 
 interface Nota {
   id: number;

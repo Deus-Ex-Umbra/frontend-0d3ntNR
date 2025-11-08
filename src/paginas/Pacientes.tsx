@@ -16,29 +16,7 @@ import { Toaster } from '@/componentes/ui/toaster';
 import { SelectConAgregar } from '@/componentes/ui/select-with-add';
 import { GestorArchivos } from '@/componentes/archivos/gestor-archivos';
 import { PhoneInput, formatearTelefonoCompleto, separarTelefono } from '@/componentes/ui/phone-input';
-
-interface Paciente {
-  id: number;
-  nombre: string;
-  apellidos: string;
-  telefono?: string;
-  correo?: string;
-  direccion?: string;
-  notas_generales?: string;
-  alergias?: number[];
-  enfermedades?: number[];
-  medicamentos?: number[];
-  notas_medicas?: string;
-  color_categoria?: string;
-}
-
-interface ItemCatalogo {
-  id: number;
-  nombre: string;
-  descripcion?: string;
-  color?: string;
-  activo: boolean;
-}
+import { Paciente, ItemCatalogo } from '@/tipos';
 
 export default function Pacientes() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);

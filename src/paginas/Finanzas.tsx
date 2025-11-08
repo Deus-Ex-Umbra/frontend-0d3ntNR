@@ -18,25 +18,9 @@ import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { SearchInput } from '@/componentes/ui/search-input';
 import { formatearFechaISO } from '@/lib/utilidades';
+import { Movimiento, ReporteFinanzas, DatosGrafico } from '@/tipos';
 
-interface Movimiento {
-  id: number;
-  tipo: 'ingreso' | 'egreso';
-  fecha: Date;
-  monto: number;
-  concepto: string;
-  cita_id?: number;
-  plan_tratamiento_id?: number;
-}
-
-interface ReporteFinanzas {
-  total_ingresos: number;
-  total_egresos: number;
-  balance: number;
-  movimientos: Movimiento[];
-}
-
-interface Cita {
+interface CitaFinanzas {
   id: number;
   fecha: Date;
   descripcion: string;
@@ -49,12 +33,6 @@ interface Cita {
   plan_tratamiento?: {
     id: number;
   };
-}
-
-interface DatosGrafico {
-  periodo: string;
-  ingresos: number;
-  egresos: number;
 }
 
 export default function Finanzas() {
@@ -75,7 +53,7 @@ export default function Finanzas() {
   const [movimiento_seleccionado, setMovimientoSeleccionado] = useState<Movimiento | null>(null);
   const [movimiento_a_eliminar, setMovimientoAEliminar] = useState<Movimiento | null>(null);
   
-  const [citas, setCitas] = useState<Cita[]>([]);
+  const [citas, setCitas] = useState<CitaFinanzas[]>([]);
   const [cargando_datos, setCargandoDatos] = useState(false);
 
   const [tipo_grafico, setTipoGrafico] = useState<'dia' | 'mes' | 'ano'>('mes');
@@ -842,7 +820,7 @@ export default function Finanzas() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Selector de modo */}
+                {}
                 <div className="flex items-center justify-center gap-2 p-2 bg-secondary/20 rounded-lg">
                   <Button
                     variant={modo_grafico === 'ingresos-egresos' ? 'default' : 'ghost'}
@@ -864,7 +842,7 @@ export default function Finanzas() {
                   </Button>
                 </div>
 
-                {/* Controles de visualización */}
+                {}
                 <div className="flex items-center justify-between gap-4">
                   <Tabs value={tipo_grafico} onValueChange={(value) => setTipoGrafico(value as 'dia' | 'mes' | 'ano')} className="flex-1">
                     <TabsList className="grid w-full grid-cols-3">
@@ -917,7 +895,7 @@ export default function Finanzas() {
                   </div>
                 </div>
 
-                {/* Gráfico */}
+                {}
                 {cargando_grafico ? (
                   <div className="flex items-center justify-center h-96">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />

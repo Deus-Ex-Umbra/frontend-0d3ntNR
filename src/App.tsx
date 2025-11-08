@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProveedorAutenticacion, useAutenticacion } from './contextos/autenticacion-contexto';
 import { ProveedorTema } from './contextos/tema-contexto';
+import { ProveedorMenu } from './contextos/menu-contexto';
+import { ProveedorEdicionImagenes } from './contextos/edicion-imagenes-contexto';
 import InicioSesion from './paginas/InicioSesion';
 import Registro from './paginas/Registro';
 import Inicio from './paginas/Inicio';
@@ -108,8 +110,10 @@ function App() {
   return (
     <ProveedorTema>
       <ProveedorAutenticacion>
-        <BrowserRouter>
-          <Routes>
+        <ProveedorMenu>
+          <ProveedorEdicionImagenes>
+            <BrowserRouter>
+              <Routes>
             <Route
               path="/inicio-sesion"
               element={
@@ -190,9 +194,11 @@ function App() {
                 </RutaProtegida>
               }
             />
-            <Route path="/" element={<Navigate to="/inicio" replace />} />
-          </Routes>
-        </BrowserRouter>
+              <Route path="/" element={<Navigate to="/inicio" replace />} />
+            </Routes>
+          </BrowserRouter>
+          </ProveedorEdicionImagenes>
+        </ProveedorMenu>
       </ProveedorAutenticacion>
     </ProveedorTema>
   );

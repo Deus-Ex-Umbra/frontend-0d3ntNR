@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, 
@@ -15,6 +14,7 @@ import {
   Package
 } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
+import { useMenu } from '@/contextos/menu-contexto';
 import { cn } from '@/lib/utilidades';
 import { Button } from '@/componentes/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/componentes/ui/avatar';
@@ -40,7 +40,7 @@ export function MenuLateral() {
   const navegar = useNavigate();
   const ubicacion = useLocation();
   const { cerrarSesion, usuario } = useAutenticacion();
-  const [colapsado, setColapsado] = useState(false);
+  const { colapsado, setColapsado } = useMenu();
   const github_url = 'https://github.com/deus-ex-umbra';
 
   const manejarCerrarSesion = () => {

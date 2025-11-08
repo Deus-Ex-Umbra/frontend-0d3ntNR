@@ -55,24 +55,7 @@ import { Combobox, OpcionCombobox } from "@/componentes/ui/combobox";
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { SearchInput } from "@/componentes/ui/search-input";
 import { ajustarFechaParaBackend } from "@/lib/utilidades";
-
-interface Tratamiento {
-  id: number;
-  nombre: string;
-  numero_citas: number;
-  costo_total: number;
-  intervalo_dias: number;
-  intervalo_semanas: number;
-  intervalo_meses: number;
-  horas_aproximadas_citas: number;
-  minutos_aproximados_citas: number;
-}
-
-interface Paciente {
-  id: number;
-  nombre: string;
-  apellidos: string;
-}
+import { Tratamiento, Paciente } from '@/tipos';
 
 interface PlanTratamiento {
   id: number;

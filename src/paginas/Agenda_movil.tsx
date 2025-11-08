@@ -15,41 +15,7 @@ import { Badge } from '@/componentes/ui/badge';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { Switch } from '@/componentes/ui/switch';
 import { ajustarFechaParaBackend } from '@/lib/utilidades';
-
-interface Cita {
-  id: number;
-  fecha: Date;
-  descripcion: string;
-  estado_pago: string | null;
-  monto_esperado: number | null;
-  horas_aproximadas: number;
-  minutos_aproximados: number;
-  paciente?: {
-    id: number;
-    nombre: string;
-    apellidos: string;
-    color_categoria?: string;
-  } | null;
-  plan_tratamiento?: {
-    id: number;
-  } | null;
-}
-
-interface HoraLibre {
-  fecha: Date;
-  duracion_minutos: number;
-  horas_aproximadas: number;
-  minutos_aproximados: number;
-  descripcion: string;
-}
-
-interface Paciente {
-  id: number;
-  nombre: string;
-  apellidos: string;
-}
-
-type ElementoAgenda = (Cita | HoraLibre) & { es_hora_libre?: boolean };
+import { Cita, HoraLibre, ElementoAgenda, Paciente } from '@/tipos';
 
 export default function AgendaMobile() {
   const [citas, setCitas] = useState<Cita[]>([]);

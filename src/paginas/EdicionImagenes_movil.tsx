@@ -29,7 +29,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
 
-interface Paciente {
+interface PacienteEdicion {
   id: number;
   nombre: string;
   apellidos: string;
@@ -62,9 +62,9 @@ interface EdicionVersion {
 
 export default function EdicionImagenesMobile() {
   const [busqueda, setBusqueda] = useState('');
-  const [todos_pacientes, setTodosPacientes] = useState<Paciente[]>([]);
-  const [pacientes_filtrados, setPacientesFiltrados] = useState<Paciente[]>([]);
-  const [paciente_seleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
+  const [todos_pacientes, setTodosPacientes] = useState<PacienteEdicion[]>([]);
+  const [pacientes_filtrados, setPacientesFiltrados] = useState<PacienteEdicion[]>([]);
+  const [paciente_seleccionado, setPacienteSeleccionado] = useState<PacienteEdicion | null>(null);
   const [archivos, setArchivos] = useState<ArchivoAdjunto[]>([]);
   const [archivo_seleccionado, setArchivoSeleccionado] = useState<ArchivoAdjunto | null>(null);
   const [versiones, setVersiones] = useState<EdicionVersion[]>([]);
@@ -177,7 +177,7 @@ export default function EdicionImagenesMobile() {
     }
   };
 
-  const seleccionarPaciente = (paciente: Paciente) => {
+  const seleccionarPaciente = (paciente: PacienteEdicion) => {
     setPacienteSeleccionado(paciente);
     setArchivoSeleccionado(null);
     setVersiones([]);
