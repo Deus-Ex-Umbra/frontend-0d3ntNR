@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
-import { MenuLateral } from '@/componentes/MenuLateral';
+import { MenuLateral } from '@/componentes/MenuLateral_movil';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
+import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from '@/componentes/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
+import { ScrollArea } from '@/componentes/ui/scroll-area';
+import { Switch } from '@/componentes/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
 import { 
   Package, 
   Plus, 
@@ -16,25 +20,39 @@ import {
   AlertCircle, 
   Lock, 
   Globe, 
-  Users, 
-  TrendingUp,
-  Eye,
-  ChevronRight,
+  Users,
   ArrowLeft,
   DollarSign,
-  Calendar,
   Box,
   AlertTriangle,
   UserPlus,
   Shield,
-  History
+  History,
+  X,
+  Search,
+  ShoppingCart,
+  TrendingUp,
+  TrendingDown,
+  Settings,
+  ChevronRight,
+  Eye
 } from 'lucide-react';
 import { inventarioApi, usuariosApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Badge } from '@/componentes/ui/badge';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
-import { SearchInput } from '@/componentes/ui/search-input';
+import { DatePicker } from '@/componentes/ui/date-picker';
+import { DateTimePicker } from '@/componentes/ui/date-time-picker';
+import { format } from 'date-fns';
+import { ajustarFechaParaBackend, formatearFechaSoloFecha } from '@/lib/utilidades';
+import { useAutenticacion } from '@/contextos/autenticacion-contexto';
+
+interface Usuario {
+  id: number;
+  nombre: string;
+  correo: string;
+}
 
 interface Inventario {
   id: number;
@@ -58,6 +76,31 @@ interface Inventario {
   productos?: Producto[];
   rol_usuario?: string;
   es_propietario?: boolean;
+  resumen?: {
+    valor_total: number;
+    total_productos: number;
+    total_consumibles: number;
+    total_activos: number;
+  };
+}
+
+interface Lote {
+  id: number;
+  nro_lote: string;
+  fecha_vencimiento?: Date | null;
+  cantidad_actual: number;
+  costo_unitario_compra: number;
+  fecha_compra: Date;
+}
+
+interface Activo {
+  id: number;
+  nro_serie?: string;
+  nombre_asignado?: string;
+  costo_compra: number;
+  fecha_compra: Date;
+  estado: string;
+  ubicacion?: string;
 }
 
 interface Producto {
@@ -67,21 +110,10 @@ interface Producto {
   stock_minimo: number;
   unidad_medida: string;
   activo: boolean;
-  lotes?: Array<{
-    id: number;
-    nro_lote: string;
-    fecha_vencimiento: Date;
-    cantidad_actual: number;
-    costo_unitario_compra: number;
-  }>;
-  activos?: Array<{
-    id: number;
-    nro_serie?: string;
-    nombre_asignado?: string;
-    costo_compra: number;
-    fecha_compra: Date;
-    estado: string;
-  }>;
+  descripcion?: string;
+  notificar_stock_bajo: boolean;
+  lotes?: Lote[];
+  activos?: Activo[];
 }
 
 interface ReporteValor {
@@ -107,6 +139,7 @@ interface MovimientoInventario {
   referencia?: string;
   observaciones?: string;
   fecha: Date;
+  costo_total?: number;
   producto: {
     id: number;
     nombre: string;
@@ -118,7 +151,9 @@ interface MovimientoInventario {
 }
 
 export default function Inventarios() {
+  const { usuario: usuario_actual } = useAutenticacion();
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [inventario_seleccionado, setInventarioSeleccionado] = useState<Inventario | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [reporte_valor, setReporteValor] = useState<ReporteValor | null>(null);
@@ -131,21 +166,84 @@ export default function Inventarios() {
   const [dialogo_inventario_abierto, setDialogoInventarioAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [dialogo_invitar_abierto, setDialogoInvitarAbierto] = useState(false);
+  const [dialogo_producto_abierto, setDialogoProductoAbierto] = useState(false);
+  const [dialogo_lote_abierto, setDialogoLoteAbierto] = useState(false);
+  const [dialogo_activo_abierto, setDialogoActivoAbierto] = useState(false);
+  const [dialogo_ajuste_stock_lote_abierto, setDialogoAjusteStockLoteAbierto] = useState(false);
+  const [dialogo_confirmar_eliminar_producto_abierto, setDialogoConfirmarEliminarProductoAbierto] = useState(false);
+  const [dialogo_confirmar_eliminar_lote_abierto, setDialogoConfirmarEliminarLoteAbierto] = useState(false);
+  const [dialogo_confirmar_eliminar_activo_abierto, setDialogoConfirmarEliminarActivoAbierto] = useState(false);
+  const [dialogo_remover_usuario_abierto, setDialogoRemoverUsuarioAbierto] = useState(false);
+  const [dialogo_vender_activo_abierto, setDialogoVenderActivoAbierto] = useState(false);
+  const [sheet_producto_detalle_abierto, setSheetProductoDetalleAbierto] = useState(false);
+  
   const [modo_edicion, setModoEdicion] = useState(false);
+  const [modo_edicion_producto, setModoEdicionProducto] = useState(false);
+  const [modo_edicion_activo, setModoEdicionActivo] = useState(false);
+  
   const [inventario_a_eliminar, setInventarioAEliminar] = useState<Inventario | null>(null);
+  const [producto_seleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
+  const [producto_a_eliminar, setProductoAEliminar] = useState<Producto | null>(null);
+  const [lote_seleccionado, setLoteSeleccionado] = useState<Lote | null>(null);
+  const [lote_a_eliminar, setLoteAEliminar] = useState<Lote | null>(null);
+  const [activo_seleccionado, setActivoSeleccionado] = useState<Activo | null>(null);
+  const [activo_a_eliminar, setActivoAEliminar] = useState<Activo | null>(null);
+  const [usuario_a_remover, setUsuarioARemover] = useState<any>(null);
   
   const [busqueda_inventarios, setBusquedaInventarios] = useState('');
+  const [busqueda_productos, setBusquedaProductos] = useState('');
   const [vista_actual, setVistaActual] = useState<'lista' | 'detalle'>('lista');
+  const [tab_activo, setTabActivo] = useState<'productos' | 'historial' | 'usuarios'>('productos');
+  const [filtro_tipo_producto, setFiltroTipoProducto] = useState<string>('todos');
 
   const [formulario_inventario, setFormularioInventario] = useState({
     nombre: '',
-    visibilidad: 'privado',
+    visibilidad: 'privado' as 'privado' | 'publico',
   });
 
   const [formulario_invitar, setFormularioInvitar] = useState({
-    correo_busqueda: '',
     usuario_id: '',
     rol: 'lector',
+  });
+
+  const [formulario_producto, setFormularioProducto] = useState({
+    nombre: '',
+    tipo_gestion: 'consumible',
+    stock_minimo: '10',
+    unidad_medida: '',
+    descripcion: '',
+    notificar_stock_bajo: true,
+  });
+
+  const [formulario_lote, setFormularioLote] = useState({
+    nro_lote: '',
+    cantidad: '',
+    costo_total: '',
+    fecha_vencimiento: undefined as Date | undefined,
+    fecha_compra: new Date(),
+    registrar_egreso: false,
+  });
+
+  const [formulario_activo, setFormularioActivo] = useState({
+    nro_serie: '',
+    nombre_asignado: '',
+    costo_compra: '',
+    fecha_compra: new Date(),
+    estado: 'disponible',
+    ubicacion: '',
+    registrar_egreso: false,
+  });
+
+  const [formulario_ajuste_lote, setFormularioAjusteLote] = useState({
+    tipo: 'entrada' as 'entrada' | 'salida',
+    cantidad: '',
+    generar_movimiento_financiero: true,
+    monto: '',
+  });
+
+  const [formulario_venta_activo, setFormularioVentaActivo] = useState({
+    monto_venta: '',
+    registrar_pago: true,
   });
 
   const visibilidades = [

@@ -563,8 +563,17 @@ export const inventarioApi = {
     tipo: 'entrada' | 'salida';
     cantidad: number;
     observaciones: string;
+    generar_movimiento_financiero?: boolean;
+    monto?: number;
   }) => {
     const respuesta = await api.post(`/inventario/${inventario_id}/ajustar-stock`, datos);
+    return respuesta.data;
+  },
+  venderActivo: async (inventario_id: number, activo_id: number, datos: {
+    monto_venta: number;
+    registrar_pago: boolean;
+  }) => {
+    const respuesta = await api.post(`/inventario/${inventario_id}/activos/${activo_id}/vender`, datos);
     return respuesta.data;
   },
 };

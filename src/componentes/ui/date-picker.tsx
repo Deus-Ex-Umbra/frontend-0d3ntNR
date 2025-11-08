@@ -20,6 +20,8 @@ interface DatePickerProps {
   deshabilitarPosteriores?: boolean
   fechaMinima?: Date
   fechaMaxima?: Date
+  fromYear?: number
+  toYear?: number
 }
 
 export function DatePicker({
@@ -31,6 +33,8 @@ export function DatePicker({
   deshabilitarPosteriores = false,
   fechaMinima,
   fechaMaxima,
+  fromYear = 1900,
+  toYear = 2100,
 }: DatePickerProps) {
   const fecha_valida = valor && valor instanceof Date && !isNaN(valor.getTime()) ? valor : undefined;
 
@@ -77,8 +81,8 @@ export function DatePicker({
           locale={es}
           captionLayout="dropdown"
           disabled={esDisabled}
-          fromYear={1900}
-          toYear={2100}
+          fromYear={fromYear}
+          toYear={toYear}
         />
       </PopoverContent>
     </Popover>

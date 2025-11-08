@@ -20,8 +20,7 @@ import {
   AlertCircle, 
   Lock, 
   Globe, 
-  Users, 
-  Eye,
+  Users,
   ArrowLeft,
   DollarSign,
   Box,
@@ -31,25 +30,21 @@ import {
   History,
   X,
   Search,
-  Archive,
-  CheckCircle2,
-  XCircle,
   ShoppingCart,
   TrendingUp,
   TrendingDown,
-  Settings,
-  Minus,
-  PlusIcon
+  Settings
 } from 'lucide-react';
 import { inventarioApi, usuariosApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Badge } from '@/componentes/ui/badge';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
-import { MultiSelect } from '@/componentes/ui/mulit-select';
 import { DatePicker } from '@/componentes/ui/date-picker';
-import { format, parse } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { DateTimePicker } from '@/componentes/ui/date-time-picker';
+import { format } from 'date-fns';
+import { ajustarFechaParaBackend, formatearFechaSoloFecha } from '@/lib/utilidades';
+import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 
 interface Usuario {
   id: number;
@@ -79,12 +74,18 @@ interface Inventario {
   productos?: Producto[];
   rol_usuario?: string;
   es_propietario?: boolean;
+  resumen?: {
+    valor_total: number;
+    total_productos: number;
+    total_consumibles: number;
+    total_activos: number;
+  };
 }
 
 interface Lote {
   id: number;
   nro_lote: string;
-  fecha_vencimiento: Date;
+  fecha_vencimiento?: Date | null; // Puede o no tener fecha de vencimiento
   cantidad_actual: number;
   costo_unitario_compra: number;
   fecha_compra: Date;
@@ -148,6 +149,7 @@ interface MovimientoInventario {
 }
 
 export default function Inventarios() {
+  const { usuario: usuario_actual } = useAutenticacion();
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [inventario_seleccionado, setInventarioSeleccionado] = useState<Inventario | null>(null);
@@ -170,10 +172,10 @@ export default function Inventarios() {
   const [dialogo_confirmar_eliminar_lote_abierto, setDialogoConfirmarEliminarLoteAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_activo_abierto, setDialogoConfirmarEliminarActivoAbierto] = useState(false);
   const [dialogo_remover_usuario_abierto, setDialogoRemoverUsuarioAbierto] = useState(false);
+  const [dialogo_vender_activo_abierto, setDialogoVenderActivoAbierto] = useState(false);
   
   const [modo_edicion, setModoEdicion] = useState(false);
   const [modo_edicion_producto, setModoEdicionProducto] = useState(false);
-  const [modo_edicion_lote, setModoEdicionLote] = useState(false);
   const [modo_edicion_activo, setModoEdicionActivo] = useState(false);
   
   const [inventario_a_eliminar, setInventarioAEliminar] = useState<Inventario | null>(null);
@@ -232,14 +234,14 @@ export default function Inventarios() {
   const [formulario_ajuste_lote, setFormularioAjusteLote] = useState({
     tipo: 'entrada' as 'entrada' | 'salida',
     cantidad: '',
-    registrar_egreso: false,
+    generar_movimiento_financiero: true,
+    monto: '',
   });
 
-  const roles = [
-    { valor: 'lector', etiqueta: 'Lector' },
-    { valor: 'editor', etiqueta: 'Editor' },
-    { valor: 'administrador', etiqueta: 'Administrador' },
-  ];
+  const [formulario_venta_activo, setFormularioVentaActivo] = useState({
+    monto_venta: '',
+    registrar_pago: true,
+  });
 
   const tipos_gestion = [
     { valor: 'consumible', etiqueta: 'Activo por Lotes' },
@@ -255,9 +257,32 @@ export default function Inventarios() {
     { valor: 'desechado', etiqueta: 'Desechado' },
   ];
 
+  const estaVencido = (fecha_vencimiento: Date | null | undefined): boolean => {
+    if (!fecha_vencimiento) return false;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fecha_venc = new Date(fecha_vencimiento);
+    fecha_venc.setHours(0, 0, 0, 0);
+    return fecha_venc < hoy;
+  };
+
   useEffect(() => {
-    cargarInventarios();
-    cargarUsuarios();
+    const cargarInicial = async () => {
+      await cargarInventarios();
+      await cargarUsuarios();
+      const inventario_id_guardado = localStorage.getItem('inventario_seleccionado_id');
+      if (inventario_id_guardado) {
+        try {
+          const inventario = await inventarioApi.obtenerInventarioPorId(parseInt(inventario_id_guardado));
+          await verDetalleInventario(inventario);
+        } catch (error) {
+          console.log('No se pudo restaurar el inventario guardado:', error);
+          localStorage.removeItem('inventario_seleccionado_id');
+        }
+      }
+    };
+    
+    cargarInicial();
   }, []);
 
   const cargarInventarios = async () => {
@@ -290,12 +315,15 @@ export default function Inventarios() {
     try {
       setCargandoDetalle(true);
       
-      const [productos_respuesta, reporte_respuesta, movimientos_respuesta] = await Promise.all([
+      const [inventario_actualizado, productos_respuesta, reporte_respuesta, movimientos_respuesta] = await Promise.all([
+        inventarioApi.obtenerInventarioPorId(inventario.id),
         inventarioApi.obtenerProductos(inventario.id),
         inventarioApi.obtenerReporteValor(inventario.id),
         inventarioApi.obtenerHistorialMovimientos(inventario.id),
       ]);
 
+      // Actualizar el inventario seleccionado con los datos más recientes (incluye permisos)
+      setInventarioSeleccionado(inventario_actualizado);
       setProductos(productos_respuesta);
       setReporteValor(reporte_respuesta);
       setMovimientos(movimientos_respuesta);
@@ -343,21 +371,42 @@ export default function Inventarios() {
     setGuardando(true);
     try {
       if (modo_edicion && inventario_seleccionado) {
+        // Si cambiamos a privado, eliminar todos los permisos
+        if (formulario_inventario.visibilidad === 'privado' && inventario_seleccionado.visibilidad === 'publico') {
+          // Eliminar todos los permisos antes de actualizar
+          if (inventario_seleccionado.permisos && inventario_seleccionado.permisos.length > 0) {
+            await Promise.all(
+              inventario_seleccionado.permisos.map(permiso =>
+                inventarioApi.eliminarPermiso(inventario_seleccionado.id, permiso.id)
+              )
+            );
+          }
+        }
+        
         await inventarioApi.actualizarInventario(inventario_seleccionado.id, formulario_inventario);
         toast({
           title: 'Éxito',
           description: 'Inventario actualizado correctamente',
         });
+        
+        // Recargar inventarios
+        await cargarInventarios();
+        
+        // Si estamos en vista detalle, recargar el inventario actualizado
+        if (vista_actual === 'detalle') {
+          const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
+          setInventarioSeleccionado(inventario_actualizado);
+        }
       } else {
         await inventarioApi.crearInventario(formulario_inventario);
         toast({
           title: 'Éxito',
           description: 'Inventario creado correctamente',
         });
+        await cargarInventarios();
       }
       
       setDialogoInventarioAbierto(false);
-      await cargarInventarios();
     } catch (error: any) {
       console.error('Error al guardar inventario:', error);
       toast({
@@ -400,6 +449,8 @@ export default function Inventarios() {
   const verDetalleInventario = async (inventario: Inventario) => {
     setInventarioSeleccionado(inventario);
     setVistaActual('detalle');
+    // Guardar en localStorage para persistencia
+    localStorage.setItem('inventario_seleccionado_id', inventario.id.toString());
     await cargarDetalleInventario(inventario);
   };
 
@@ -436,14 +487,11 @@ export default function Inventarios() {
       });
 
       setDialogoInvitarAbierto(false);
-      await cargarInventarios();
       
-      if (inventario_seleccionado) {
-        const inventario_actualizado = inventarios.find(i => i.id === inventario_seleccionado.id);
-        if (inventario_actualizado) {
-          setInventarioSeleccionado(inventario_actualizado);
-        }
-      }
+      // Recargar inventarios y actualizar el seleccionado
+      await cargarInventarios();
+      const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
+      setInventarioSeleccionado(inventario_actualizado);
     } catch (error: any) {
       console.error('Error al invitar usuario:', error);
       toast({
@@ -472,14 +520,11 @@ export default function Inventarios() {
       });
       setDialogoRemoverUsuarioAbierto(false);
       setUsuarioARemover(null);
-      await cargarInventarios();
       
-      if (inventario_seleccionado) {
-        const inventario_actualizado = inventarios.find(i => i.id === inventario_seleccionado.id);
-        if (inventario_actualizado) {
-          setInventarioSeleccionado(inventario_actualizado);
-        }
-      }
+      // Recargar inventarios y actualizar el seleccionado
+      await cargarInventarios();
+      const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
+      setInventarioSeleccionado(inventario_actualizado);
     } catch (error: any) {
       console.error('Error al remover usuario:', error);
       toast({
@@ -533,7 +578,9 @@ export default function Inventarios() {
     try {
       const datos = {
         ...formulario_producto,
-        stock_minimo: parseInt(formulario_producto.stock_minimo),
+        stock_minimo: formulario_producto.tipo_gestion === 'consumible' 
+          ? parseInt(formulario_producto.stock_minimo) 
+          : 0,
         inventario_id: inventario_seleccionado.id,
       };
 
@@ -606,32 +653,16 @@ export default function Inventarios() {
       fecha_compra: new Date(),
       registrar_egreso: false,
     });
-    setModoEdicionLote(false);
-    setDialogoLoteAbierto(true);
-  };
-
-  const abrirDialogoEditarLote = (producto: Producto, lote: Lote) => {
-    setProductoSeleccionado(producto);
-    setLoteSeleccionado(lote);
-    setFormularioLote({
-      nro_lote: lote.nro_lote,
-      cantidad: lote.cantidad_actual.toString(),
-      costo_total: (lote.cantidad_actual * lote.costo_unitario_compra).toString(),
-      fecha_vencimiento: new Date(lote.fecha_vencimiento),
-      fecha_compra: new Date(lote.fecha_compra),
-      registrar_egreso: false,
-    });
-    setModoEdicionLote(true);
     setDialogoLoteAbierto(true);
   };
 
   const manejarGuardarLote = async () => {
     if (!inventario_seleccionado || !producto_seleccionado) return;
 
-    if (!formulario_lote.nro_lote || !formulario_lote.cantidad || !formulario_lote.costo_total || !formulario_lote.fecha_vencimiento) {
+    if (!formulario_lote.nro_lote || !formulario_lote.cantidad || !formulario_lote.costo_total) {
       toast({
         title: 'Error',
-        description: 'Todos los campos son obligatorios',
+        description: 'Los campos Nro de Lote, Cantidad y Costo Total son obligatorios',
         variant: 'destructive',
       });
       return;
@@ -643,9 +674,11 @@ export default function Inventarios() {
         producto_id: producto_seleccionado.id,
         cantidad: parseFloat(formulario_lote.cantidad),
         costo_total: parseFloat(formulario_lote.costo_total),
-        fecha_compra: format(formulario_lote.fecha_compra, 'yyyy-MM-dd'),
+        fecha_compra: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_lote.fecha_compra)),
         nro_lote: formulario_lote.nro_lote,
-        fecha_vencimiento: format(formulario_lote.fecha_vencimiento, 'yyyy-MM-dd'),
+        fecha_vencimiento: formulario_lote.fecha_vencimiento 
+          ? format(formulario_lote.fecha_vencimiento, 'yyyy-MM-dd')
+          : undefined,
         generar_egreso: formulario_lote.registrar_egreso,
       };
 
@@ -675,10 +708,12 @@ export default function Inventarios() {
   const abrirDialogoAjusteStockLote = (producto: Producto, lote: Lote) => {
     setProductoSeleccionado(producto);
     setLoteSeleccionado(lote);
+    const costo_estimado = Number(lote.costo_unitario_compra || 0);
     setFormularioAjusteLote({
       tipo: 'entrada',
       cantidad: '1',
-      registrar_egreso: false,
+      generar_movimiento_financiero: true,
+      monto: costo_estimado.toFixed(2),
     });
     setDialogoAjusteStockLoteAbierto(true);
   };
@@ -716,11 +751,15 @@ export default function Inventarios() {
 
     setGuardando(true);
     try {
+      const monto = parseFloat(formulario_ajuste_lote.monto || '0');
+      
       await inventarioApi.ajustarStock(inventario_seleccionado.id, {
         producto_id: producto_seleccionado.id,
         tipo: formulario_ajuste_lote.tipo,
         cantidad: cantidad,
         observaciones: `Ajuste ${formulario_ajuste_lote.tipo} manual`,
+        generar_movimiento_financiero: formulario_ajuste_lote.generar_movimiento_financiero,
+        monto: monto,
       });
 
       toast({
@@ -834,7 +873,7 @@ export default function Inventarios() {
           producto_id: producto_seleccionado.id,
           cantidad: 1,
           costo_total: parseFloat(formulario_activo.costo_compra),
-          fecha_compra: format(formulario_activo.fecha_compra, 'yyyy-MM-dd'),
+          fecha_compra: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_activo.fecha_compra)),
           nro_serie: formulario_activo.nro_serie || undefined,
           nombre_asignado: formulario_activo.nombre_asignado || undefined,
           generar_egreso: formulario_activo.registrar_egreso,
@@ -864,7 +903,7 @@ export default function Inventarios() {
     }
   };
 
-  const manejarCambioEstadoActivo = async (producto: Producto, activo: Activo, nuevo_estado: string) => {
+  const manejarCambioEstadoActivo = async (_producto: Producto, activo: Activo, nuevo_estado: string) => {
     if (!inventario_seleccionado) return;
 
     try {
@@ -921,6 +960,64 @@ export default function Inventarios() {
     }
   };
 
+  const abrirDialogoVenderActivo = (activo: Activo) => {
+    setActivoSeleccionado(activo);
+    const precio_sugerido = (Number(activo.costo_compra) * 0.7).toFixed(2);
+    setFormularioVentaActivo({
+      monto_venta: precio_sugerido,
+      registrar_pago: true,
+    });
+    setDialogoVenderActivoAbierto(true);
+  };
+
+  const manejarVenderActivo = async () => {
+    if (!inventario_seleccionado || !activo_seleccionado) return;
+
+    if (!formulario_venta_activo.monto_venta) {
+      toast({
+        title: 'Error',
+        description: 'El monto de venta es obligatorio',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const monto = parseFloat(formulario_venta_activo.monto_venta);
+    if (monto <= 0) {
+      toast({
+        title: 'Error',
+        description: 'El monto debe ser mayor a 0',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      await inventarioApi.venderActivo(inventario_seleccionado.id, activo_seleccionado.id, {
+        monto_venta: monto,
+        registrar_pago: formulario_venta_activo.registrar_pago,
+      });
+
+      toast({
+        title: 'Éxito',
+        description: 'Activo vendido correctamente',
+      });
+
+      setDialogoVenderActivoAbierto(false);
+      await cargarDetalleInventario(inventario_seleccionado);
+    } catch (error: any) {
+      console.error('Error al vender activo:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al vender el activo',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const volverALista = () => {
     setVistaActual('lista');
     setInventarioSeleccionado(null);
@@ -928,6 +1025,8 @@ export default function Inventarios() {
     setReporteValor(null);
     setMovimientos([]);
     setTabActivo('productos');
+    // Limpiar la persistencia al volver a la lista
+    localStorage.removeItem('inventario_seleccionado_id');
   };
 
   const obtenerIconoVisibilidad = (visibilidad: string) => {
@@ -979,7 +1078,23 @@ export default function Inventarios() {
     return coincide_busqueda && coincide_tipo && p.activo;
   });
 
-  const opciones_usuarios: OpcionCombobox[] = usuarios.map(u => ({
+  // Filtrar usuarios para no incluir al usuario actual ni usuarios ya invitados
+  const usuarios_disponibles_para_invitar = usuarios.filter(u => {
+    // Excluir al usuario actual
+    if (usuario_actual && u.id === usuario_actual.id) return false;
+    
+    // Excluir usuarios ya invitados
+    if (inventario_seleccionado?.permisos) {
+      const ya_invitado = inventario_seleccionado.permisos.some(
+        permiso => permiso.usuario_invitado.id === u.id
+      );
+      if (ya_invitado) return false;
+    }
+    
+    return true;
+  });
+
+  const opciones_usuarios: OpcionCombobox[] = usuarios_disponibles_para_invitar.map(u => ({
     valor: u.id.toString(),
     etiqueta: `${u.nombre} (${u.correo})`
   }));
@@ -1051,66 +1166,115 @@ export default function Inventarios() {
                 </div>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-4">
                 {inventarios_filtrados.map((inventario) => {
                   const IconoVisibilidad = obtenerIconoVisibilidad(inventario.visibilidad);
                   
                   return (
-                    <Card key={inventario.id} className="hover:shadow-lg transition-all duration-200 hover:border-primary/50 cursor-pointer">
+                    <Card 
+                      key={inventario.id} 
+                      className="hover:shadow-lg transition-all duration-200 hover:border-primary/50 cursor-pointer"
+                      onClick={() => verDetalleInventario(inventario)}
+                    >
                       <CardHeader>
-                        <div className="flex items-center justify-between mb-2">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <Package className="h-5 w-5 text-primary" />
-                            {inventario.nombre}
-                          </CardTitle>
-                          <Badge variant="outline" className="flex items-center gap-1">
-                            <IconoVisibilidad className="h-3 w-3" />
-                            {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
-                          </Badge>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="p-2 bg-primary/10 rounded-lg">
+                              <Package className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                {inventario.nombre}
+                                <Badge variant="outline" className="flex items-center gap-1">
+                                  <IconoVisibilidad className="h-3 w-3" />
+                                  {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
+                                </Badge>
+                              </CardTitle>
+                              {inventario.propietario && (
+                                <CardDescription className="flex items-center gap-1 mt-1">
+                                  <Users className="h-3 w-3" />
+                                  Propietario: {inventario.propietario.nombre}
+                                </CardDescription>
+                              )}
+                            </div>
+                          </div>
+                          {inventario.es_propietario && (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  abrirDialogoEditarInventario(inventario);
+                                }}
+                                variant="outline"
+                                size="sm"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  abrirDialogoConfirmarEliminar(inventario);
+                                }}
+                                variant="destructive"
+                                size="sm"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        {inventario.propietario && (
-                          <CardDescription className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            Propietario: {inventario.propietario.nombre}
-                          </CardDescription>
-                        )}
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
+                          {inventario.resumen && (
+                            <div className="grid grid-cols-4 gap-2">
+                              <div className="group p-2 bg-muted/50 rounded-md border border-border hover:bg-muted hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <DollarSign className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                  <span className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">Valor</span>
+                                </div>
+                                <span className="text-sm font-semibold text-foreground">
+                                  ${inventario.resumen.valor_total.toFixed(2)}
+                                </span>
+                              </div>
+
+                              <div className="group p-2 bg-muted/50 rounded-md border border-border hover:bg-muted hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <Package className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                  <span className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">Productos</span>
+                                </div>
+                                <span className="text-sm font-semibold text-foreground">
+                                  {inventario.resumen.total_productos}
+                                </span>
+                              </div>
+
+                              <div className="group p-2 bg-muted/50 rounded-md border border-border hover:bg-muted hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <Box className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                  <span className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">Consumibles</span>
+                                </div>
+                                <span className="text-sm font-semibold text-foreground">
+                                  {inventario.resumen.total_consumibles}
+                                </span>
+                              </div>
+
+                              <div className="group p-2 bg-muted/50 rounded-md border border-border hover:bg-muted hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <Settings className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                  <span className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">Activos</span>
+                                </div>
+                                <span className="text-sm font-semibold text-foreground">
+                                  {inventario.resumen.total_activos}
+                                </span>
+                              </div>
+                            </div>
+                          )}
                           {inventario.permisos && inventario.permisos.length > 0 && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t">
                               <Users className="h-4 w-4" />
                               <span>{inventario.permisos.length} usuario{inventario.permisos.length !== 1 ? 's' : ''} con acceso</span>
                             </div>
                           )}
-                          <div className="flex gap-2 pt-2">
-                            <Button
-                              onClick={() => verDetalleInventario(inventario)}
-                              size="sm"
-                              className="flex-1"
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Ver
-                            </Button>
-                            {inventario.es_propietario && (
-                              <>
-                                <Button
-                                  onClick={() => abrirDialogoEditarInventario(inventario)}
-                                  variant="outline"
-                                  size="sm"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  onClick={() => abrirDialogoConfirmarEliminar(inventario)}
-                                  variant="destructive"
-                                  size="sm"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1144,13 +1308,16 @@ export default function Inventarios() {
               <div className="flex gap-2">
                 {inventario_seleccionado?.es_propietario && (
                   <>
-                    <Button
-                      onClick={abrirDialogoInvitar}
-                      variant="outline"
-                    >
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Invitar Usuario
-                    </Button>
+                    {(inventario_seleccionado?.visibilidad === 'publico' || 
+                     (inventario_seleccionado?.visibilidad === 'privado' && (inventario_seleccionado?.permisos?.length || 0) > 0)) && (
+                      <Button
+                        onClick={abrirDialogoInvitar}
+                        variant="outline"
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Invitar Usuario
+                      </Button>
+                    )}
                     <Button
                       onClick={() => abrirDialogoEditarInventario(inventario_seleccionado)}
                       variant="outline"
@@ -1219,7 +1386,7 @@ export default function Inventarios() {
           </div>
 
           <Tabs value={tab_activo} onValueChange={(value) => setTabActivo(value as any)} className="flex-1 flex flex-col overflow-hidden">
-            <div className="px-6 pt-4">
+            <div className="px-6 pt-4 border-b">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="productos">
                   <Box className="h-4 w-4 mr-2" />
@@ -1236,37 +1403,39 @@ export default function Inventarios() {
               </TabsList>
             </div>
 
-            <TabsContent value="productos" className="flex-1 overflow-hidden flex flex-col m-0 p-6 pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex gap-2 flex-1">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar productos..."
-                      value={busqueda_productos}
-                      onChange={(e) => setBusquedaProductos(e.target.value)}
-                      className="pl-10"
-                    />
+            <TabsContent value="productos" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <div className="p-6 pb-4 border-b">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex gap-2 flex-1">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar productos..."
+                        value={busqueda_productos}
+                        onChange={(e) => setBusquedaProductos(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    <Select value={filtro_tipo_producto} onValueChange={setFiltroTipoProducto}>
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="consumible">Consumibles</SelectItem>
+                        <SelectItem value="activo_serializado">Serializados</SelectItem>
+                        <SelectItem value="activo_general">Generales</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Select value={filtro_tipo_producto} onValueChange={setFiltroTipoProducto}>
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="consumible">Consumibles</SelectItem>
-                      <SelectItem value="activo_serializado">Serializados</SelectItem>
-                      <SelectItem value="activo_general">Generales</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Button onClick={abrirDialogoNuevoProducto}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nuevo Producto
+                  </Button>
                 </div>
-                <Button onClick={abrirDialogoNuevoProducto} className="ml-2">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuevo Producto
-                </Button>
               </div>
 
-              <ScrollArea className="flex-1">
+              <ScrollArea className="flex-1 p-6">
                 {cargando_detalle ? (
                   <div className="flex items-center justify-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1310,7 +1479,7 @@ export default function Inventarios() {
                                     variant="outline"
                                   >
                                     <ShoppingCart className="h-4 w-4 mr-1" />
-                                    Registrar Compra
+                                    Registrar Nuevo Lote
                                   </Button>
                                 )}
                                 {producto.tipo_gestion !== 'consumible' && (
@@ -1354,15 +1523,17 @@ export default function Inventarios() {
                                   </p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Stock Mínimo</p>
-                                  <p className="text-lg font-semibold">
-                                    {producto.stock_minimo} {producto.unidad_medida}
-                                  </p>
+                              {producto.tipo_gestion === 'consumible' && (
+                                <div className="flex items-center gap-2">
+                                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                                  <div>
+                                    <p className="text-sm text-muted-foreground">Stock Mínimo</p>
+                                    <p className="text-lg font-semibold">
+                                      {producto.stock_minimo} {producto.unidad_medida}
+                                    </p>
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                               <div className="flex items-center gap-2">
                                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                                 <div>
@@ -1386,32 +1557,50 @@ export default function Inventarios() {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {producto.lotes.map((lote) => (
-                                      <TableRow key={lote.id}>
-                                        <TableCell className="font-medium">{lote.nro_lote}</TableCell>
-                                        <TableCell>{lote.cantidad_actual} {producto.unidad_medida}</TableCell>
-                                        <TableCell>${Number(lote.costo_unitario_compra).toFixed(2)}</TableCell>
-                                        <TableCell>{format(new Date(lote.fecha_vencimiento), 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell className="text-right">
-                                          <div className="flex gap-1 justify-end">
-                                            <Button
-                                              onClick={() => abrirDialogoAjusteStockLote(producto, lote)}
-                                              size="sm"
-                                              variant="outline"
-                                            >
-                                              <Settings className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              onClick={() => abrirDialogoConfirmarEliminarLote(lote)}
-                                              size="sm"
-                                              variant="destructive"
-                                            >
-                                              <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                          </div>
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
+                                    {producto.lotes.map((lote) => {
+                                      const vencido = estaVencido(lote.fecha_vencimiento);
+                                      return (
+                                        <TableRow 
+                                          key={lote.id}
+                                          className={vencido ? 'bg-destructive/10 hover:bg-destructive/20' : ''}
+                                        >
+                                          <TableCell className={`font-medium ${vencido ? 'text-destructive' : ''}`}>
+                                            {lote.nro_lote}
+                                          </TableCell>
+                                          <TableCell className={vencido ? 'text-destructive' : ''}>
+                                            {lote.cantidad_actual} {producto.unidad_medida}
+                                          </TableCell>
+                                          <TableCell className={vencido ? 'text-destructive' : ''}>
+                                            ${Number(lote.costo_unitario_compra).toFixed(2)}
+                                          </TableCell>
+                                          <TableCell className={vencido ? 'text-destructive font-semibold' : ''}>
+                                            {lote.fecha_vencimiento 
+                                              ? format(new Date(lote.fecha_vencimiento), 'dd/MM/yyyy')
+                                              : 'Sin vencimiento'
+                                            }
+                                            {vencido && ' (VENCIDO)'}
+                                          </TableCell>
+                                          <TableCell className="text-right">
+                                            <div className="flex gap-1 justify-end">
+                                              <Button
+                                                onClick={() => abrirDialogoAjusteStockLote(producto, lote)}
+                                                size="sm"
+                                                variant="outline"
+                                              >
+                                                <Settings className="h-3 w-3" />
+                                              </Button>
+                                              <Button
+                                                onClick={() => abrirDialogoConfirmarEliminarLote(lote)}
+                                                size="sm"
+                                                variant="destructive"
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
                                   </TableBody>
                                 </Table>
                               </div>
@@ -1458,6 +1647,14 @@ export default function Inventarios() {
                                         <TableCell className="text-right">
                                           <div className="flex gap-1 justify-end">
                                             <Button
+                                              onClick={() => abrirDialogoVenderActivo(activo)}
+                                              size="sm"
+                                              variant="outline"
+                                              title="Vender"
+                                            >
+                                              <DollarSign className="h-3 w-3" />
+                                            </Button>
+                                            <Button
                                               onClick={() => abrirDialogoEditarActivo(producto, activo)}
                                               size="sm"
                                               variant="outline"
@@ -1488,8 +1685,8 @@ export default function Inventarios() {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="historial" className="flex-1 overflow-hidden flex flex-col m-0 p-6 pt-4">
-              <ScrollArea className="flex-1">
+            <TabsContent value="historial" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <ScrollArea className="flex-1 p-6">
                 {cargando_detalle ? (
                   <div className="flex items-center justify-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1543,8 +1740,8 @@ export default function Inventarios() {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="usuarios" className="flex-1 overflow-hidden flex flex-col m-0 p-6 pt-4">
-              <ScrollArea className="flex-1">
+            <TabsContent value="usuarios" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <ScrollArea className="flex-1 p-6">
                 {cargando_detalle ? (
                   <div className="flex items-center justify-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1608,7 +1805,8 @@ export default function Inventarios() {
                         <p className="text-sm text-muted-foreground mb-4">
                           Invita usuarios para que puedan acceder a este inventario
                         </p>
-                        {inventario_seleccionado?.es_propietario && (
+                        {inventario_seleccionado?.es_propietario && 
+                         inventario_seleccionado?.visibilidad === 'publico' && (
                           <Button onClick={abrirDialogoInvitar}>
                             <UserPlus className="h-4 w-4 mr-2" />
                             Invitar Usuario
@@ -1648,20 +1846,21 @@ export default function Inventarios() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="visibilidad">Visibilidad</Label>
-              <Select
-                value={formulario_inventario.visibilidad}
-                onValueChange={(value) => setFormularioInventario({ ...formulario_inventario, visibilidad: value as 'privado' | 'publico' })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="privado">Privado</SelectItem>
-                  <SelectItem value="publico">Público</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between space-x-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="visibilidad">Inventario Público</Label>
+                <p className="text-sm text-muted-foreground">
+                  Permite invitar usuarios para colaborar en este inventario
+                </p>
+              </div>
+              <Switch
+                id="visibilidad"
+                checked={formulario_inventario.visibilidad === 'publico'}
+                onCheckedChange={(checked) => setFormularioInventario({ 
+                  ...formulario_inventario, 
+                  visibilidad: checked ? 'publico' : 'privado' 
+                })}
+              />
             </div>
           </div>
 
@@ -1723,23 +1922,21 @@ export default function Inventarios() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="rol">Rol *</Label>
-              <Select
-                value={formulario_invitar.rol}
-                onValueChange={(value) => setFormularioInvitar({ ...formulario_invitar, rol: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((rol) => (
-                    <SelectItem key={rol.valor} value={rol.valor}>
-                      {rol.etiqueta}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between space-x-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="rol">Permitir edición</Label>
+                <p className="text-sm text-muted-foreground">
+                  El usuario podrá {formulario_invitar.rol === 'editor' ? 'editar productos y registrar movimientos' : 'solo ver el inventario'}
+                </p>
+              </div>
+              <Switch
+                id="rol"
+                checked={formulario_invitar.rol === 'editor'}
+                onCheckedChange={(checked) => setFormularioInvitar({ 
+                  ...formulario_invitar, 
+                  rol: checked ? 'editor' : 'lector' 
+                })}
+              />
             </div>
           </div>
 
@@ -1836,15 +2033,17 @@ export default function Inventarios() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="stock_minimo">Stock Mínimo *</Label>
-              <Input
-                id="stock_minimo"
-                type="number"
-                value={formulario_producto.stock_minimo}
-                onChange={(e) => setFormularioProducto({ ...formulario_producto, stock_minimo: e.target.value })}
-              />
-            </div>
+            {formulario_producto.tipo_gestion === 'consumible' && (
+              <div className="space-y-2">
+                <Label htmlFor="stock_minimo">Stock Mínimo *</Label>
+                <Input
+                  id="stock_minimo"
+                  type="number"
+                  value={formulario_producto.stock_minimo}
+                  onChange={(e) => setFormularioProducto({ ...formulario_producto, stock_minimo: e.target.value })}
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="descripcion">Descripción</Label>
@@ -1910,9 +2109,9 @@ export default function Inventarios() {
       <Dialog open={dialogo_lote_abierto} onOpenChange={setDialogoLoteAbierto}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Registrar Compra de Lote</DialogTitle>
+            <DialogTitle>Registrar Nuevo Lote</DialogTitle>
             <DialogDescription>
-              Registra una nueva compra de {producto_seleccionado?.nombre}
+              Registra un nuevo lote de {producto_seleccionado?.nombre}
             </DialogDescription>
           </DialogHeader>
 
@@ -1954,17 +2153,20 @@ export default function Inventarios() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fecha_compra">Fecha de Compra *</Label>
-                <DatePicker
+                <DateTimePicker
                   valor={formulario_lote.fecha_compra}
                   onChange={(fecha) => setFormularioLote({ ...formulario_lote, fecha_compra: fecha || new Date() })}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fecha_vencimiento">Fecha de Vencimiento *</Label>
+                <Label htmlFor="fecha_vencimiento">Fecha de Vencimiento (Opcional)</Label>
                 <DatePicker
                   valor={formulario_lote.fecha_vencimiento}
                   onChange={(fecha) => setFormularioLote({ ...formulario_lote, fecha_vencimiento: fecha })}
+                  fromYear={2025}
+                  toYear={2125}
+                  deshabilitarAnteriores
                 />
               </div>
             </div>
@@ -1992,7 +2194,7 @@ export default function Inventarios() {
                   Guardando...
                 </>
               ) : (
-                'Registrar Compra'
+                'Registrar Lote'
               )}
             </Button>
           </DialogFooter>
@@ -2031,18 +2233,26 @@ export default function Inventarios() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="tipo_ajuste">Tipo de Ajuste *</Label>
-              <Select
-                value={formulario_ajuste_lote.tipo}
-                onValueChange={(value) => setFormularioAjusteLote({ ...formulario_ajuste_lote, tipo: value as 'entrada' | 'salida' })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="entrada">Entrada (Incrementar)</SelectItem>
-                  <SelectItem value="salida">Salida (Decrementar)</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center space-x-4">
+                <Switch
+                  id="tipo_ajuste"
+                  checked={formulario_ajuste_lote.tipo === 'salida'}
+                  onCheckedChange={(checked) => setFormularioAjusteLote({ ...formulario_ajuste_lote, tipo: checked ? 'salida' : 'entrada' })}
+                />
+                <Label htmlFor="tipo_ajuste" className="cursor-pointer">
+                  {formulario_ajuste_lote.tipo === 'entrada' ? (
+                    <span className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      Entrada (Incrementar)
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <TrendingDown className="h-4 w-4 text-red-600" />
+                      Salida (Decrementar)
+                    </span>
+                  )}
+                </Label>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -2052,13 +2262,55 @@ export default function Inventarios() {
                 type="number"
                 step="0.01"
                 value={formulario_ajuste_lote.cantidad}
-                onChange={(e) => setFormularioAjusteLote({ ...formulario_ajuste_lote, cantidad: e.target.value })}
+                onChange={(e) => {
+                  const nueva_cantidad = e.target.value;
+                  const cantidad_num = parseFloat(nueva_cantidad || '0');
+                  const costo_unitario = lote_seleccionado ? Number(lote_seleccionado.costo_unitario_compra || 0) : 0;
+                  const nuevo_monto = (cantidad_num * costo_unitario).toFixed(2);
+                  setFormularioAjusteLote({ 
+                    ...formulario_ajuste_lote, 
+                    cantidad: nueva_cantidad,
+                    monto: nuevo_monto
+                  });
+                }}
               />
               {lote_seleccionado && (
                 <p className="text-sm text-muted-foreground">
                   Stock actual: {lote_seleccionado.cantidad_actual} {producto_seleccionado?.unidad_medida}
                 </p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="monto_ajuste">
+                Monto {formulario_ajuste_lote.tipo === 'entrada' ? '(Costo de Compra)' : '(Precio de Venta)'} *
+              </Label>
+              <Input
+                id="monto_ajuste"
+                type="number"
+                step="0.01"
+                value={formulario_ajuste_lote.monto}
+                onChange={(e) => {
+                  const valor = parseFloat(e.target.value || '0').toFixed(2);
+                  setFormularioAjusteLote({ ...formulario_ajuste_lote, monto: valor });
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                {formulario_ajuste_lote.tipo === 'entrada' 
+                  ? 'Se registrará como egreso en finanzas' 
+                  : 'Se registrará como ingreso en finanzas'}
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="generar_movimiento_ajuste"
+                checked={formulario_ajuste_lote.generar_movimiento_financiero}
+                onCheckedChange={(checked) => setFormularioAjusteLote({ ...formulario_ajuste_lote, generar_movimiento_financiero: checked })}
+              />
+              <Label htmlFor="generar_movimiento_ajuste" className="cursor-pointer">
+                Registrar movimiento en finanzas
+              </Label>
             </div>
           </div>
 
@@ -2132,7 +2384,7 @@ export default function Inventarios() {
 
                 <div className="space-y-2">
                   <Label htmlFor="fecha_compra">Fecha de Compra *</Label>
-                  <DatePicker
+                  <DateTimePicker
                     valor={formulario_activo.fecha_compra}
                     onChange={(fecha) => setFormularioActivo({ ...formulario_activo, fecha_compra: fecha || new Date() })}
                   />
@@ -2216,6 +2468,69 @@ export default function Inventarios() {
             </Button>
             <Button variant="destructive" onClick={confirmarEliminarActivo}>
               Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_vender_activo_abierto} onOpenChange={setDialogoVenderActivoAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Vender Activo</DialogTitle>
+            <DialogDescription>
+              Registra la venta de {activo_seleccionado?.nombre_asignado || activo_seleccionado?.nro_serie || 'este activo'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="monto_venta">Monto de Venta *</Label>
+              <Input
+                id="monto_venta"
+                type="number"
+                step="0.01"
+                value={formulario_venta_activo.monto_venta}
+                onChange={(e) => {
+                  const valor = parseFloat(e.target.value || '0').toFixed(2);
+                  setFormularioVentaActivo({ ...formulario_venta_activo, monto_venta: valor });
+                }}
+                onBlur={(e) => {
+                  const valor = parseFloat(e.target.value || '0').toFixed(2);
+                  setFormularioVentaActivo({ ...formulario_venta_activo, monto_venta: valor });
+                }}
+              />
+              {activo_seleccionado && (
+                <p className="text-sm text-muted-foreground">
+                  Costo de compra: ${Number(activo_seleccionado.costo_compra).toFixed(2)}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="registrar_pago_venta"
+                checked={formulario_venta_activo.registrar_pago}
+                onCheckedChange={(checked) => setFormularioVentaActivo({ ...formulario_venta_activo, registrar_pago: checked })}
+              />
+              <Label htmlFor="registrar_pago_venta" className="cursor-pointer">
+                Registrar ingreso en finanzas
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogoVenderActivoAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={manejarVenderActivo} disabled={guardando}>
+              {guardando ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Vendiendo...
+                </>
+              ) : (
+                'Vender Activo'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

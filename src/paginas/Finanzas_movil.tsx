@@ -6,14 +6,14 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight, Filter, LineChart as LineChartIcon } from 'lucide-react';
 import { finanzasApi, agendaApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Badge } from '@/componentes/ui/badge';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { SearchInput } from '@/componentes/ui/search-input';
@@ -80,6 +80,9 @@ export default function FinanzasMobile() {
 
   const [tipo_grafico, setTipoGrafico] = useState<'dia' | 'mes' | 'ano'>('mes');
   const [fecha_grafico, setFechaGrafico] = useState(new Date());
+  const [modo_grafico, setModoGrafico] = useState<'ingresos-egresos' | 'balance'>('ingresos-egresos');
+  const [tipo_visualizacion, setTipoVisualizacion] = useState<'barras' | 'lineas'>('barras');
+  const [tipo_balance, setTipoBalance] = useState<'simple' | 'area'>('simple');
 
   const [filtros, setFiltros] = useState({
     fecha_inicio: undefined as Date | undefined,
@@ -136,56 +139,11 @@ export default function FinanzasMobile() {
       const anio = fecha_local.getFullYear();
       const mes = String(fecha_local.getMonth() + 1).padStart(2, '0');
       const dia = String(fecha_local.getDate()).padStart(2, '0');
+      
+      // Usar hora local (12:00:00) sin convertir a UTC
       const fecha_str = `${anio}-${mes}-${dia}T12:00:00`;
 
-      let datos: DatosGrafico[];
-      if (tipo_grafico !== 'dia') {
-        datos = await finanzasApi.obtenerDatosGrafico(tipo_grafico, fecha_str);
-      } else {
-        const offset = new Date().getTimezoneOffset() / 60;
-
-        const next_date = new Date(fecha_grafico);
-        next_date.setDate(next_date.getDate() + 1);
-        const anio2 = next_date.getFullYear();
-        const mes2 = String(next_date.getMonth() + 1).padStart(2, '0');
-        const dia2 = String(next_date.getDate()).padStart(2, '0');
-        const fecha_str2 = `${anio2}-${mes2}-${dia2}T12:00:00`;
-
-        const [datos1, datos2]: [DatosGrafico[], DatosGrafico[]] = await Promise.all([
-          finanzasApi.obtenerDatosGrafico('dia', fecha_str),
-          finanzasApi.obtenerDatosGrafico('dia', fecha_str2),
-        ]);
-
-        const datos_ajustados: DatosGrafico[] = [];
-
-        datos1.forEach(d => {
-          const hour = parseInt(d.periodo.split(':')[0]);
-          if (hour >= offset) {
-            const adjusted_hour = (hour - offset + 24) % 24;
-            datos_ajustados.push({
-              periodo: `${String(adjusted_hour).padStart(2, '0')}:00`,
-              ingresos: d.ingresos,
-              egresos: d.egresos,
-            });
-          }
-        });
-
-        datos2.forEach(d => {
-          const hour = parseInt(d.periodo.split(':')[0]);
-          if (hour < offset) {
-            const adjusted_hour = (hour - offset + 24) % 24;
-            datos_ajustados.push({
-              periodo: `${String(adjusted_hour).padStart(2, '0')}:00`,
-              ingresos: d.ingresos,
-              egresos: d.egresos,
-            });
-          }
-        });
-
-        datos_ajustados.sort((a, b) => parseInt(a.periodo) - parseInt(b.periodo));
-        datos = datos_ajustados;
-      }
-
+      const datos: DatosGrafico[] = await finanzasApi.obtenerDatosGrafico(tipo_grafico, fecha_str);
       setDatosGrafico(datos);
     } catch (error) {
       console.error('Error al cargar datos del gráfico:', error);
@@ -867,73 +825,219 @@ export default function FinanzasMobile() {
               </div>
             </CardHeader>
             <CardContent>
-              <Tabs value={tipo_grafico} onValueChange={(value) => setTipoGrafico(value as 'dia' | 'mes' | 'ano')} className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-4">
-                  <TabsTrigger value="dia">Día</TabsTrigger>
-                  <TabsTrigger value="mes">Mes</TabsTrigger>
-                  <TabsTrigger value="ano">Año</TabsTrigger>
-                </TabsList>
+              <div className="space-y-4">
+                {/* Selector de modo */}
+                <div className="grid grid-cols-2 gap-2 p-2 bg-secondary/20 rounded-lg">
+                  <Button
+                    variant={modo_grafico === 'ingresos-egresos' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setModoGrafico('ingresos-egresos')}
+                    className="hover:scale-105 transition-all duration-200"
+                  >
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    Ing/Egr
+                  </Button>
+                  <Button
+                    variant={modo_grafico === 'balance' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setModoGrafico('balance')}
+                    className="hover:scale-105 transition-all duration-200"
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Balance
+                  </Button>
+                </div>
 
-                <TabsContent value="dia" className="mt-0">
-                  {cargando_grafico ? (
-                    <div className="flex items-center justify-center h-80">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={datos_grafico}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="periodo" />
-                        <YAxis />
-                        <Tooltip formatter={(value: number) => formatearMoneda(value)} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
-                        <Legend />
-                        <Bar dataKey="ingresos" fill="#22c55e" name="Ingresos" />
-                        <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </TabsContent>
+                {/* Controles de visualización */}
+                <div className="flex flex-col gap-3">
+                  <Tabs value={tipo_grafico} onValueChange={(value) => setTipoGrafico(value as 'dia' | 'mes' | 'ano')} className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="dia">Día</TabsTrigger>
+                      <TabsTrigger value="mes">Mes</TabsTrigger>
+                      <TabsTrigger value="ano">Año</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
 
-                <TabsContent value="mes" className="mt-0">
-                  {cargando_grafico ? (
-                    <div className="flex items-center justify-center h-80">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={datos_grafico}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="periodo" />
-                        <YAxis />
-                        <Tooltip formatter={(value: number) => formatearMoneda(value)} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
-                        <Legend />
-                        <Line type="monotone" dataKey="ingresos" stroke="#22c55e" strokeWidth={2} name="Ingresos" />
-                        <Line type="monotone" dataKey="egresos" stroke="#ef4444" strokeWidth={2} name="Egresos" />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-                </TabsContent>
+                  <div className="flex items-center justify-center gap-2">
+                    {modo_grafico === 'ingresos-egresos' ? (
+                      <>
+                        <Button
+                          variant={tipo_visualizacion === 'barras' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setTipoVisualizacion('barras')}
+                          className="flex-1 hover:scale-105 transition-all duration-200"
+                        >
+                          <BarChart3 className="h-4 w-4 mr-1" />
+                          Barras
+                        </Button>
+                        <Button
+                          variant={tipo_visualizacion === 'lineas' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setTipoVisualizacion('lineas')}
+                          className="flex-1 hover:scale-105 transition-all duration-200"
+                        >
+                          <LineChartIcon className="h-4 w-4 mr-1" />
+                          Líneas
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant={tipo_balance === 'simple' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setTipoBalance('simple')}
+                          className="flex-1 hover:scale-105 transition-all duration-200"
+                        >
+                          <BarChart3 className="h-4 w-4 mr-1" />
+                          Barras
+                        </Button>
+                        <Button
+                          variant={tipo_balance === 'area' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setTipoBalance('area')}
+                          className="flex-1 hover:scale-105 transition-all duration-200"
+                        >
+                          <LineChartIcon className="h-4 w-4 mr-1" />
+                          Área
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-                <TabsContent value="ano" className="mt-0">
-                  {cargando_grafico ? (
-                    <div className="flex items-center justify-center h-80">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={datos_grafico}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="periodo" />
-                        <YAxis />
-                        <Tooltip formatter={(value: number) => formatearMoneda(value)} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
-                        <Legend />
-                        <Bar dataKey="ingresos" fill="#22c55e" name="Ingresos" />
-                        <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </TabsContent>
-              </Tabs>
+                {/* Gráfico */}
+                {cargando_grafico ? (
+                  <div className="flex items-center justify-center h-80">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={350}>
+                    {modo_grafico === 'ingresos-egresos' ? (
+                      tipo_visualizacion === 'barras' ? (
+                        <BarChart data={datos_grafico}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="periodo" />
+                          <YAxis />
+                          <Tooltip formatter={(value: number) => formatearMoneda(value)} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
+                          <Legend />
+                          <Bar dataKey="ingresos" fill="#22c55e" name="Ingresos" />
+                          <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
+                        </BarChart>
+                      ) : (
+                        <LineChart data={datos_grafico}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="periodo" 
+                            interval={tipo_grafico === 'dia' ? 0 : 'preserveStartEnd'}
+                            angle={tipo_grafico === 'dia' ? -45 : 0}
+                            textAnchor={tipo_grafico === 'dia' ? 'end' : 'middle'}
+                            height={tipo_grafico === 'dia' ? 70 : 50}
+                          />
+                          <YAxis />
+                          <Tooltip formatter={(value: number) => formatearMoneda(value)} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
+                          <Legend />
+                          <Line type="monotone" dataKey="ingresos" stroke="#22c55e" strokeWidth={2} name="Ingresos" />
+                          <Line type="monotone" dataKey="egresos" stroke="#ef4444" strokeWidth={2} name="Egresos" />
+                        </LineChart>
+                      )
+                    ) : (
+                      tipo_balance === 'area' ? (
+                        <AreaChart data={datos_grafico.map(d => {
+                          const balance = d.ingresos - d.egresos;
+                          return { 
+                            periodo: d.periodo, 
+                            balance: balance,
+                            balance_pos: balance >= 0 ? balance : 0,
+                            balance_neg: balance < 0 ? balance : 0
+                          };
+                        })}>
+                          <defs>
+                            <linearGradient id="colorBalancePositivo" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#22c55e" stopOpacity={0.1}/>
+                            </linearGradient>
+                            <linearGradient id="colorBalanceNegativo" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="periodo" 
+                            interval={tipo_grafico === 'dia' ? 0 : 'preserveStartEnd'}
+                            angle={tipo_grafico === 'dia' ? -45 : 0}
+                            textAnchor={tipo_grafico === 'dia' ? 'end' : 'middle'}
+                            height={tipo_grafico === 'dia' ? 70 : 50}
+                          />
+                          <YAxis />
+                          <Tooltip 
+                            formatter={(value: number, name: string) => {
+                              if (value === 0) return null;
+                              return [formatearMoneda(value), name];
+                            }}
+                            contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                          />
+                          <Legend />
+                          <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={2} />
+                          <Area 
+                            type="monotone" 
+                            dataKey="balance_pos" 
+                            stroke="#22c55e" 
+                            strokeWidth={2}
+                            fillOpacity={1} 
+                            fill="url(#colorBalancePositivo)" 
+                            name="Balance +"
+                            isAnimationActive={true}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="balance_neg" 
+                            stroke="#ef4444" 
+                            strokeWidth={2}
+                            fillOpacity={1} 
+                            fill="url(#colorBalanceNegativo)" 
+                            name="Balance -"
+                            isAnimationActive={true}
+                          />
+                        </AreaChart>
+                      ) : (
+                        <BarChart data={datos_grafico.map(d => {
+                          const balance = d.ingresos - d.egresos;
+                          return {
+                            periodo: d.periodo,
+                            balance_positivo: balance >= 0 ? balance : 0,
+                            balance_negativo: balance < 0 ? balance : 0
+                          };
+                        })}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="periodo" />
+                          <YAxis />
+                          <Tooltip 
+                            formatter={(value: number) => value === 0 ? null : formatearMoneda(value)}
+                            contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                          />
+                          <Legend />
+                          <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={2} />
+                          <Bar 
+                            dataKey="balance_positivo"
+                            fill="#22c55e"
+                            name="Balance +"
+                            radius={[4, 4, 0, 0]}
+                          />
+                          <Bar 
+                            dataKey="balance_negativo"
+                            fill="#ef4444"
+                            name="Balance -"
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </BarChart>
+                      )
+                    )}
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              {/* Eliminar leyenda informativa vieja */}
             </CardContent>
           </Card>
 
