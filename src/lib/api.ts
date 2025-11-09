@@ -103,6 +103,14 @@ export const pacientesApi = {
     const respuesta = await api.delete(`/pacientes/${id}`);
     return respuesta.data;
   },
+  obtenerUltimaCita: async (id: number) => {
+    const respuesta = await api.get(`/pacientes/${id}/ultima-cita`);
+    return respuesta.data;
+  },
+  obtenerUltimoTratamiento: async (id: number) => {
+    const respuesta = await api.get(`/pacientes/${id}/ultimo-tratamiento`);
+    return respuesta.data;
+  },
 };
 
 export const tratamientosApi = {
@@ -557,9 +565,45 @@ export const inventarioApi = {
     const respuesta = await api.get(`/inventario/${inventario_id}/activos/${activo_id}/historial`);
     return respuesta.data;
   },
-  obtenerHistorialMovimientos: async (inventario_id: number, producto_id?: number) => {
-    const params = producto_id ? `?producto_id=${producto_id}` : '';
-    const respuesta = await api.get(`/inventario/${inventario_id}/historial-movimientos${params}`);
+  obtenerHistorialMovimientos: async (
+    inventario_id: number,
+    filtros?: {
+      producto_id?: number;
+      tipos?: string[];
+      fecha_inicio?: Date;
+      fecha_fin?: Date;
+      usuario_id?: number;
+      limit?: number;
+    }
+  ) => {
+    const params = new URLSearchParams();
+    
+    if (filtros?.producto_id) {
+      params.append('producto_id', filtros.producto_id.toString());
+    }
+    
+    if (filtros?.tipos && filtros.tipos.length > 0) {
+      params.append('tipos', filtros.tipos.join(','));
+    }
+    
+    if (filtros?.fecha_inicio) {
+      params.append('fecha_inicio', filtros.fecha_inicio.toISOString());
+    }
+    
+    if (filtros?.fecha_fin) {
+      params.append('fecha_fin', filtros.fecha_fin.toISOString());
+    }
+    
+    if (filtros?.usuario_id) {
+      params.append('usuario_id', filtros.usuario_id.toString());
+    }
+    
+    if (filtros?.limit) {
+      params.append('limit', filtros.limit.toString());
+    }
+    
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const respuesta = await api.get(`/inventario/${inventario_id}/historial-movimientos${query}`);
     return respuesta.data;
   },
   obtenerReporteValor: async (inventario_id: number) => {

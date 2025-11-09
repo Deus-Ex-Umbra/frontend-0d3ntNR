@@ -9,16 +9,22 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { Badge } from '@/componentes/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
-import { Users, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, UserCircle, MessageCircle, Palette } from 'lucide-react';
+import { ScrollArea } from '@/componentes/ui/scroll-area';
+import { Users, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, UserCircle, MessageCircle, Palette, Calendar, FileText } from 'lucide-react';
 import { pacientesApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { SelectConAgregar } from '@/componentes/ui/select-with-add';
 import { GestorArchivos } from '@/componentes/archivos/gestor-archivos';
 import { PhoneInput, formatearTelefonoCompleto, separarTelefono } from '@/componentes/ui/phone-input';
+import { EditorHtmlRico } from '@/componentes/ui/editor-html-rico';
+import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
+import { HexColorPicker } from 'react-colorful';
+import '@/componentes/ui/color-picker.css';
 import { Paciente, ItemCatalogo } from '@/tipos';
 
 export default function Pacientes() {
+  const [todos_pacientes, setTodosPacientes] = useState<Paciente[]>([]);
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState('');
@@ -34,6 +40,9 @@ export default function Pacientes() {
   const [guardando_color, setGuardandoColor] = useState(false);
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [paciente_a_eliminar, setPacienteAEliminar] = useState<number | null>(null);
+  const [ultima_cita, setUltimaCita] = useState<any>(null);
+  const [ultimo_tratamiento, setUltimoTratamiento] = useState<any>(null);
+  const [cargando_info_adicional, setCargandoInfoAdicional] = useState(false);
 
   const abrirDialogoConfirmarEliminar = (id: number) => {
     setPacienteAEliminar(id);
@@ -69,14 +78,19 @@ export default function Pacientes() {
   });
 
   useEffect(() => {
-    cargarDatos();
+    cargarDatosIniciales();
     cargarCatalogos();
-  }, [busqueda]);
+  }, []);
 
-  const cargarDatos = async () => {
+  useEffect(() => {
+    filtrarPacientes();
+  }, [busqueda, todos_pacientes]);
+
+  const cargarDatosIniciales = async () => {
     setCargando(true);
     try {
-      const datos = await pacientesApi.obtenerTodos(busqueda);
+      const datos = await pacientesApi.obtenerTodos();
+      setTodosPacientes(datos);
       setPacientes(datos);
     } catch (error) {
       console.error('Error al cargar pacientes:', error);
@@ -88,6 +102,27 @@ export default function Pacientes() {
     } finally {
       setCargando(false);
     }
+  };
+
+  const filtrarPacientes = () => {
+    if (!busqueda.trim()) {
+      setPacientes(todos_pacientes);
+      return;
+    }
+
+    const termino = busqueda.toLowerCase();
+    const filtrados = todos_pacientes.filter(paciente => 
+      paciente.nombre.toLowerCase().includes(termino) ||
+      paciente.apellidos.toLowerCase().includes(termino) ||
+      paciente.id.toString().includes(termino) ||
+      (paciente.telefono && paciente.telefono.includes(termino)) ||
+      (paciente.correo && paciente.correo.toLowerCase().includes(termino))
+    );
+    setPacientes(filtrados);
+  };
+
+  const cargarDatos = async () => {
+    await cargarDatosIniciales();
   };
 
   const cargarCatalogos = async () => {
@@ -241,12 +276,41 @@ export default function Pacientes() {
       const datos = await pacientesApi.obtenerPorId(id);
       setPacienteSeleccionado(datos);
       setDialogoVerAbierto(true);
+      
+      // Cargar información adicional (última cita y tratamiento)
+      cargarInfoAdicionalPaciente(id);
     } catch (error) {
       toast({
         title: 'Error',
         description: 'No se pudo cargar el paciente',
         variant: 'destructive',
       });
+    }
+  };
+
+  const cargarInfoAdicionalPaciente = async (id: number) => {
+    setCargandoInfoAdicional(true);
+    try {
+      const [cita, tratamiento] = await Promise.allSettled([
+        pacientesApi.obtenerUltimaCita(id),
+        pacientesApi.obtenerUltimoTratamiento(id),
+      ]);
+
+      if (cita.status === 'fulfilled') {
+        setUltimaCita(cita.value);
+      } else {
+        setUltimaCita(null);
+      }
+
+      if (tratamiento.status === 'fulfilled') {
+        setUltimoTratamiento(tratamiento.value);
+      } else {
+        setUltimoTratamiento(null);
+      }
+    } catch (error) {
+      console.error('Error al cargar información adicional:', error);
+    } finally {
+      setCargandoInfoAdicional(false);
     }
   };
 
@@ -493,7 +557,10 @@ export default function Pacientes() {
                 </div>
                 <div>
                   <CardTitle className="text-xl">Lista de Pacientes</CardTitle>
-                  <CardDescription>{pacientes.length} pacientes registrados</CardDescription>
+                  <CardDescription>
+                    {pacientes.length} de {todos_pacientes.length} paciente{todos_pacientes.length !== 1 ? 's' : ''}
+                    {busqueda && ' (filtrados)'}
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -505,10 +572,13 @@ export default function Pacientes() {
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-foreground">
-                      No hay pacientes registrados
+                      {busqueda ? 'No se encontraron pacientes' : 'No hay pacientes registrados'}
                     </h3>
                     <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                      Comienza creando tu primer paciente usando el botón "Nuevo Paciente"
+                      {busqueda 
+                        ? 'Intenta con otros términos de búsqueda o limpia el filtro' 
+                        : 'Comienza creando tu primer paciente usando el botón "Nuevo Paciente"'
+                      }
                     </p>
                   </div>
                 </div>
@@ -714,13 +784,11 @@ export default function Pacientes() {
 
               <div className="space-y-2">
                 <Label htmlFor="notas_generales">Notas Generales</Label>
-                <Textarea
-                  id="notas_generales"
-                  value={formulario.notas_generales}
-                  onChange={(e) => setFormulario({ ...formulario, notas_generales: e.target.value })}
-                  placeholder="Notas adicionales sobre el paciente..."
-                  rows={3}
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                <EditorHtmlRico
+                  contenido={formulario.notas_generales}
+                  onChange={(contenido) => setFormulario({ ...formulario, notas_generales: contenido })}
+                  placeholder="Escribe notas adicionales sobre el paciente..."
+                  minHeight="120px"
                 />
               </div>
 
@@ -741,36 +809,38 @@ export default function Pacientes() {
                 <p className="text-xs text-muted-foreground mb-2">
                   Selecciona un color del catálogo para identificar al paciente
                 </p>
-                <div className="flex gap-2 flex-wrap">
-                  {catalogos.colores.filter(c => c.color).map((color) => (
-                    <button
-                      key={color.id}
-                      type="button"
-                      className={`group relative w-12 h-12 rounded-lg border-2 transition-all hover:scale-110 ${
-                        formulario.color_categoria === color.color
-                          ? 'border-foreground scale-110 shadow-lg'
-                          : 'border-transparent hover:border-border'
-                      }`}
-                      style={{ backgroundColor: color.color! }}
-                      onClick={() => setFormulario({ ...formulario, color_categoria: color.color! })}
-                      title={color.nombre}
-                    >
-                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg border border-border">
-                        {color.nombre}
-                      </span>
-                    </button>
-                  ))}
-                  {formulario.color_categoria && (
-                    <button
-                      type="button"
-                      className="w-12 h-12 rounded-lg border-2 border-border bg-secondary hover:bg-secondary/80 flex items-center justify-center hover:scale-110 transition-all duration-200"
-                      onClick={() => setFormulario({ ...formulario, color_categoria: '' })}
-                      title="Limpiar color"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
+                <ScrollArea className="h-[200px] rounded-md border border-border p-3">
+                  <div className="flex gap-2 flex-wrap">
+                    {catalogos.colores.filter(c => c.color).map((color) => (
+                      <button
+                        key={color.id}
+                        type="button"
+                        className={`group relative w-12 h-12 rounded-lg border-2 transition-all hover:scale-110 ${
+                          formulario.color_categoria === color.color
+                            ? 'border-foreground scale-110 shadow-lg'
+                            : 'border-transparent hover:border-border'
+                        }`}
+                        style={{ backgroundColor: color.color! }}
+                        onClick={() => setFormulario({ ...formulario, color_categoria: color.color! })}
+                        title={color.nombre}
+                      >
+                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg border border-border">
+                          {color.nombre}
+                        </span>
+                      </button>
+                    ))}
+                    {formulario.color_categoria && (
+                      <button
+                        type="button"
+                        className="w-12 h-12 rounded-lg border-2 border-border bg-secondary hover:bg-secondary/80 flex items-center justify-center hover:scale-110 transition-all duration-200"
+                        onClick={() => setFormulario({ ...formulario, color_categoria: '' })}
+                        title="Limpiar color"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </ScrollArea>
                 {formulario.color_categoria && (
                   <div className="p-3 mt-2 rounded-lg bg-secondary/30 border border-border">
                     <p className="text-sm text-foreground">
@@ -886,13 +956,11 @@ export default function Pacientes() {
 
               <div className="space-y-2">
                 <Label htmlFor="notas_medicas">Notas Médicas Importantes</Label>
-                <Textarea
-                  id="notas_medicas"
-                  value={formulario.notas_medicas}
-                  onChange={(e) => setFormulario({ ...formulario, notas_medicas: e.target.value })}
+                <EditorHtmlRico
+                  contenido={formulario.notas_medicas}
+                  onChange={(contenido) => setFormulario({ ...formulario, notas_medicas: contenido })}
                   placeholder="Otras notas médicas relevantes..."
-                  rows={3}
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  minHeight="120px"
                 />
               </div>
             </TabsContent>
@@ -1004,39 +1072,44 @@ export default function Pacientes() {
 
             <div className="space-y-2">
               <Label htmlFor="color-picker">Color *</Label>
-              <div className="flex gap-3">
-                <Input
-                  id="color-picker"
-                  type="color"
-                  value={formulario_color.color}
-                  onChange={(e) => setFormularioColor({ ...formulario_color, color: e.target.value })}
-                  className="h-12 w-24 cursor-pointer hover:scale-105 transition-all duration-200"
+              <div className="space-y-3">
+                <HexColorPicker 
+                  color={formulario_color.color}
+                  onChange={(color) => setFormularioColor({ ...formulario_color, color })}
+                  style={{ width: '100%', height: '150px' }}
                 />
                 <Input
                   type="text"
                   value={formulario_color.color}
-                  onChange={(e) => setFormularioColor({ ...formulario_color, color: e.target.value })}
+                  onChange={(e) => {
+                    const valor = e.target.value;
+                    if (/^#[0-9A-Fa-f]{0,6}$/.test(valor) || valor === '') {
+                      setFormularioColor({ ...formulario_color, color: valor });
+                    }
+                  }}
                   placeholder="#808080"
-                  className="flex-1 hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  className="hover:border-primary/50 focus:border-primary transition-all duration-200 font-mono text-center"
+                  maxLength={7}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Selecciona un color representativo para esta categoría
+                Selecciona el color deseado o ingresa el código hexadecimal
               </p>
             </div>
 
             <div className="p-4 rounded-lg border-2 border-border bg-secondary/20">
-              <p className="text-sm font-semibold mb-2">Vista Previa:</p>
+              <p className="text-sm font-semibold mb-3">Vista Previa:</p>
               <div className="flex items-center gap-3">
                 <div
-                  className="w-10 h-10 rounded-lg border-2 border-border"
+                  className="w-14 h-14 rounded-lg border-2 border-border shadow-md transition-all duration-200"
                   style={{ backgroundColor: formulario_color.color }}
                 />
-                <div>
-                  <p className="font-medium">{formulario_color.nombre || 'Nombre del color'}</p>
+                <div className="flex-1">
+                  <p className="font-medium text-base">{formulario_color.nombre || 'Nombre del color'}</p>
                   {formulario_color.descripcion && (
-                    <p className="text-xs text-muted-foreground">{formulario_color.descripcion}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{formulario_color.descripcion}</p>
                   )}
+                  <p className="text-xs text-muted-foreground mt-1 font-mono">{formulario_color.color}</p>
                 </div>
               </div>
             </div>
@@ -1104,8 +1177,9 @@ export default function Pacientes() {
               </div>
 
               <Tabs defaultValue="contacto" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="contacto">Contacto</TabsTrigger>
+                  <TabsTrigger value="resumen">Resumen</TabsTrigger>
                   <TabsTrigger value="medico">Información Médica</TabsTrigger>
                   <TabsTrigger value="archivos">Archivos</TabsTrigger>
                 </TabsList>
@@ -1152,12 +1226,165 @@ export default function Pacientes() {
                     {paciente_seleccionado.notas_generales && (
                       <div>
                         <Label className="text-muted-foreground">Notas Generales</Label>
-                        <p className="text-foreground font-medium whitespace-pre-wrap">
-                          {paciente_seleccionado.notas_generales}
-                        </p>
+                        <div className="mt-2 p-3 rounded-lg bg-secondary/30 border border-border">
+                          <RenderizadorHtml contenido={paciente_seleccionado.notas_generales} />
+                        </div>
                       </div>
                     )}
                   </div>
+                </TabsContent>
+
+                <TabsContent value="resumen" className="space-y-4 mt-4">
+                  {cargando_info_adicional ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Última Cita */}
+                      <Card className="border-2">
+                        <CardHeader>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-primary" />
+                            Última Cita
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {ultima_cita ? (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Fecha</Label>
+                                  <p className="text-sm font-medium">
+                                    {new Date(ultima_cita.fecha).toLocaleDateString('es-ES', {
+                                      day: '2-digit',
+                                      month: 'long',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </p>
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Estado de Pago</Label>
+                                  <div className="mt-1">
+                                    <Badge 
+                                      variant={
+                                        ultima_cita.estado_pago === 'pagado' ? 'default' : 
+                                        ultima_cita.estado_pago === 'pendiente' ? 'secondary' : 
+                                        'destructive'
+                                      }
+                                    >
+                                      {ultima_cita.estado_pago === 'pagado' ? 'Pagado' :
+                                       ultima_cita.estado_pago === 'pendiente' ? 'Pendiente' :
+                                       'Cancelado'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                              {ultima_cita.descripcion && (
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Descripción</Label>
+                                  <p className="text-sm mt-1">{ultima_cita.descripcion}</p>
+                                </div>
+                              )}
+                              {ultima_cita.monto_esperado && (
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Monto</Label>
+                                  <p className="text-sm font-semibold mt-1">
+                                    Bs. {Number(ultima_cita.monto_esperado).toFixed(2)}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center py-6">
+                              <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                              <p className="text-sm text-muted-foreground">
+                                No hay citas registradas
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {/* Último Tratamiento */}
+                      <Card className="border-2">
+                        <CardHeader>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-primary" />
+                            Último Tratamiento
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {ultimo_tratamiento ? (
+                            <div className="space-y-3">
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Tratamiento</Label>
+                                <p className="text-base font-semibold">{ultimo_tratamiento.tratamiento.nombre}</p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Estado</Label>
+                                  <div className="mt-1">
+                                    <Badge 
+                                      variant={
+                                        ultimo_tratamiento.estado === 'completado' ? 'default' : 
+                                        ultimo_tratamiento.estado === 'en_progreso' ? 'secondary' : 
+                                        'outline'
+                                      }
+                                    >
+                                      {ultimo_tratamiento.estado === 'completado' ? 'Completado' :
+                                       ultimo_tratamiento.estado === 'en_progreso' ? 'En Progreso' :
+                                       ultimo_tratamiento.estado}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Fecha Inicio</Label>
+                                  <p className="text-sm font-medium mt-1">
+                                    {new Date(ultimo_tratamiento.fecha_inicio).toLocaleDateString('es-ES', {
+                                      day: '2-digit',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Costo Total</Label>
+                                  <p className="text-sm font-semibold">
+                                    Bs. {Number(ultimo_tratamiento.costo_total).toFixed(2)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Total Abonado</Label>
+                                  <p className="text-sm font-semibold text-green-600">
+                                    Bs. {Number(ultimo_tratamiento.total_abonado).toFixed(2)}
+                                  </p>
+                                </div>
+                              </div>
+                              {ultimo_tratamiento.citas && ultimo_tratamiento.citas.length > 0 && (
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">
+                                    Citas: {ultimo_tratamiento.citas.length}
+                                  </Label>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center py-6">
+                              <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                              <p className="text-sm text-muted-foreground">
+                                No hay tratamientos registrados
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="medico" className="space-y-4 mt-4">
@@ -1204,10 +1431,8 @@ export default function Pacientes() {
                     {paciente_seleccionado.notas_medicas && (
                       <div className="space-y-2">
                         <Label className="text-muted-foreground">Notas Médicas</Label>
-                        <div className="p-3 rounded-lg bg-secondary/30">
-                          <p className="text-foreground font-medium whitespace-pre-wrap">
-                            {paciente_seleccionado.notas_medicas}
-                          </p>
+                        <div className="p-3 rounded-lg bg-secondary/30 border border-border">
+                          <RenderizadorHtml contenido={paciente_seleccionado.notas_medicas} />
                         </div>
                       </div>
                     )}

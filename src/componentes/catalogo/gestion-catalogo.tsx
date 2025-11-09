@@ -19,6 +19,8 @@ import {
 } from '@/componentes/ui/dialog';
 import { Edit, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { HexColorPicker } from 'react-colorful';
+import '../ui/color-picker.css';
 
 interface ItemCatalogo {
   id: number;
@@ -362,21 +364,31 @@ export function GestionCatalogo({
             {permitirColor && (
               <div className="space-y-2">
                 <Label htmlFor="color-crear">Color *</Label>
-                <div className="flex gap-3">
-                  <Input
-                    id="color-crear"
-                    type="color"
-                    value={formulario.color}
-                    onChange={(e) => setFormulario({ ...formulario, color: e.target.value })}
-                    className="h-10 w-20 cursor-pointer hover:scale-105 transition-all duration-200"
+                <div className="space-y-3">
+                  <HexColorPicker 
+                    color={formulario.color}
+                    onChange={(color) => setFormulario({ ...formulario, color })}
+                    style={{ width: '100%', height: '150px' }}
                   />
-                  <Input
-                    type="text"
-                    value={formulario.color}
-                    onChange={(e) => setFormulario({ ...formulario, color: e.target.value })}
-                    placeholder="#808080"
-                    className="flex-1"
-                  />
+                  <div className="flex gap-2 items-center">
+                    <div
+                      className="w-10 h-10 rounded-lg border-2 border-border flex-shrink-0"
+                      style={{ backgroundColor: formulario.color }}
+                    />
+                    <Input
+                      type="text"
+                      value={formulario.color}
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(valor)) {
+                          setFormulario({ ...formulario, color: valor });
+                        }
+                      }}
+                      placeholder="#808080"
+                      className="flex-1 font-mono"
+                      maxLength={7}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -437,21 +449,31 @@ export function GestionCatalogo({
             {permitirColor && (
               <div className="space-y-2">
                 <Label htmlFor="color-editar">Color *</Label>
-                <div className="flex gap-3">
-                  <Input
-                    id="color-editar"
-                    type="color"
-                    value={formulario.color}
-                    onChange={(e) => setFormulario({ ...formulario, color: e.target.value })}
-                    className="h-10 w-20 cursor-pointer hover:scale-105 transition-all duration-200"
+                <div className="space-y-3">
+                  <HexColorPicker 
+                    color={formulario.color}
+                    onChange={(color) => setFormulario({ ...formulario, color })}
+                    style={{ width: '100%', height: '150px' }}
                   />
-                  <Input
-                    type="text"
-                    value={formulario.color}
-                    onChange={(e) => setFormulario({ ...formulario, color: e.target.value })}
-                    placeholder="#808080"
-                    className="flex-1"
-                  />
+                  <div className="flex gap-2 items-center">
+                    <div
+                      className="w-10 h-10 rounded-lg border-2 border-border flex-shrink-0"
+                      style={{ backgroundColor: formulario.color }}
+                    />
+                    <Input
+                      type="text"
+                      value={formulario.color}
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(valor)) {
+                          setFormulario({ ...formulario, color: valor });
+                        }
+                      }}
+                      placeholder="#808080"
+                      className="flex-1 font-mono"
+                      maxLength={7}
+                    />
+                  </div>
                 </div>
               </div>
             )}

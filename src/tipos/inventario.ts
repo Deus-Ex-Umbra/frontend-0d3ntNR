@@ -93,15 +93,20 @@ export interface ReporteValor {
 
 export interface MovimientoInventario {
   id: number;
-  tipo: string;
-  cantidad: number;
-  stock_anterior: number;
-  stock_nuevo: number;
+  tipo: 'compra' | 'ajuste' | 'uso_cita' | 'uso_tratamiento' | 'devolucion' | 'entrada' | 'salida' | 
+        'producto_creado' | 'producto_editado' | 'producto_eliminado' |
+        'lote_creado' | 'lote_eliminado' |
+        'activo_creado' | 'activo_editado' | 'activo_eliminado' | 'activo_cambio_estado' | 'activo_vendido';
+  cantidad?: number;
+  stock_anterior?: number;
+  stock_nuevo?: number;
   referencia?: string;
   observaciones?: string;
   fecha: Date;
   costo_total?: number;
-  producto: {
+  datos_anteriores?: any;
+  datos_nuevos?: any;
+  producto?: {
     id: number;
     nombre: string;
   };

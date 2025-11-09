@@ -129,8 +129,10 @@ export function MultiSelect({
                     className="mr-1 mb-1"
                   >
                     {opcion.etiqueta}
-                    <button
-                      className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer inline-flex"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           manejarRemover(opcion.valor, e as any)
@@ -143,7 +145,7 @@ export function MultiSelect({
                       onClick={(e) => manejarRemover(opcion.valor, e)}
                     >
                       <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                    </button>
+                    </span>
                   </Badge>
                 ))
               )}

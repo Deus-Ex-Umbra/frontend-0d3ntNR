@@ -1,0 +1,33 @@
+/* Estilos personalizados para react-colorful */
+.react-colorful {
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+.react-colorful__saturation {
+  border-radius: 0.5rem 0.5rem 0 0;
+  border-bottom: none;
+}
+
+.react-colorful__hue {
+  border-radius: 0 0 0.5rem 0.5rem;
+  height: 24px;
+  margin-top: 12px;
+}
+
+.react-colorful__pointer {
+  width: 20px;
+  height: 20px;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.react-colorful__saturation-pointer {
+  width: 20px;
+  height: 20px;
+}
+
+/* Tema oscuro */
+.dark .react-colorful__pointer {
+  border-color: rgba(255, 255, 255, 0.9);
+}

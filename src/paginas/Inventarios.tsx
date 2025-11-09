@@ -33,13 +33,15 @@ import {
   ShoppingCart,
   TrendingUp,
   TrendingDown,
-  Settings
+  Settings,
+  Filter
 } from 'lucide-react';
 import { inventarioApi, usuariosApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Badge } from '@/componentes/ui/badge';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
+import { MultiSelect } from '@/componentes/ui/mulit-select';
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { format } from 'date-fns';
@@ -100,6 +102,15 @@ export default function Inventarios() {
   const [vista_actual, setVistaActual] = useState<'lista' | 'detalle'>('lista');
   const [tab_activo, setTabActivo] = useState<'productos' | 'historial' | 'usuarios'>('productos');
   const [filtro_tipo_producto, setFiltroTipoProducto] = useState<string>('todos');
+
+  // Estados para filtros avanzados de historial
+  const [filtros_historial, setFiltrosHistorial] = useState({
+    tipo_operacion: [] as string[], // 'entrada_stock', 'salida_stock', 'creacion', 'edicion', 'eliminacion'
+    tipo_entidad: [] as string[], // 'producto', 'lote', 'serie', 'general' (solo aplica a creacion/edicion/eliminacion)
+    fecha_inicio: undefined as Date | undefined,
+    fecha_fin: undefined as Date | undefined,
+    limit: 100,
+  });
 
   const [formulario_inventario, setFormularioInventario] = useState({
     nombre: '',
@@ -171,6 +182,68 @@ export default function Inventarios() {
     { valor: 'desechado', etiqueta: 'Desechado' },
   ];
 
+  // Tipos de operación principales
+  const tipos_operacion = [
+    { valor: 'entrada_stock', etiqueta: 'Entrada de Stock' },
+    { valor: 'salida_stock', etiqueta: 'Salida de Stock' },
+    { valor: 'creacion', etiqueta: 'Creación' },
+    { valor: 'edicion', etiqueta: 'Edición' },
+    { valor: 'eliminacion', etiqueta: 'Eliminación' },
+  ];
+
+  // Tipos de entidad (solo aplica a creacion/edicion/eliminacion)
+  const tipos_entidad = [
+    { valor: 'producto', etiqueta: 'Producto' },
+    { valor: 'lote', etiqueta: 'Lote' },
+    { valor: 'serie', etiqueta: 'Serie' },
+    { valor: 'general', etiqueta: 'General' },
+  ];
+
+  // Mapeo de operaciones a tipos de movimiento del backend
+  const mapearATiposBackend = (tipo_operacion: string[], tipo_entidad: string[]): string[] => {
+    const tipos: string[] = [];
+
+    tipo_operacion.forEach(op => {
+      if (op === 'entrada_stock') {
+        tipos.push('compra', 'entrada', 'ajuste', 'devolucion');
+      } else if (op === 'salida_stock') {
+        tipos.push('salida', 'uso_cita', 'uso_tratamiento');
+      } else if (op === 'creacion') {
+        // Si no hay filtro de entidad, incluir todos
+        if (tipo_entidad.length === 0) {
+          tipos.push('producto_creado', 'lote_creado', 'activo_creado');
+        } else {
+          if (tipo_entidad.includes('producto')) tipos.push('producto_creado');
+          if (tipo_entidad.includes('lote')) tipos.push('lote_creado');
+          if (tipo_entidad.includes('serie') || tipo_entidad.includes('general')) {
+            tipos.push('activo_creado');
+          }
+        }
+      } else if (op === 'edicion') {
+        if (tipo_entidad.length === 0) {
+          tipos.push('producto_editado', 'activo_editado', 'activo_cambio_estado');
+        } else {
+          if (tipo_entidad.includes('producto')) tipos.push('producto_editado');
+          if (tipo_entidad.includes('serie') || tipo_entidad.includes('general')) {
+            tipos.push('activo_editado', 'activo_cambio_estado');
+          }
+        }
+      } else if (op === 'eliminacion') {
+        if (tipo_entidad.length === 0) {
+          tipos.push('producto_eliminado', 'lote_eliminado', 'activo_eliminado');
+        } else {
+          if (tipo_entidad.includes('producto')) tipos.push('producto_eliminado');
+          if (tipo_entidad.includes('lote')) tipos.push('lote_eliminado');
+          if (tipo_entidad.includes('serie') || tipo_entidad.includes('general')) {
+            tipos.push('activo_eliminado');
+          }
+        }
+      }
+    });
+
+    return [...new Set(tipos)]; // Eliminar duplicados
+  };
+
   const estaVencido = (fecha_vencimiento: Date | null | undefined): boolean => {
     if (!fecha_vencimiento) return false;
     const hoy = new Date();
@@ -229,11 +302,18 @@ export default function Inventarios() {
     try {
       setCargandoDetalle(true);
       
+      const tipos_backend = mapearATiposBackend(filtros_historial.tipo_operacion, filtros_historial.tipo_entidad);
+      
       const [inventario_actualizado, productos_respuesta, reporte_respuesta, movimientos_respuesta] = await Promise.all([
         inventarioApi.obtenerInventarioPorId(inventario.id),
         inventarioApi.obtenerProductos(inventario.id),
         inventarioApi.obtenerReporteValor(inventario.id),
-        inventarioApi.obtenerHistorialMovimientos(inventario.id),
+        inventarioApi.obtenerHistorialMovimientos(inventario.id, {
+          tipos: tipos_backend.length > 0 ? tipos_backend : undefined,
+          fecha_inicio: filtros_historial.fecha_inicio,
+          fecha_fin: filtros_historial.fecha_fin,
+          limit: filtros_historial.limit,
+        }),
       ]);
 
       // Actualizar el inventario seleccionado con los datos más recientes (incluye permisos)
@@ -251,6 +331,114 @@ export default function Inventarios() {
     } finally {
       setCargandoDetalle(false);
     }
+  };
+
+  const cargarHistorial = async () => {
+    if (!inventario_seleccionado) return;
+    
+    try {
+      setCargandoDetalle(true);
+      const tipos_backend = mapearATiposBackend(filtros_historial.tipo_operacion, filtros_historial.tipo_entidad);
+      
+      const movimientos_respuesta = await inventarioApi.obtenerHistorialMovimientos(inventario_seleccionado.id, {
+        tipos: tipos_backend.length > 0 ? tipos_backend : undefined,
+        fecha_inicio: filtros_historial.fecha_inicio,
+        fecha_fin: filtros_historial.fecha_fin,
+        limit: filtros_historial.limit,
+      });
+      setMovimientos(movimientos_respuesta);
+    } catch (error: any) {
+      console.error('Error al cargar historial:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo cargar el historial',
+        variant: 'destructive',
+      });
+    } finally {
+      setCargandoDetalle(false);
+    }
+  };
+
+  const limpiarFiltrosHistorial = async () => {
+    // Limpiar los filtros
+    setFiltrosHistorial({
+      tipo_operacion: [],
+      tipo_entidad: [],
+      fecha_inicio: undefined,
+      fecha_fin: undefined,
+      limit: 100,
+    });
+
+    // Cargar historial sin filtros automáticamente
+    if (!inventario_seleccionado) return;
+
+    try {
+      setCargandoDetalle(true);
+      
+      const resultado = await inventarioApi.obtenerHistorialMovimientos(
+        inventario_seleccionado.id,
+        {
+          tipos: [],
+          fecha_inicio: undefined,
+          fecha_fin: undefined,
+          limit: 100,
+        }
+      );
+      
+      setMovimientos(resultado);
+      
+      toast({
+        title: 'Filtros limpiados',
+        description: 'Mostrando todos los movimientos',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Error al cargar el historial',
+        variant: 'destructive',
+      });
+    } finally {
+      setCargandoDetalle(false);
+    }
+  };
+
+  const obtenerEtiquetaTipoMovimiento = (tipo: string): string => {
+    const mapeo: Record<string, string> = {
+      'compra': 'Compra',
+      'entrada': 'Entrada',
+      'salida': 'Salida',
+      'ajuste': 'Ajuste',
+      'uso_cita': 'Uso en Cita',
+      'uso_tratamiento': 'Uso en Tratamiento',
+      'devolucion': 'Devolución',
+      'producto_creado': 'Producto Creado',
+      'producto_editado': 'Producto Editado',
+      'producto_eliminado': 'Producto Eliminado',
+      'lote_creado': 'Lote Creado',
+      'lote_eliminado': 'Lote Eliminado',
+      'activo_creado': 'Activo Creado',
+      'activo_editado': 'Activo Editado',
+      'activo_eliminado': 'Activo Eliminado',
+      'activo_cambio_estado': 'Cambio de Estado',
+      'activo_vendido': 'Activo Vendido',
+    };
+    return mapeo[tipo] || tipo;
+  };
+
+  const obtenerColorTipoMovimiento = (tipo: string): string => {
+    if (tipo.includes('producto') || tipo.includes('lote') || tipo.includes('activo')) {
+      return 'bg-purple-500/10 text-purple-700 dark:text-purple-300';
+    }
+    if (tipo === 'entrada' || tipo === 'compra' || tipo.includes('creado')) {
+      return 'bg-green-500/10 text-green-700 dark:text-green-300';
+    }
+    if (tipo === 'salida' || tipo.includes('eliminado')) {
+      return 'bg-red-500/10 text-red-700 dark:text-red-300';
+    }
+    if (tipo.includes('editado') || tipo === 'ajuste') {
+      return 'bg-blue-500/10 text-blue-700 dark:text-blue-300';
+    }
+    return 'bg-gray-500/10 text-gray-700 dark:text-gray-300';
   };
 
   const abrirDialogoNuevoInventario = () => {
@@ -1639,8 +1827,159 @@ export default function Inventarios() {
             </TabsContent>
 
             <TabsContent value="historial" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <ScrollArea className="flex-1 p-6">
-                {cargando_detalle ? (
+              <ScrollArea className="flex-1">
+                <div className="p-6 space-y-6">
+                  {/* Sección de filtros */}
+                  <div className="space-y-4 pb-6 border-b">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Filter className="h-5 w-5" />
+                        Filtros de Auditoría
+                      </h3>
+                      <div className="flex gap-2">
+                        {(filtros_historial.tipo_operacion.length > 0 || 
+                          filtros_historial.tipo_entidad.length > 0 ||
+                          filtros_historial.fecha_inicio || 
+                          filtros_historial.fecha_fin) && (
+                          <Button
+                            onClick={limpiarFiltrosHistorial}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Limpiar
+                          </Button>
+                        )}
+                        <Button
+                          onClick={cargarHistorial}
+                          size="sm"
+                        >
+                          <Search className="h-4 w-4 mr-1" />
+                          Buscar
+                        </Button>
+                      </div>
+                    </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label>Fecha Inicio</Label>
+                      <DatePicker
+                        valor={filtros_historial.fecha_inicio}
+                        onChange={(fecha) => setFiltrosHistorial(prev => ({ ...prev, fecha_inicio: fecha }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Fecha Fin</Label>
+                      <DatePicker
+                        valor={filtros_historial.fecha_fin}
+                        onChange={(fecha) => setFiltrosHistorial(prev => ({ ...prev, fecha_fin: fecha }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Tipo de Operación</Label>
+                      <MultiSelect
+                        opciones={tipos_operacion.map(t => ({ valor: t.valor, etiqueta: t.etiqueta }))}
+                        valores={filtros_historial.tipo_operacion}
+                        onChange={(valores) => setFiltrosHistorial(prev => ({ ...prev, tipo_operacion: valores }))}
+                        placeholder="Seleccionar operaciones..."
+                        textoVacio="No se encontraron operaciones"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Límite de Registros</Label>
+                      <Select
+                        value={filtros_historial.limit.toString()}
+                        onValueChange={(valor) => setFiltrosHistorial(prev => ({ ...prev, limit: parseInt(valor) }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                          <SelectItem value="250">250</SelectItem>
+                          <SelectItem value="500">500</SelectItem>
+                          <SelectItem value="1000">1000</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Filtro de entidad solo visible si hay operaciones de auditoría seleccionadas */}
+                  {filtros_historial.tipo_operacion.some(op => ['creacion', 'edicion', 'eliminacion'].includes(op)) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <Label>Tipo de Entidad</Label>
+                        <MultiSelect
+                          opciones={tipos_entidad.map(t => ({ valor: t.valor, etiqueta: t.etiqueta }))}
+                          valores={filtros_historial.tipo_entidad}
+                          onChange={(valores) => setFiltrosHistorial(prev => ({ ...prev, tipo_entidad: valores }))}
+                          placeholder="Todas las entidades"
+                          textoVacio="No se encontraron entidades"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {(filtros_historial.tipo_operacion.length > 0 || 
+                    filtros_historial.tipo_entidad.length > 0 ||
+                    filtros_historial.fecha_inicio || 
+                    filtros_historial.fecha_fin) && (
+                    <div className="flex flex-wrap gap-2">
+                      <span className="text-sm text-muted-foreground">Filtros activos:</span>
+                      {filtros_historial.tipo_operacion.map(tipo => {
+                        const operacion = tipos_operacion.find(op => op.valor === tipo);
+                        return (
+                          <Badge key={tipo} variant="secondary" className="gap-1">
+                            {operacion?.etiqueta || tipo}
+                            <button
+                              onClick={() => setFiltrosHistorial(prev => ({
+                                ...prev,
+                                tipo_operacion: prev.tipo_operacion.filter(t => t !== tipo)
+                              }))}
+                              className="ml-1 hover:bg-destructive/20 rounded-full"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        );
+                      })}
+                      {filtros_historial.tipo_entidad.map(tipo => {
+                        const entidad = tipos_entidad.find(ent => ent.valor === tipo);
+                        return (
+                          <Badge key={tipo} variant="outline" className="gap-1">
+                            {entidad?.etiqueta || tipo}
+                            <button
+                              onClick={() => setFiltrosHistorial(prev => ({
+                                ...prev,
+                                tipo_entidad: prev.tipo_entidad.filter(t => t !== tipo)
+                              }))}
+                              className="ml-1 hover:bg-destructive/20 rounded-full"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        );
+                      })}
+                      {filtros_historial.fecha_inicio && (
+                        <Badge variant="secondary">
+                          Desde: {format(filtros_historial.fecha_inicio, 'dd/MM/yyyy')}
+                        </Badge>
+                      )}
+                      {filtros_historial.fecha_fin && (
+                        <Badge variant="secondary">
+                          Hasta: {format(filtros_historial.fecha_fin, 'dd/MM/yyyy')}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  </div>
+
+                  {/* Contenido del historial */}
+                  {cargando_detalle ? (
                   <div className="flex items-center justify-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
@@ -1649,47 +1988,91 @@ export default function Inventarios() {
                     <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No hay movimientos</h3>
                     <p className="text-sm text-muted-foreground">
-                      Los movimientos de inventario aparecerán aquí
+                      {(filtros_historial.tipo_operacion.length > 0 || 
+                        filtros_historial.tipo_entidad.length > 0 ||
+                        filtros_historial.fecha_inicio || 
+                        filtros_historial.fecha_fin)
+                        ? 'No se encontraron movimientos con los filtros aplicados'
+                        : 'Los movimientos de inventario aparecerán aquí'}
                     </p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Producto</TableHead>
-                        <TableHead>Cantidad</TableHead>
-                        <TableHead>Usuario</TableHead>
-                        <TableHead>Observaciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {movimientos.map((movimiento) => (
-                        <TableRow key={movimiento.id}>
-                          <TableCell>{format(new Date(movimiento.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={movimiento.tipo === 'entrada' ? 'default' : 'destructive'}
-                              className="flex items-center gap-1 w-fit"
-                            >
-                              {movimiento.tipo === 'entrada' ? (
-                                <TrendingUp className="h-3 w-3" />
-                              ) : (
-                                <TrendingDown className="h-3 w-3" />
-                              )}
-                              {movimiento.tipo.charAt(0).toUpperCase() + movimiento.tipo.slice(1)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{movimiento.producto.nombre}</TableCell>
-                          <TableCell>{movimiento.cantidad}</TableCell>
-                          <TableCell>{movimiento.usuario.nombre}</TableCell>
-                          <TableCell className="max-w-md truncate">{movimiento.observaciones || '-'}</TableCell>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm text-muted-foreground">
+                        Mostrando {movimientos.length} {movimientos.length === 1 ? 'registro' : 'registros'}
+                      </p>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Producto</TableHead>
+                          <TableHead>Detalles</TableHead>
+                          <TableHead>Usuario</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {movimientos.map((movimiento) => (
+                          <TableRow key={movimiento.id}>
+                            <TableCell className="whitespace-nowrap">
+                              {format(new Date(movimiento.fecha), 'dd/MM/yyyy HH:mm')}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={obtenerColorTipoMovimiento(movimiento.tipo)}>
+                                {obtenerEtiquetaTipoMovimiento(movimiento.tipo)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {movimiento.producto ? movimiento.producto.nombre : '-'}
+                            </TableCell>
+                            <TableCell className="max-w-md">
+                              {movimiento.cantidad && (
+                                <div className="text-sm">
+                                  <span className="font-medium">Cantidad:</span> {movimiento.cantidad}
+                                  {movimiento.stock_anterior !== undefined && movimiento.stock_nuevo !== undefined && (
+                                    <span className="text-muted-foreground">
+                                      {' '}({movimiento.stock_anterior} → {movimiento.stock_nuevo})
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {movimiento.observaciones && (
+                                <div className="text-sm text-muted-foreground mt-1">
+                                  {movimiento.observaciones}
+                                </div>
+                              )}
+                              {movimiento.datos_anteriores && movimiento.datos_nuevos && (
+                                <details className="text-xs mt-2">
+                                  <summary className="cursor-pointer text-primary hover:underline">
+                                    Ver cambios
+                                  </summary>
+                                  <div className="mt-2 space-y-1 pl-2 border-l-2 border-muted">
+                                    <div>
+                                      <span className="font-semibold">Antes:</span>
+                                      <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
+                                        {JSON.stringify(movimiento.datos_anteriores, null, 2)}
+                                      </pre>
+                                    </div>
+                                    <div>
+                                      <span className="font-semibold">Después:</span>
+                                      <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
+                                        {JSON.stringify(movimiento.datos_nuevos, null, 2)}
+                                      </pre>
+                                    </div>
+                                  </div>
+                                </details>
+                              )}
+                            </TableCell>
+                            <TableCell>{movimiento.usuario.nombre}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
+                </div>
               </ScrollArea>
             </TabsContent>
 

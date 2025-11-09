@@ -29,15 +29,19 @@ import {
 } from '@/tipos';
 
 export default function Agenda() {
+  // Estados para datos completos (sin filtrar)
+  const [todas_citas, setTodasCitas] = useState<Cita[]>([]);
+  const [todas_horas_libres, setTodasHorasLibres] = useState<HoraLibre[]>([]);
+  
+  // Estados para datos filtrados por mes
   const [citas, setCitas] = useState<Cita[]>([]);
   const [horas_libres, setHorasLibres] = useState<HoraLibre[]>([]);
   const [mostrar_horas_libres, setMostrarHorasLibres] = useState(false);
-  const [ha_navegado_adelante, setHaNavegadoAdelante] = useState(false);
   const [elementos_filtrados, setElementosFiltrados] = useState<ElementoAgenda[]>([]);
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [mes_actual, setMesActual] = useState(new Date().getMonth() + 1);
   const [ano_actual, setAnoActual] = useState(new Date().getFullYear());
-  const [cargando, setCargando] = useState(true);
+  const [cargando_inicial, setCargandoInicial] = useState(true);
   const [dialogo_abierto, setDialogoAbierto] = useState(false);
   const [dialogo_filtros_abierto, setDialogoFiltrosAbierto] = useState(false);
   const [dialogo_confirmar_materiales_abierto, setDialogoConfirmarMaterialesAbierto] = useState(false);
@@ -47,7 +51,6 @@ export default function Agenda() {
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [cita_a_eliminar, setCitaAEliminar] = useState<number | null>(null);
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
-  // Mapa de productos por inventario: { inventario_id: Producto[] }
   const [productos_por_inventario, setProductosPorInventario] = useState<Record<number, Producto[]>>({});
   const [materiales_cita, setMaterialesCita] = useState<MaterialCita[]>([]);
   const [materiales_confirmacion, setMaterialesConfirmacion] = useState<MaterialCitaConfirmacion[]>([]);
@@ -98,19 +101,39 @@ export default function Agenda() {
   ];
 
   useEffect(() => {
-    cargarDatos();
-  }, [mes_actual, ano_actual, filtros.fecha_hora_inicio, filtros.fecha_hora_fin]);
+    cargarDatosIniciales();
+  }, []);
 
   useEffect(() => {
     cargarInventarios();
   }, []);
 
   useEffect(() => {
+    filtrarPorMes();
+  }, [mes_actual, ano_actual, filtros.fecha_hora_inicio, filtros.fecha_hora_fin, todas_citas, todas_horas_libres]);
+
+  useEffect(() => {
     aplicarFiltros();
   }, [citas, horas_libres, filtros.paciente_id, filtros.estado_pago, filtros.busqueda, mostrar_horas_libres]);
 
-  const cargarDatos = async () => {
-    setCargando(true);
+  const cargarDatosIniciales = async () => {
+    setCargandoInicial(true);
+    try {
+      const datos_pacientes = await pacientesApi.obtenerTodos();
+      setPacientes(datos_pacientes);
+    } catch (error) {
+      console.error('Error al cargar datos iniciales:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los datos',
+        variant: 'destructive',
+      });
+    } finally {
+      setCargandoInicial(false);
+    }
+  };
+
+  const filtrarPorMes = async () => {
     try {
       const tiene_filtro_fecha = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
 
@@ -129,10 +152,9 @@ export default function Agenda() {
         ]);
       }
 
-      const datos_pacientes = await pacientesApi.obtenerTodos();
-
+      setTodasCitas(datos_citas);
+      setTodasHorasLibres(datos_horas_libres);
       setCitas(datos_citas);
-      setPacientes(datos_pacientes);
       setHorasLibres(datos_horas_libres);
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -141,9 +163,11 @@ export default function Agenda() {
         description: 'No se pudieron cargar los datos',
         variant: 'destructive',
       });
-    } finally {
-      setCargando(false);
     }
+  };
+
+  const cargarDatos = async () => {
+    await filtrarPorMes();
   };
 
   const cargarInventarios = async () => {
@@ -470,11 +494,6 @@ export default function Agenda() {
     } else if (nuevo_mes < 1) {
       nuevo_mes = 12;
       nuevo_ano -= 1;
-    }
-
-    // Si navega hacia adelante, marcar que ha navegado
-    if (direccion > 0) {
-      setHaNavegadoAdelante(true);
     }
 
     setMesActual(nuevo_mes);
@@ -913,7 +932,7 @@ export default function Agenda() {
     return 'es_hora_libre' in elemento && elemento.es_hora_libre === true;
   };
 
-  if (cargando) {
+  if (cargando_inicial) {
     return (
       <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
         <MenuLateral />
@@ -1003,7 +1022,13 @@ export default function Agenda() {
                       variant="outline"
                       size="icon"
                       onClick={() => cambiarMes(-1)}
-                      disabled={filtros_fecha_activos || (mostrar_horas_libres && !ha_navegado_adelante)}
+                      disabled={
+                        filtros_fecha_activos || 
+                        (mostrar_horas_libres && (
+                          mes_actual === new Date().getMonth() + 1 && 
+                          ano_actual === new Date().getFullYear()
+                        ))
+                      }
                       className="hover:bg-primary/20 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <ChevronLeft className="h-5 w-5" />
@@ -1013,7 +1038,6 @@ export default function Agenda() {
                       onClick={() => {
                         setMesActual(new Date().getMonth() + 1);
                         setAnoActual(new Date().getFullYear());
-                        setHaNavegadoAdelante(false);
                       }}
                       disabled={filtros_fecha_activos}
                       className="hover:bg-primary/20 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
