@@ -16,6 +16,7 @@ import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { SelectConAgregar } from '@/componentes/ui/select-with-add';
 import { GestorArchivos } from '@/componentes/archivos/gestor-archivos';
+import { GestionConsentimientosPaciente } from '@/componentes/pacientes/gestion-consentimientos-paciente';
 import { PhoneInput, formatearTelefonoCompleto, separarTelefono } from '@/componentes/ui/phone-input';
 import { EditorHtmlRico } from '@/componentes/ui/editor-html-rico';
 import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
@@ -1177,11 +1178,12 @@ export default function Pacientes() {
               </div>
 
               <Tabs defaultValue="contacto" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="contacto">Contacto</TabsTrigger>
                   <TabsTrigger value="resumen">Resumen</TabsTrigger>
                   <TabsTrigger value="medico">Información Médica</TabsTrigger>
                   <TabsTrigger value="archivos">Archivos</TabsTrigger>
+                  <TabsTrigger value="consentimientos">Consentimientos</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="contacto" className="space-y-4 mt-4">
@@ -1457,6 +1459,19 @@ export default function Pacientes() {
                   <GestorArchivos 
                     paciente_id={paciente_seleccionado.id} 
                     modo="paciente"
+                  />
+                </TabsContent>
+
+                <TabsContent value="consentimientos" className="space-y-4 mt-4">
+                  <GestionConsentimientosPaciente
+                    paciente_id={paciente_seleccionado.id}
+                    paciente={{
+                      nombre: paciente_seleccionado.nombre,
+                      apellidos: paciente_seleccionado.apellidos,
+                      telefono: paciente_seleccionado.telefono,
+                      correo: paciente_seleccionado.correo,
+                      direccion: paciente_seleccionado.direccion,
+                    }}
                   />
                 </TabsContent>
               </Tabs>

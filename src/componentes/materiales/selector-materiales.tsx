@@ -19,7 +19,6 @@ interface SelectorMaterialesProps {
   onAgregarItem: (material_index: number) => void;
   onEliminarItem: (material_index: number, item_index: number) => void;
   onActualizarItem: (material_index: number, item_index: number, campo: string, valor: any) => void;
-  etiqueta_cantidad?: string;
   texto_boton_agregar?: string;
   cargando?: boolean;
 }
@@ -41,7 +40,6 @@ export default function SelectorMateriales({
   onAgregarItem,
   onEliminarItem,
   onActualizarItem,
-  etiqueta_cantidad = 'Cantidad Planeada',
   texto_boton_agregar = 'Agregar Material',
   cargando = false,
 }: SelectorMaterialesProps) {
@@ -289,7 +287,7 @@ export default function SelectorMateriales({
                                       />
                                     </div>
                                     <div className="w-24 space-y-1">
-                                      <Label className="text-xs">{etiqueta_cantidad}</Label>
+                                      <Label className="text-xs">Cantidad de {producto.unidad_medida || 'unidades'}</Label>
                                       <Input
                                         type="number"
                                         min="1"

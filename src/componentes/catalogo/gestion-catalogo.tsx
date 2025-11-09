@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/componentes/ui/dialog';
-import { Edit, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { Edit, Trash2, Plus, Loader2, AlertCircle, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { HexColorPicker } from 'react-colorful';
 import '../ui/color-picker.css';
@@ -59,6 +59,7 @@ export function GestionCatalogo({
   const [guardando, setGuardando] = useState(false);
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [item_a_eliminar, setItemAEliminar] = useState<{ id: number; nombre: string } | null>(null);
+  const [busqueda, setBusqueda] = useState('');
 
   const abrirDialogoConfirmarEliminar = (id: number, nombre: string) => {
     setItemAEliminar({ id, nombre });
@@ -195,6 +196,12 @@ export function GestionCatalogo({
     }
   };
 
+  // Filtrar items según la búsqueda
+  const items_filtrados = items.filter(item =>
+    item.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+    (item.descripcion && item.descripcion.toLowerCase().includes(busqueda.toLowerCase()))
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -206,7 +213,9 @@ export function GestionCatalogo({
           )}
           <div>
             <h3 className="text-lg font-semibold text-foreground">{titulo}</h3>
-            <p className="text-sm text-muted-foreground">{items.length} registros</p>
+            <p className="text-sm text-muted-foreground">
+              {items_filtrados.length} de {items.length} registros
+            </p>
           </div>
         </div>
         <Button
@@ -222,20 +231,33 @@ export function GestionCatalogo({
         </Button>
       </div>
 
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder={`Buscar en ${titulo.toLowerCase()}...`}
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
       {cargando ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : items.length === 0 ? (
+      ) : items_filtrados.length === 0 ? (
         <div className="text-center py-8 space-y-2">
           <div className="mx-auto w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center">
             <AlertCircle className="h-6 w-6 text-muted-foreground" />
           </div>
-          <p className="text-sm text-muted-foreground">No hay registros</p>
+          <p className="text-sm text-muted-foreground">
+            {busqueda ? 'No se encontraron resultados' : 'No hay registros'}
+          </p>
         </div>
       ) : (
         <Accordion type="single" collapsible className="w-full">
-          {items.map((item) => (
+          {items_filtrados.map((item) => (
             <AccordionItem key={item.id} value={`item-${item.id}`}>
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-3 flex-1">

@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/componentes/ui/dialog';
-import { Edit, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { Edit, Trash2, Plus, Loader2, AlertCircle, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface ItemCatalogo {
@@ -57,6 +57,7 @@ export function GestionCatalogoMovil({
   const [guardando, setGuardando] = useState(false);
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [item_a_eliminar, setItemAEliminar] = useState<{ id: number; nombre: string } | null>(null);
+  const [busqueda, setBusqueda] = useState('');
 
   const abrirDialogoConfirmarEliminar = (id: number, nombre: string) => {
     setItemAEliminar({ id, nombre });
@@ -220,6 +221,18 @@ export function GestionCatalogoMovil({
         </Button>
       </div>
 
+      {/* Barra de búsqueda */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Buscar..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="pl-10 hover:border-primary/50 focus:border-primary transition-all duration-200"
+        />
+      </div>
+
       {cargando ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-primary" />
@@ -231,56 +244,70 @@ export function GestionCatalogoMovil({
           </div>
           <p className="text-sm text-muted-foreground">No hay registros</p>
         </div>
-      ) : (
-        <Accordion type="single" collapsible className="w-full">
-          {items.map((item) => (
-            <AccordionItem key={item.id} value={`item-${item.id}`}>
-              <AccordionTrigger className="hover:no-underline">
-                <div className="flex items-center gap-3 flex-1">
-                  {permitirColor && item.color && (
-                    <div
-                      className="w-3 h-3 md:w-4 md:h-4 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    />
-                  )}
-                  <span className="text-left font-medium text-sm md:text-base">{item.nombre}</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-3 pt-2">
-                  {item.descripcion && (
-                    <div className="p-2 md:p-3 rounded-lg bg-secondary/30">
-                      <p className="text-xs md:text-sm text-muted-foreground">{item.descripcion}</p>
+      ) : (() => {
+          const items_filtrados = items.filter((item) =>
+            item.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+            (item.descripcion && item.descripcion.toLowerCase().includes(busqueda.toLowerCase()))
+          );
+
+          return items_filtrados.length === 0 ? (
+            <div className="text-center py-8 space-y-2">
+              <div className="mx-auto w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center">
+                <AlertCircle className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">No se encontraron resultados</p>
+            </div>
+          ) : (
+            <Accordion type="single" collapsible className="w-full">
+              {items_filtrados.map((item) => (
+                <AccordionItem key={item.id} value={`item-${item.id}`}>
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-3 flex-1">
+                      {permitirColor && item.color && (
+                        <div
+                          className="w-3 h-3 md:w-4 md:h-4 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
+                      )}
+                      <span className="text-left font-medium text-sm md:text-base">{item.nombre}</span>
                     </div>
-                  )}
-                  <div className="flex gap-2">
-                    {onActualizar && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => abrirDialogoEditar(item)}
-                        className="hover:bg-primary/20 hover:text-primary transition-all duration-200 flex-1"
-                      >
-                        <Edit className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-                        Editar
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => abrirDialogoConfirmarEliminar(item.id, item.nombre)}
-                      className="hover:bg-destructive/20 hover:text-destructive transition-all duration-200 flex-1"
-                    >
-                      <Trash2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-                      Eliminar
-                    </Button>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      )}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-3 pt-2">
+                      {item.descripcion && (
+                        <div className="p-2 md:p-3 rounded-lg bg-secondary/30">
+                          <p className="text-xs md:text-sm text-muted-foreground">{item.descripcion}</p>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        {onActualizar && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => abrirDialogoEditar(item)}
+                            className="hover:bg-primary/20 hover:text-primary transition-all duration-200 flex-1"
+                          >
+                            <Edit className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                            Editar
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => abrirDialogoConfirmarEliminar(item.id, item.nombre)}
+                          className="hover:bg-destructive/20 hover:text-destructive transition-all duration-200 flex-1"
+                        >
+                          <Trash2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                          Eliminar
+                        </Button>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          );
+      })()}
 
       <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
         <DialogContent className="sm:max-w-[425px]">

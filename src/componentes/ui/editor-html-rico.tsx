@@ -6,6 +6,7 @@ import { Underline } from '@tiptap/extension-underline';
 import { ListItem } from '@tiptap/extension-list-item';
 import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
+import { TextAlign } from '@tiptap/extension-text-align';
 import { useEffect, useState } from 'react';
 import { Button } from '@/componentes/ui/button';
 import { Toggle } from '@/componentes/ui/toggle';
@@ -20,6 +21,9 @@ import {
   Heading2,
   Heading3,
   Type,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utilidades';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
@@ -61,6 +65,11 @@ export function EditorHtmlRico({
       BulletList,
       OrderedList,
       ListItem,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+        alignments: ['left', 'center', 'right'],
+        defaultAlignment: 'left',
+      }),
     ],
     content: contenido,
     editorProps: {
@@ -192,6 +201,35 @@ export function EditorHtmlRico({
           aria-label="Lista numerada"
         >
           <ListOrdered className="h-4 w-4" />
+        </Toggle>
+
+        <div className="w-px h-6 bg-border mx-1" />
+
+        <Toggle
+          size="sm"
+          pressed={editor.isActive({ textAlign: 'left' })}
+          onPressedChange={() => editor.chain().focus().setTextAlign('left').run()}
+          aria-label="Alinear a la izquierda"
+        >
+          <AlignLeft className="h-4 w-4" />
+        </Toggle>
+
+        <Toggle
+          size="sm"
+          pressed={editor.isActive({ textAlign: 'center' })}
+          onPressedChange={() => editor.chain().focus().setTextAlign('center').run()}
+          aria-label="Centrar"
+        >
+          <AlignCenter className="h-4 w-4" />
+        </Toggle>
+
+        <Toggle
+          size="sm"
+          pressed={editor.isActive({ textAlign: 'right' })}
+          onPressedChange={() => editor.chain().focus().setTextAlign('right').run()}
+          aria-label="Alinear a la derecha"
+        >
+          <AlignRight className="h-4 w-4" />
         </Toggle>
 
         <div className="w-px h-6 bg-border mx-1" />

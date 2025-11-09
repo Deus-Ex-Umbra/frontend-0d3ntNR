@@ -343,6 +343,22 @@ export const catalogoApi = {
     const respuesta = await api.delete(`/catalogo/colores/${id}`);
     return respuesta.data;
   },
+  obtenerEtiquetas: async () => {
+    const respuesta = await api.get('/catalogo/etiquetas');
+    return respuesta.data;
+  },
+  crearEtiqueta: async (datos: { nombre: string; descripcion?: string }) => {
+    const respuesta = await api.post('/catalogo/etiquetas', datos);
+    return respuesta.data;
+  },
+  actualizarEtiqueta: async (id: number, datos: { nombre?: string; descripcion?: string }) => {
+    const respuesta = await api.put(`/catalogo/etiquetas/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminarEtiqueta: async (id: number) => {
+    const respuesta = await api.delete(`/catalogo/etiquetas/${id}`);
+    return respuesta.data;
+  },
 };
 
 export const archivosApi = {
@@ -648,9 +664,42 @@ export const reportesApi = {
     fecha_inicio?: string;
     fecha_fin?: string;
   }) => {
-    const respuesta = await api.post('/reportes/generar', datos, {
+    const respuesta = await api.post('/reportes/generar', datos);
+    return respuesta.data;
+  },
+  obtener: async () => {
+    const respuesta = await api.get('/reportes');
+    return respuesta.data;
+  },
+  descargar: async (id: number) => {
+    const respuesta = await api.get(`/reportes/${id}/descargar`, {
       responseType: 'blob',
     });
+    return respuesta.data;
+  },
+  eliminar: async (id: number) => {
+    const respuesta = await api.delete(`/reportes/${id}`);
+    return respuesta.data;
+  },
+};
+
+export const consentimientosApi = {
+  obtenerPorPaciente: async (paciente_id: number) => {
+    const respuesta = await api.get(`/pacientes/${paciente_id}/consentimientos`);
+    return respuesta.data;
+  },
+  crear: async (paciente_id: number, datos: { plantilla_id: number; nombre: string }) => {
+    const respuesta = await api.post(`/pacientes/${paciente_id}/consentimientos`, datos);
+    return respuesta.data;
+  },
+  descargar: async (id: number) => {
+    const respuesta = await api.get(`/consentimientos/${id}/descargar`, {
+      responseType: 'blob',
+    });
+    return respuesta.data;
+  },
+  eliminar: async (id: number) => {
+    const respuesta = await api.delete(`/consentimientos/${id}`);
     return respuesta.data;
   },
 };

@@ -130,6 +130,7 @@ export default function Tratamientos() {
   const [materiales_generales, setMaterialesGenerales] = useState<MaterialGeneral[]>([]);
   const [materiales_por_cita, setMaterialesPorCita] = useState<MaterialCita[]>([]);
   const [materiales_cita_edicion, setMaterialesCitaEdicion] = useState<MaterialCita[]>([]);
+  const [materiales_cita_edicion_iniciales, setMaterialesCitaEdicionIniciales] = useState<MaterialCita[]>([]);
   const [cargando_materiales, setCargandoMateriales] = useState(false);
   const [materiales_generales_confirmados, setMaterialesGeneralesConfirmados] = useState(false);
   const [dialogo_confirmar_materiales_tratamiento_abierto, setDialogoConfirmarMaterialesTratamientoAbierto] = useState(false);
@@ -137,6 +138,11 @@ export default function Tratamientos() {
   const [estado_pago_tratamiento, setEstadoPagoTratamiento] = useState<string>('pendiente');
   const [monto_pago_tratamiento, setMontoPagoTratamiento] = useState<string>('');
   const [metodo_pago_tratamiento, setMetodoPagoTratamiento] = useState<string>('Efectivo');
+  const [materiales_confirmacion, setMaterialesConfirmacion] = useState<any[]>([]);
+  const [materiales_adicionales_confirmacion, setMaterialesAdicionalesConfirmacion] = useState<MaterialCita[]>([]);
+  const [mostrar_agregar_materiales_confirmacion, setMostrarAgregarMaterialesConfirmacion] = useState(false);
+  const [estado_pago_confirmacion, setEstadoPagoConfirmacion] = useState<string>('pendiente');
+  const [monto_confirmacion, setMontoConfirmacion] = useState<string>('');
 
   const [formulario_plantilla_inicial, setFormularioPlantillaInicial] = useState({
     nombre: "",
@@ -202,12 +208,22 @@ export default function Tratamientos() {
     cargarDatos();
   }, []);
 
-  useEffect(() => {
-    cargarInventarios();
-  }, []);
-
   const esCitaPasada = (fecha: Date): boolean => {
     return new Date(fecha) < new Date();
+  };
+
+  const citaHaFinalizado = (cita: any): boolean => {
+    const ahora = new Date();
+    const fecha_inicio = new Date(cita.fecha);
+    const fecha_fin = new Date(fecha_inicio);
+    fecha_fin.setHours(fecha_fin.getHours() + (cita.horas_aproximadas || 0));
+    fecha_fin.setMinutes(fecha_fin.getMinutes() + (cita.minutos_aproximados || 30));
+    return ahora > fecha_fin;
+  };
+
+  const tratamientoHaFinalizado = (plan: PlanTratamiento): boolean => {
+    if (!plan.citas || plan.citas.length === 0) return false;
+    return plan.citas.every(cita => citaHaFinalizado(cita));
   };
 
   const formularioPlantillaCambio = (): boolean => {
@@ -226,6 +242,10 @@ export default function Tratamientos() {
            formulario_cita.monto_esperado !== formulario_cita_inicial.monto_esperado ||
            formulario_cita.horas_aproximadas !== formulario_cita_inicial.horas_aproximadas ||
            formulario_cita.minutos_aproximados !== formulario_cita_inicial.minutos_aproximados;
+  };
+
+  const materialesCitaCambiaron = (): boolean => {
+    return JSON.stringify(materiales_cita_edicion) !== JSON.stringify(materiales_cita_edicion_iniciales);
   };
 
   const formularioCostoCambio = (): boolean => {
@@ -287,6 +307,8 @@ export default function Tratamientos() {
   };
 
   const cargarInventarios = async () => {
+    if (inventarios.length > 0) return; // Si ya están cargados, no recargar
+    
     try {
       const datos_inventarios = await inventarioApi.obtenerInventarios();
       setInventarios(datos_inventarios);
@@ -319,6 +341,46 @@ export default function Tratamientos() {
     }
   };
 
+  const validarDisponibilidadMateriales = (): { valido: boolean; advertencias: string[] } => {
+    const advertencias: string[] = [];
+    
+    for (const material of materiales_cita_edicion) {
+      if (material.inventario_id === 0) {
+        advertencias.push('Hay materiales sin inventario seleccionado');
+        continue;
+      }
+      
+      if (material.producto_id === 0) {
+        advertencias.push('Hay materiales sin producto seleccionado');
+        continue;
+      }
+
+      const productos = productos_por_inventario[material.inventario_id] || [];
+      const producto = productos.find(p => p.id === material.producto_id);
+      if (!producto) continue;
+
+      for (const item of material.items) {
+        if (producto.tipo_gestion === 'consumible') {
+          if (!item.lote_id) {
+            advertencias.push(`${producto.nombre}: Debe seleccionar un lote para todos los items`);
+            break;
+          }
+          if (item.cantidad_planeada <= 0) {
+            advertencias.push(`${producto.nombre}: La cantidad debe ser mayor a 0 en todos los lotes`);
+            break;
+          }
+        } else if (producto.tipo_gestion === 'activo_serializado' || producto.tipo_gestion === 'activo_general') {
+          if (!item.activo_id) {
+            advertencias.push(`${producto.nombre}: Debe seleccionar un activo para todos los items`);
+            break;
+          }
+        }
+      }
+    }
+
+    return { valido: true, advertencias };
+  };
+
   const cargarMaterialesCita = async (cita_id: number) => {
     setCargandoMateriales(true);
     try {
@@ -342,16 +404,25 @@ export default function Tratamientos() {
           };
         }
         
-        materiales_agrupados[key].items.push({
-          cantidad_planeada: material.cantidad_planeada,
-        });
-        
-        if (material.inventario_id > 0) {
-          await cargarProductosInventario(material.inventario_id);
+        if (material.items && material.items.length > 0) {
+          materiales_agrupados[key].items = material.items.map((item: any) => ({
+            lote_id: item.lote_id,
+            activo_id: item.activo_id,
+            cantidad_planeada: item.cantidad_planeada,
+            nro_lote: item.nro_lote,
+            nro_serie: item.nro_serie,
+            nombre_asignado: item.nombre_asignado,
+          }));
+        } else {
+          materiales_agrupados[key].items.push({
+            cantidad_planeada: material.cantidad_planeada,
+          });
         }
       }
       
       setMaterialesCitaEdicion(Object.values(materiales_agrupados));
+      // Guardar copia inicial para detección de cambios
+      setMaterialesCitaEdicionIniciales(JSON.parse(JSON.stringify(Object.values(materiales_agrupados))));
     } catch (error) {
       console.error('Error al cargar materiales de la cita:', error);
     } finally {
@@ -391,10 +462,6 @@ export default function Tratamientos() {
         materiales_agrupados[key].items.push({
           cantidad_por_cita: material.cantidad_planeada || 1,
         });
-        
-        if (material.inventario_id > 0) {
-          await cargarProductosInventario(material.inventario_id);
-        }
       }
       
       setMaterialesGenerales(Object.values(materiales_agrupados));
@@ -674,6 +741,12 @@ export default function Tratamientos() {
   const actualizarItemMaterialCitaEdicion = (material_index: number, item_index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_cita_edicion];
     
+    // Crear copia profunda del material y sus items
+    nuevos_materiales[material_index] = {
+      ...nuevos_materiales[material_index],
+      items: [...nuevos_materiales[material_index].items]
+    };
+    
     // Convertir el valor a número si es un ID
     const valor_procesado = (campo === 'lote_id' || campo === 'activo_id') ? parseInt(valor) : valor;
     
@@ -696,6 +769,67 @@ export default function Tratamientos() {
   const eliminarMaterialCitaEdicion = (index: number) => {
     const nuevos_materiales = materiales_cita_edicion.filter((_, i) => i !== index);
     setMaterialesCitaEdicion(nuevos_materiales);
+  };
+
+  // Funciones para materiales adicionales en confirmación (copiar lógica de Agenda.tsx)
+  const agregarMaterialAdicionalConfirmacion = () => {
+    setMaterialesAdicionalesConfirmacion([...materiales_adicionales_confirmacion, {
+      producto_id: 0,
+      inventario_id: 0,
+      items: [{ cantidad_planeada: 1 }],
+    }]);
+  };
+
+  const actualizarMaterialAdicionalConfirmacion = (index: number, campo: string, valor: any) => {
+    const nuevos_materiales = [...materiales_adicionales_confirmacion];
+    nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor };
+    if (campo === 'inventario_id') {
+      const inventario_id = parseInt(valor);
+      const inventario = inventarios.find(inv => inv.id === inventario_id);
+      if (inventario) {
+        nuevos_materiales[index].inventario_nombre = inventario.nombre;
+        nuevos_materiales[index].producto_id = 0;
+        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
+        if (inventario_id > 0) cargarProductosInventario(inventario_id);
+      }
+    }
+    if (campo === 'producto_id') {
+      const producto_id = parseInt(valor);
+      const inventario_id = nuevos_materiales[index].inventario_id;
+      const productos = productos_por_inventario[inventario_id] || [];
+      const producto = productos.find(p => p.id === producto_id);
+      if (producto) {
+        nuevos_materiales[index].producto_nombre = producto.nombre;
+        nuevos_materiales[index].tipo_gestion = producto.tipo_gestion;
+        nuevos_materiales[index].unidad_medida = producto.unidad_medida;
+        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
+      }
+    }
+    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
+  };
+
+  const agregarItemMaterialAdicionalConfirmacion = (material_index: number) => {
+    const nuevos_materiales = [...materiales_adicionales_confirmacion];
+    nuevos_materiales[material_index].items.push({ cantidad_planeada: 1 });
+    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
+  };
+
+  const actualizarItemMaterialAdicionalConfirmacion = (material_index: number, item_index: number, campo: string, valor: any) => {
+    const nuevos_materiales = [...materiales_adicionales_confirmacion];
+    nuevos_materiales[material_index] = { ...nuevos_materiales[material_index], items: [...nuevos_materiales[material_index].items] };
+    nuevos_materiales[material_index].items[item_index] = { ...nuevos_materiales[material_index].items[item_index], [campo]: valor };
+    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
+  };
+
+  const eliminarItemMaterialAdicionalConfirmacion = (material_index: number, item_index: number) => {
+    const nuevos_materiales = [...materiales_adicionales_confirmacion];
+    nuevos_materiales[material_index].items = nuevos_materiales[material_index].items.filter((_, i) => i !== item_index);
+    if (nuevos_materiales[material_index].items.length === 0) nuevos_materiales.splice(material_index, 1);
+    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
+  };
+
+  const eliminarMaterialAdicionalConfirmacion = (index: number) => {
+    setMaterialesAdicionalesConfirmacion(materiales_adicionales_confirmacion.filter((_, i) => i !== index));
   };
 
 
@@ -1065,6 +1199,8 @@ export default function Tratamientos() {
   };
 
   const abrirDialogoEditarCita = async (cita: any) => {
+    const es_pasada = esCitaPasada(cita.fecha);
+    
     const formulario_inicial = {
       fecha: new Date(cita.fecha),
       descripcion: cita.descripcion,
@@ -1078,9 +1214,11 @@ export default function Tratamientos() {
     setCitaSeleccionada(cita);
     setModoEdicionCita(true);
     
-    setMaterialesCitaEdicion([]);
-    if (cita.id) {
-      await cargarMaterialesCita(cita.id);
+    if (!es_pasada) {
+      setMaterialesCitaEdicion([]);
+      if (cita.id) {
+        await cargarMaterialesCita(cita.id);
+      }
     }
     
     setDialogoCitaAbierto(true);
@@ -1117,6 +1255,27 @@ export default function Tratamientos() {
       return;
     }
 
+    // Validar materiales si se agregaron
+    if (materiales_cita_edicion.length > 0) {
+      const { valido, advertencias } = validarDisponibilidadMateriales();
+      if (!valido) {
+        toast({
+          title: 'Error de Validación',
+          description: advertencias.join('\n'),
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (advertencias.length > 0) {
+        toast({
+          title: 'Advertencias',
+          description: advertencias.join('\n'),
+          variant: 'default',
+          duration: 5000,
+        });
+      }
+    }
+
     setGuardando(true);
     try {
       const datos: any = {
@@ -1136,51 +1295,88 @@ export default function Tratamientos() {
         await agendaApi.actualizar(cita_seleccionada.id, datos);
         cita_id = cita_seleccionada.id;
         
+        const estado_cambio = cita_seleccionada.estado_pago !== formulario_cita.estado_pago;
+        const cambio_a_pagado = cita_seleccionada.estado_pago !== 'pagado' && formulario_cita.estado_pago === 'pagado';
+        const cambio_desde_pagado = cita_seleccionada.estado_pago === 'pagado' && formulario_cita.estado_pago !== 'pagado';
+        
+        // Guardar materiales si se especificaron
         if (materiales_cita_edicion.length > 0) {
           try {
-            const materiales_transformados = materiales_cita_edicion.flatMap(material => 
-              material.items.map(item => ({
-                inventario_id: material.inventario_id,
-                producto_id: material.producto_id,
-                cantidad_planeada: item.cantidad_planeada,
-                lote_id: item.lote_id,
-                activo_id: item.activo_id,
-              }))
-            );
-
-            await inventarioApi.asignarMaterialesCita(cita_id, {
-              materiales: materiales_transformados,
-            });
+            const materiales_para_guardar = materiales_cita_edicion
+              .filter(m => m.producto_id > 0)
+              .flatMap(m => 
+                m.items.map(item => ({
+                  producto_id: m.producto_id,
+                  cantidad_planeada: item.cantidad_planeada,
+                }))
+              );
+            
+            if (materiales_para_guardar.length > 0) {
+              await inventarioApi.asignarMaterialesCita(cita_id, {
+                materiales: materiales_para_guardar,
+              });
+            }
           } catch (error) {
             console.error('Error al guardar materiales:', error);
+            toast({
+              title: 'Advertencia',
+              description: 'La cita se guardó pero hubo un error al asignar los materiales',
+              variant: 'default',
+            });
           }
         }
         
-        toast({
-          title: "Éxito",
-          description: "Cita actualizada correctamente",
-        });
+        if (estado_cambio && plan_seleccionado) {
+          if (cambio_a_pagado) {
+            toast({
+              title: 'Éxito',
+              description: 'Cita actualizada y pago registrado automáticamente',
+            });
+          } else if (cambio_desde_pagado) {
+            toast({
+              title: 'Éxito',
+              description: 'Cita actualizada y pago revertido automáticamente',
+            });
+          } else {
+            toast({
+              title: 'Éxito',
+              description: 'Cita actualizada correctamente',
+            });
+          }
+        } else {
+          toast({
+            title: 'Éxito',
+            description: 'Cita actualizada correctamente',
+          });
+        }
       } else {
         const cita_creada = await agendaApi.crear(datos);
         cita_id = cita_creada.id;
         
+        // Guardar materiales si se especificaron
         if (materiales_cita_edicion.length > 0 && cita_id) {
           try {
-            const materiales_transformados = materiales_cita_edicion.flatMap(material => 
-              material.items.map(item => ({
-                inventario_id: material.inventario_id,
-                producto_id: material.producto_id,
-                cantidad_planeada: item.cantidad_planeada,
-                lote_id: item.lote_id,
-                activo_id: item.activo_id,
-              }))
-            );
-
-            await inventarioApi.asignarMaterialesCita(cita_id, {
-              materiales: materiales_transformados,
-            });
+            const materiales_para_guardar = materiales_cita_edicion
+              .filter(m => m.producto_id > 0)
+              .flatMap(m => 
+                m.items.map(item => ({
+                  producto_id: m.producto_id,
+                  cantidad_planeada: item.cantidad_planeada,
+                }))
+              );
+            
+            if (materiales_para_guardar.length > 0) {
+              await inventarioApi.asignarMaterialesCita(cita_id, {
+                materiales: materiales_para_guardar,
+              });
+            }
           } catch (error) {
             console.error('Error al guardar materiales:', error);
+            toast({
+              title: 'Advertencia',
+              description: 'La cita se guardó pero hubo un error al asignar los materiales',
+              variant: 'default',
+            });
           }
         }
         
@@ -1347,79 +1543,126 @@ export default function Tratamientos() {
   };
 
   const abrirDialogoConfirmarMaterialesCita = async (cita: any) => {
+    if (!cita.id) return;
     setCitaSeleccionada(cita);
+    setCargandoMateriales(true);
     
-    // Cargar materiales de la cita
+    // Inicializar estado y monto de la cita
+    setEstadoPagoConfirmacion(cita.estado_pago || 'pendiente');
+    setMontoConfirmacion(cita.monto_esperado?.toString() || '');
+    setMaterialesAdicionalesConfirmacion([]);
+    setMostrarAgregarMaterialesConfirmacion(false);
+    
     try {
       const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
-      const materiales = respuesta.materiales || [];
+      const materiales_raw = respuesta.materiales || [];
       
-      // Agrupar materiales por inventario y producto
-      const materiales_agrupados: Record<string, MaterialCita> = {};
+      // Transformar materiales al formato plano para confirmación
+      const materiales_confirmacion: any[] = [];
       
-      for (const material of materiales) {
-        const key = `${material.inventario_id}-${material.producto_id}`;
-        
-        if (!materiales_agrupados[key]) {
-          materiales_agrupados[key] = {
-            producto_id: material.producto_id,
-            inventario_id: material.inventario_id,
-            inventario_nombre: material.inventario_nombre,
+      for (const material of materiales_raw) {
+        if (material.items && material.items.length > 0) {
+          // Si tiene items específicos (lotes/activos), crear una entrada por cada item
+          for (const item of material.items) {
+            materiales_confirmacion.push({
+              material_cita_id: material.id,
+              producto_nombre: material.producto_nombre,
+              inventario_nombre: material.inventario_nombre,
+              tipo_gestion: material.tipo_gestion,
+              cantidad_planeada: item.cantidad_planeada || 0,
+              cantidad_usada: item.cantidad_planeada || 0,
+              lote_id: item.lote_id,
+              activo_id: item.activo_id,
+              nro_lote: item.nro_lote,
+              nro_serie: item.nro_serie,
+              nombre_asignado: item.nombre_asignado,
+              unidad_medida: material.unidad_medida,
+            });
+          }
+        } else {
+          // Si no tiene items, crear una entrada con la cantidad planeada del material
+          materiales_confirmacion.push({
+            material_cita_id: material.id,
             producto_nombre: material.producto_nombre,
+            inventario_nombre: material.inventario_nombre,
             tipo_gestion: material.tipo_gestion,
+            cantidad_planeada: material.cantidad_planeada || 0,
+            cantidad_usada: material.cantidad_planeada || 0,
             unidad_medida: material.unidad_medida,
-            items: []
-          };
+          });
         }
-        
-        materiales_agrupados[key].items.push({
-          cantidad_planeada: material.cantidad_planeada || 1,
-        });
       }
       
-      setMaterialesCitaEdicion(Object.values(materiales_agrupados));
+      setMaterialesConfirmacion(materiales_confirmacion);
       setDialogoConfirmarMaterialesAbierto(true);
     } catch (error) {
-      console.error('Error al cargar materiales de la cita:', error);
+      console.error('Error al cargar materiales:', error);
       toast({
-        title: "Error",
-        description: "No se pudieron cargar los materiales de la cita",
-        variant: "destructive",
+        title: 'Error',
+        description: 'No se pudieron cargar los materiales de la cita',
+        variant: 'destructive',
       });
+    } finally {
+      setCargandoMateriales(false);
     }
   };
 
   const manejarConfirmarMaterialesCita = async () => {
-    if (!cita_seleccionada) return;
+    if (!cita_seleccionada?.id) return;
 
     setGuardando(true);
     try {
-      // Preparar materiales para confirmación
-      const materiales_confirmacion = materiales_cita_edicion.flatMap(material =>
-        material.items.map(item => ({
-          material_cita_id: 0, // El backend lo obtendrá
-          producto_id: material.producto_id,
-          cantidad_usada: item.cantidad_planeada || 1,
-        }))
-      );
+      // Primero asignar materiales adicionales si hay
+      if (materiales_adicionales_confirmacion.length > 0) {
+        const materiales_para_asignar = materiales_adicionales_confirmacion.flatMap(m => {
+          return m.items.map(item => ({
+            producto_id: m.producto_id,
+            inventario_id: m.inventario_id,
+            lote_id: item.lote_id,
+            activo_id: item.activo_id,
+            cantidad_planeada: item.cantidad_planeada,
+          }));
+        });
+        await inventarioApi.asignarMaterialesCita(cita_seleccionada.id, {
+          materiales: materiales_para_asignar,
+        });
+      }
 
-      await inventarioApi.confirmarMaterialesCita(cita_seleccionada.id, {
-        materiales: materiales_confirmacion,
+      // Actualizar estado y monto de la cita
+      await agendaApi.actualizar(cita_seleccionada.id, {
+        estado_pago: estado_pago_confirmacion,
+        monto_esperado: monto_confirmacion ? parseFloat(monto_confirmacion) : 0,
+        fecha: ajustarFechaParaBackend(new Date(cita_seleccionada.fecha)),
+        descripcion: cita_seleccionada.descripcion,
+        horas_aproximadas: cita_seleccionada.horas_aproximadas,
+        minutos_aproximados: cita_seleccionada.minutos_aproximados,
+        paciente_id: plan_seleccionado?.paciente.id,
+        plan_tratamiento_id: plan_seleccionado?.id,
       });
 
+      // Confirmar materiales si hay
+      if (materiales_confirmacion.length > 0) {
+        await inventarioApi.confirmarMaterialesCita(cita_seleccionada.id, {
+          materiales: materiales_confirmacion.map(m => ({
+            material_cita_id: m.material_cita_id,
+            cantidad_usada: m.cantidad_usada,
+          })),
+        });
+      }
+
       toast({
-        title: "Éxito",
-        description: "Materiales confirmados correctamente. El stock ha sido reducido.",
+        title: 'Éxito',
+        description: 'Cita confirmada correctamente (estado, monto y materiales)',
       });
 
       setDialogoConfirmarMaterialesAbierto(false);
       await recargarPlanSeleccionado();
     } catch (error: any) {
-      console.error('Error al confirmar materiales:', error);
+      console.error('Error al confirmar cita:', error);
       toast({
-        title: "Error",
-        description: error.response?.data?.message || "No se pudieron confirmar los materiales",
-        variant: "destructive",
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo confirmar la cita',
+        variant: 'destructive',
       });
     } finally {
       setGuardando(false);
@@ -1630,6 +1873,8 @@ export default function Tratamientos() {
 
   const tratamientos_filtrados = tratamientos.filter(cumpleFiltroPlantilla);
   const planes_filtrados = planes.filter(cumpleFiltroPlan);
+  
+  const hay_cambios_cita = modo_edicion_cita && (materialesCitaCambiaron() || formularioCitaCambio());
 
   if (cargando) {
     return (
@@ -1988,7 +2233,7 @@ export default function Tratamientos() {
         open={dialogo_plantilla_abierto}
         onOpenChange={setDialogoPlantillaAbierto}
       >
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>
               {modo_edicion
@@ -2182,7 +2427,15 @@ export default function Tratamientos() {
               </div>
 
               <ScrollArea className="h-[300px] rounded-md border p-4">
-                <Accordion type="multiple" className="w-full space-y-2">
+                <Accordion 
+                  type="multiple" 
+                  className="w-full space-y-2"
+                  onValueChange={async (values) => {
+                    if (values.includes('materiales-generales') || values.includes('materiales-por-cita')) {
+                      await cargarInventarios();
+                    }
+                  }}
+                >
                   <AccordionItem value="materiales-generales">
                     <AccordionTrigger className="hover:no-underline">
                       <div className="flex items-center gap-2">
@@ -2207,7 +2460,6 @@ export default function Tratamientos() {
                         onAgregarItem={agregarItemMaterialGeneral}
                         onEliminarItem={eliminarItemMaterialGeneral}
                         onActualizarItem={actualizarItemMaterialGeneral}
-                        etiqueta_cantidad="Cantidad por Cita"
                         texto_boton_agregar="Agregar Material General"
                         cargando={cargando_materiales}
                       />
@@ -2239,7 +2491,6 @@ export default function Tratamientos() {
                           onAgregarItem={agregarItemMaterialPorCita}
                           onEliminarItem={eliminarItemMaterialPorCita}
                           onActualizarItem={actualizarItemMaterialPorCita}
-                          etiqueta_cantidad="Cantidad Planeada"
                           texto_boton_agregar="Agregar Material Por Cita"
                           cargando={cargando_materiales}
                         />
@@ -2461,7 +2712,7 @@ export default function Tratamientos() {
                 </Card>
               </div>
 
-              {!materiales_generales_confirmados && (
+              {!materiales_generales_confirmados && tratamientoHaFinalizado(plan_seleccionado) && (
                 <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex gap-3 items-center justify-between">
                   <div className="flex gap-2 flex-1">
                     <Package className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -2473,7 +2724,7 @@ export default function Tratamientos() {
                   <Button
                     size="sm"
                     onClick={abrirDialogoConfirmarMaterialesTratamiento}
-                    className="bg-blue-600 hover:bg-blue-700 animate-pulse hover:shadow-[0_0_15px_rgba(37,99,235,0.5)] hover:scale-105 transition-all duration-200"
+                    className="bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.3)] hover:shadow-[0_0_15px_rgba(37,99,235,0.5)] hover:scale-105 transition-all duration-200"
                   >
                     <Check className="h-4 w-4 mr-2" />
                     Confirmar Materiales
@@ -2548,21 +2799,19 @@ export default function Tratamientos() {
                                 <Clock className="h-3 w-3" />
                                 Duración: {formatearDuracion(cita.horas_aproximadas, cita.minutos_aproximados)}
                               </p>
-                              {cita.monto_esperado > 0 && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <DollarSign className="h-3 w-3" />
-                                  Monto: {formatearMoneda(cita.monto_esperado)}
-                                </p>
-                              )}
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <DollarSign className="h-3 w-3" />
+                                Monto: {formatearMoneda(cita.monto_esperado || 0)}
+                              </p>
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            {!cita.materiales_confirmados && esCitaPasada(cita.fecha) && (
+                            {!cita.materiales_confirmados && citaHaFinalizado(cita) && (
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => abrirDialogoConfirmarMaterialesCita(cita)}
-                                className="hover:bg-green-500/20 hover:text-green-600 hover:scale-110 transition-all duration-200 animate-pulse"
+                                className="hover:bg-green-500/20 hover:text-green-600 hover:scale-110 transition-all duration-200 ring-2 ring-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
                                 title="Confirmar Materiales"
                               >
                                 <Package className="h-4 w-4" />
@@ -2626,26 +2875,45 @@ export default function Tratamientos() {
       </Dialog>
 
       <Dialog open={dialogo_cita_abierto} onOpenChange={setDialogoCitaAbierto}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {modo_edicion_cita ? 'Editar Cita' : 'Agregar Cita al Plan'}
             </DialogTitle>
             <DialogDescription>
               {modo_edicion_cita 
-                ? 'Modifica los detalles de la cita' 
+                ? (cita_seleccionada && esCitaPasada(cita_seleccionada.fecha)
+                  ? 'Editando cita pasada: solo puedes modificar monto y estado de pago' 
+                  : 'Modifica los detalles de la cita')
                 : 'Programa una nueva cita para este plan de tratamiento'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          {modo_edicion_cita && cita_seleccionada && esCitaPasada(cita_seleccionada.fecha) && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Esta cita ya ocurrió. Solo puedes editar el monto y estado de pago.
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-4 py-4 overflow-y-auto flex-1 px-1">
             <div className="space-y-2">
               <Label htmlFor="fecha_cita">Fecha y Hora *</Label>
-              <DateTimePicker
-                valor={formulario_cita.fecha}
-                onChange={(fecha) => setFormularioCita({ ...formulario_cita, fecha })}
-                placeholder="Selecciona fecha y hora"
-              />
+              {modo_edicion_cita && cita_seleccionada && esCitaPasada(cita_seleccionada.fecha) ? (
+                <Input
+                  value={formulario_cita.fecha ? formulario_cita.fecha.toLocaleString('es-BO') : ''}
+                  disabled
+                  className="bg-muted"
+                />
+              ) : (
+                <DateTimePicker
+                  valor={formulario_cita.fecha}
+                  onChange={(fecha) => setFormularioCita({ ...formulario_cita, fecha })}
+                  placeholder="Selecciona fecha y hora"
+                />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -2657,6 +2925,7 @@ export default function Tratamientos() {
                 placeholder="Ej: Consulta de seguimiento, Aplicación de tratamiento..."
                 rows={3}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                disabled={modo_edicion_cita && cita_seleccionada && esCitaPasada(cita_seleccionada.fecha)}
               />
             </div>
 
@@ -2675,6 +2944,7 @@ export default function Tratamientos() {
                     onChange={(e) => setFormularioCita({ ...formulario_cita, horas_aproximadas: e.target.value })}
                     placeholder="0"
                     className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    disabled={modo_edicion_cita && cita_seleccionada && esCitaPasada(cita_seleccionada.fecha)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -2689,6 +2959,7 @@ export default function Tratamientos() {
                     onChange={(e) => setFormularioCita({ ...formulario_cita, minutos_aproximados: e.target.value })}
                     placeholder="30"
                     className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    disabled={modo_edicion_cita && cita_seleccionada && esCitaPasada(cita_seleccionada.fecha)}
                   />
                 </div>
               </div>
@@ -2705,6 +2976,7 @@ export default function Tratamientos() {
                   valor={formulario_cita.estado_pago}
                   onChange={(valor) => setFormularioCita({ ...formulario_cita, estado_pago: valor })}
                   placeholder="Estado"
+                  disabled={!modo_edicion_cita}
                 />
               </div>
 
@@ -2732,10 +3004,19 @@ export default function Tratamientos() {
               </div>
             )}
 
-            {modo_edicion_cita && (
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="materiales">
-                  <AccordionTrigger className="hover:no-underline">
+            {modo_edicion_cita && !(cita_seleccionada && esCitaPasada(cita_seleccionada.fecha)) && (
+              <Accordion 
+                type="single" 
+                collapsible 
+                className="w-full border rounded-lg"
+                onValueChange={async (value) => {
+                  if (value === 'materiales') {
+                    await cargarInventarios();
+                  }
+                }}
+              >
+                <AccordionItem value="materiales" className="border-none">
+                  <AccordionTrigger className="px-4 hover:no-underline">
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4" />
                       <span>Materiales de la Cita</span>
@@ -2754,7 +3035,6 @@ export default function Tratamientos() {
                       onAgregarItem={agregarItemMaterialCitaEdicion}
                       onEliminarItem={eliminarItemMaterialCitaEdicion}
                       onActualizarItem={actualizarItemMaterialCitaEdicion}
-                      etiqueta_cantidad="Cantidad Planeada"
                       texto_boton_agregar="Agregar Material"
                       cargando={cargando_materiales}
                     />
@@ -2782,7 +3062,7 @@ export default function Tratamientos() {
             </Button>
             <Button 
               onClick={manejarGuardarCita} 
-              disabled={guardando || (modo_edicion_cita && !formularioCitaCambio())}
+              disabled={guardando || (modo_edicion_cita && !hay_cambios_cita)}
               className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
             >
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -2916,18 +3196,40 @@ export default function Tratamientos() {
 
               <div className="space-y-2">
                 <Label>Materiales Generales (opcionales)</Label>
-                <SelectorMateriales
-                  materiales={materiales_generales}
-                  inventarios={inventarios}
-                  productos_por_inventario={productos_por_inventario}
-                  onAgregarMaterial={agregarMaterialGeneral}
-                  onActualizarMaterial={actualizarMaterialGeneral}
-                  onEliminarMaterial={eliminarMaterialGeneral}
-                  onAgregarItem={agregarItemMaterialGeneral}
-                  onActualizarItem={actualizarItemMaterialGeneral}
-                  onEliminarItem={eliminarItemMaterialGeneral}
-                  cargarProductos={cargarProductosInventario}
-                />
+                <Accordion 
+                  type="single" 
+                  collapsible 
+                  className="w-full border rounded-lg"
+                  onValueChange={async (value) => {
+                    if (value === 'materiales-generales-edicion') {
+                      await cargarInventarios();
+                    }
+                  }}
+                >
+                  <AccordionItem value="materiales-generales-edicion" className="border-none">
+                    <AccordionTrigger className="px-4">
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4" />
+                        <span>Editar Materiales Generales</span>
+                        <Badge variant="secondary">{materiales_generales.length}</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 space-y-4">
+                      <SelectorMateriales
+                        materiales={materiales_generales}
+                        inventarios={inventarios}
+                        productos_por_inventario={productos_por_inventario}
+                        onAgregarMaterial={agregarMaterialGeneral}
+                        onActualizarMaterial={actualizarMaterialGeneral}
+                        onEliminarMaterial={eliminarMaterialGeneral}
+                        onAgregarItem={agregarItemMaterialGeneral}
+                        onActualizarItem={actualizarItemMaterialGeneral}
+                        onEliminarItem={eliminarItemMaterialGeneral}
+                        cargarProductos={cargarProductosInventario}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
             </div>
           )}
@@ -2959,75 +3261,168 @@ export default function Tratamientos() {
 
       {}
       <Dialog open={dialogo_confirmar_materiales_abierto} onOpenChange={setDialogoConfirmarMaterialesAbierto}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Confirmar Materiales de Cita</DialogTitle>
+            <DialogTitle>Confirmar Cita Realizada</DialogTitle>
             <DialogDescription>
-              Confirma los materiales utilizados en esta cita. Esto reducirá el stock del inventario.
+              Confirma el estado de pago, monto y materiales realmente utilizados en esta cita
             </DialogDescription>
           </DialogHeader>
 
-          {cita_seleccionada && (
-            <ScrollArea className="max-h-[500px] pr-4">
-              <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <p className="font-semibold text-foreground">
-                      {formatearFechaHora(cita_seleccionada.fecha)}
-                    </p>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {cita_seleccionada.descripcion}
-                  </p>
+          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Esta acción registrará el estado final de la cita, consumo de materiales y actualizará el inventario
+            </p>
+          </div>
+
+          <div className="space-y-4 overflow-y-auto flex-1 px-1">
+            {}
+            <div className="border rounded-lg p-4 space-y-3 bg-blue-500/5">
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                Estado de Pago y Monto
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Estado de Pago</Label>
+                  <Combobox
+                    opciones={opciones_estados}
+                    valor={estado_pago_confirmacion}
+                    onChange={setEstadoPagoConfirmacion}
+                    placeholder="Selecciona estado"
+                  />
                 </div>
-
-                {materiales_cita_edicion.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No hay materiales asignados a esta cita</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">Materiales a Confirmar</Label>
-                    {materiales_cita_edicion.map((material, index) => (
-                      <div key={index} className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground">{material.producto_nombre}</p>
-                            <p className="text-sm text-muted-foreground">{material.inventario_nombre}</p>
-                          </div>
-                          <Badge variant="outline">{material.tipo_gestion}</Badge>
-                        </div>
-                        {material.items.map((item, item_index) => (
-                          <div key={item_index} className="flex items-center gap-2 mt-2 pl-4 border-l-2 border-primary/30">
-                            <Label className="text-sm">Cantidad:</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.cantidad_planeada || 1}
-                              onChange={(e) => actualizarItemMaterialCitaEdicion(index, item_index, 'cantidad_planeada', parseFloat(e.target.value))}
-                              className="w-24"
-                            />
-                            <span className="text-sm text-muted-foreground">{material.unidad_medida}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex gap-2">
-                  <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-yellow-600">
-                    <p className="font-semibold mb-1">Advertencia</p>
-                    <p>Al confirmar, el stock de estos materiales se reducirá automáticamente del inventario.</p>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Monto Final (Bs.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={monto_confirmacion}
+                    onChange={(e) => setMontoConfirmacion(e.target.value)}
+                    placeholder="0.00"
+                  />
                 </div>
               </div>
-            </ScrollArea>
-          )}
+            </div>
+
+            {}
+            {cargando_materiales ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : materiales_confirmacion.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground border rounded-lg bg-secondary/5">
+                <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                No hay materiales asignados a esta cita
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Materiales Utilizados
+                </h3>
+                {materiales_confirmacion.map((material, idx) => (
+                  <div key={idx} className="border rounded-lg p-4 space-y-3 bg-secondary/10">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-foreground">{material.producto_nombre}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {material.inventario_nombre && `${material.inventario_nombre} · `}
+                          {material.tipo_gestion === 'consumible' ? 'Consumible' : 
+                           material.tipo_gestion === 'activo_serializado' ? 'Activo Serializado' : 
+                           'Activo General'}
+                        </p>
+                        {material.nro_lote && (
+                          <p className="text-xs text-muted-foreground mt-1">📦 Lote: {material.nro_lote}</p>
+                        )}
+                        {material.nro_serie && (
+                          <p className="text-xs text-muted-foreground mt-1">🔢 Serie: {material.nro_serie}</p>
+                        )}
+                        {material.nombre_asignado && (
+                          <p className="text-xs text-muted-foreground mt-1">🏷️ Nombre: {material.nombre_asignado}</p>
+                        )}
+                      </div>
+                      <Badge variant="secondary">
+                        Planeado: {material.cantidad_planeada}
+                      </Badge>
+                    </div>
+
+                    {material.tipo_gestion === 'consumible' && (
+                      <div className="space-y-2">
+                        <Label className="text-sm">
+                          Cantidad Realmente Usada{material.unidad_medida ? ` (${material.unidad_medida})` : ''}
+                        </Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={material.cantidad_usada}
+                          onChange={(e) => {
+                            const nuevos_materiales = [...materiales_confirmacion];
+                            nuevos_materiales[idx].cantidad_usada = parseFloat(e.target.value) || 0;
+                            setMaterialesConfirmacion(nuevos_materiales);
+                          }}
+                          className="w-full"
+                        />
+                        {material.cantidad_usada !== material.cantidad_planeada && (
+                          <p className="text-xs text-amber-600">
+                            Diferencia: {(material.cantidad_usada - material.cantidad_planeada).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {}
+            <div className="border-t pt-4 space-y-3">
+              {!mostrar_agregar_materiales_confirmacion ? (
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    await cargarInventarios();
+                    setMostrarAgregarMaterialesConfirmacion(true);
+                  }}
+                  className="w-full"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Agregar Materiales Adicionales
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Materiales Adicionales
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setMostrarAgregarMaterialesConfirmacion(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                  <SelectorMateriales
+                    inventarios={inventarios}
+                    productos_por_inventario={productos_por_inventario}
+                    cargarProductos={cargarProductosInventario}
+                    materiales={materiales_adicionales_confirmacion}
+                    onAgregarMaterial={agregarMaterialAdicionalConfirmacion}
+                    onActualizarMaterial={actualizarMaterialAdicionalConfirmacion}
+                    onEliminarMaterial={eliminarMaterialAdicionalConfirmacion}
+                    onAgregarItem={agregarItemMaterialAdicionalConfirmacion}
+                    onActualizarItem={actualizarItemMaterialAdicionalConfirmacion}
+                    onEliminarItem={eliminarItemMaterialAdicionalConfirmacion}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
 
           <DialogFooter>
             <Button
@@ -3039,20 +3434,11 @@ export default function Tratamientos() {
             </Button>
             <Button
               onClick={manejarConfirmarMaterialesCita}
-              disabled={guardando || materiales_cita_edicion.length === 0}
+              disabled={guardando || materiales_confirmacion.length === 0}
               className="bg-green-600 hover:bg-green-700"
             >
-              {guardando ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Confirmando...
-                </>
-              ) : (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Confirmar Materiales
-                </>
-              )}
+              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar Cita y Materiales
             </Button>
           </DialogFooter>
         </DialogContent>

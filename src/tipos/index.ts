@@ -27,3 +27,8 @@ export type { ItemCatalogo } from './catalogo';
 
 export type { ArchivoAdjunto, EdicionVersion } from './archivo';
 
+export type { Reporte, ReporteGenerado } from './reporte';
+export { AreaReporte } from './reporte';
+
+export type { PlantillaConsentimiento, EtiquetaReemplazable } from './plantilla-consentimiento';
+export { ETIQUETAS_PREDEFINIDAS } from './plantilla-consentimiento';

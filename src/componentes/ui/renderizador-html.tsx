@@ -69,6 +69,15 @@ export function RenderizadorHtml({ contenido, className }: RenderizadorHtmlProps
         .renderizador-html s {
           text-decoration: line-through;
         }
+        .renderizador-html [style*="text-align: left"] {
+          text-align: left;
+        }
+        .renderizador-html [style*="text-align: center"] {
+          text-align: center;
+        }
+        .renderizador-html [style*="text-align: right"] {
+          text-align: right;
+        }
       `}</style>
     </>
   );

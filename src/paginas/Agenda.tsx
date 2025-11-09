@@ -53,7 +53,10 @@ export default function Agenda() {
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
   const [productos_por_inventario, setProductosPorInventario] = useState<Record<number, Producto[]>>({});
   const [materiales_cita, setMaterialesCita] = useState<MaterialCita[]>([]);
+  const [materiales_cita_iniciales, setMaterialesCitaIniciales] = useState<MaterialCita[]>([]);
   const [materiales_confirmacion, setMaterialesConfirmacion] = useState<MaterialCitaConfirmacion[]>([]);
+  const [materiales_adicionales_confirmacion, setMaterialesAdicionalesConfirmacion] = useState<MaterialCita[]>([]);
+  const [mostrar_agregar_materiales_confirmacion, setMostrarAgregarMaterialesConfirmacion] = useState(false);
   const [estado_pago_confirmacion, setEstadoPagoConfirmacion] = useState<string>('pendiente');
   const [monto_confirmacion, setMontoConfirmacion] = useState<string>('');
   const [cargando_materiales, setCargandoMateriales] = useState(false);
@@ -102,10 +105,6 @@ export default function Agenda() {
 
   useEffect(() => {
     cargarDatosIniciales();
-  }, []);
-
-  useEffect(() => {
-    cargarInventarios();
   }, []);
 
   useEffect(() => {
@@ -171,6 +170,8 @@ export default function Agenda() {
   };
 
   const cargarInventarios = async () => {
+    if (inventarios.length > 0) return; // Si ya están cargados, no recargar
+    
     try {
       const datos = await inventarioApi.obtenerInventarios();
       setInventarios(datos);
@@ -227,16 +228,25 @@ export default function Agenda() {
           };
         }
         
-        materiales_agrupados[key].items.push({
-          cantidad_planeada: material.cantidad_planeada,
-        });
-        
-        if (material.inventario_id > 0) {
-          await cargarProductosInventario(material.inventario_id);
+        if (material.items && material.items.length > 0) {
+          materiales_agrupados[key].items = material.items.map((item: any) => ({
+            lote_id: item.lote_id,
+            activo_id: item.activo_id,
+            cantidad_planeada: item.cantidad_planeada,
+            nro_lote: item.nro_lote,
+            nro_serie: item.nro_serie,
+            nombre_asignado: item.nombre_asignado,
+          }));
+        } else {
+          materiales_agrupados[key].items.push({
+            cantidad_planeada: material.cantidad_planeada,
+          });
         }
       }
       
-      setMaterialesCita(Object.values(materiales_agrupados));
+      const materiales_array = Object.values(materiales_agrupados);
+      setMaterialesCita(materiales_array);
+      setMaterialesCitaIniciales(JSON.parse(JSON.stringify(materiales_array)));
     } catch (error) {
       console.error('Error al cargar materiales de la cita:', error);
     } finally {
@@ -296,6 +306,11 @@ export default function Agenda() {
 
   const actualizarItemMaterial = (material_index: number, item_index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_cita];
+    // Crear copia profunda del material y sus items
+    nuevos_materiales[material_index] = {
+      ...nuevos_materiales[material_index],
+      items: [...nuevos_materiales[material_index].items]
+    };
     nuevos_materiales[material_index].items[item_index] = {
       ...nuevos_materiales[material_index].items[item_index],
       [campo]: valor
@@ -347,6 +362,81 @@ export default function Agenda() {
   const eliminarMaterialCita = (index: number) => {
     const nuevos_materiales = materiales_cita.filter((_, i) => i !== index);
     setMaterialesCita(nuevos_materiales);
+  };
+
+  // Funciones para materiales adicionales en confirmación
+  const agregarMaterialAdicionalConfirmacion = () => {
+    setMaterialesAdicionalesConfirmacion([...materiales_adicionales_confirmacion, {
+      producto_id: 0,
+      inventario_id: 0,
+      items: [{ cantidad_planeada: 1 }],
+    }]);
+  };
+
+  const actualizarMaterialAdicionalConfirmacion = (index: number, campo: string, valor: any) => {
+    const nuevos_materiales = [...materiales_adicionales_confirmacion];
+    nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor };
+    
+    if (campo === 'inventario_id') {
+      const inventario_id = parseInt(valor);
+      const inventario = inventarios.find(inv => inv.id === inventario_id);
+      if (inventario) {
+        nuevos_materiales[index].inventario_nombre = inventario.nombre;
+        nuevos_materiales[index].producto_id = 0;
+        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
+        if (inventario_id > 0) {
+          cargarProductosInventario(inventario_id);
+        }
+      }
+    }
+    
+    if (campo === 'producto_id') {
+      const producto_id = parseInt(valor);
+      const inventario_id = nuevos_materiales[index].inventario_id;
+      const productos = productos_por_inventario[inventario_id] || [];
+      const producto = productos.find(p => p.id === producto_id);
+      if (producto) {
+        nuevos_materiales[index].producto_nombre = producto.nombre;
+        nuevos_materiales[index].tipo_gestion = producto.tipo_gestion;
+        nuevos_materiales[index].unidad_medida = producto.unidad_medida;
+        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
+      }
+    }
+
+    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
+  };
+
+  const agregarItemMaterialAdicionalConfirmacion = (material_index: number) => {
+    const nuevos_materiales = [...materiales_adicionales_confirmacion];
+    nuevos_materiales[material_index].items.push({ cantidad_planeada: 1 });
+    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
+  };
+
+  const actualizarItemMaterialAdicionalConfirmacion = (material_index: number, item_index: number, campo: string, valor: any) => {
+    const nuevos_materiales = [...materiales_adicionales_confirmacion];
+    nuevos_materiales[material_index] = {
+      ...nuevos_materiales[material_index],
+      items: [...nuevos_materiales[material_index].items]
+    };
+    nuevos_materiales[material_index].items[item_index] = {
+      ...nuevos_materiales[material_index].items[item_index],
+      [campo]: valor
+    };
+    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
+  };
+
+  const eliminarItemMaterialAdicionalConfirmacion = (material_index: number, item_index: number) => {
+    const nuevos_materiales = [...materiales_adicionales_confirmacion];
+    nuevos_materiales[material_index].items = nuevos_materiales[material_index].items.filter((_, i) => i !== item_index);
+    if (nuevos_materiales[material_index].items.length === 0) {
+      nuevos_materiales.splice(material_index, 1);
+    }
+    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
+  };
+
+  const eliminarMaterialAdicionalConfirmacion = (index: number) => {
+    const nuevos_materiales = materiales_adicionales_confirmacion.filter((_, i) => i !== index);
+    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
   };
 
   const validarDisponibilidadMateriales = (): { valido: boolean; advertencias: string[] } => {
@@ -549,13 +639,18 @@ export default function Agenda() {
     
     if (!es_pasada) {
       setMaterialesCita([]);
-      setProductosPorInventario({});
       if (cita.id) {
         await cargarMaterialesCita(cita.id);
       }
     }
     
     setDialogoAbierto(true);
+  };
+
+  const materialesCambiaron = (): boolean => {
+    if (materiales_cita.length !== materiales_cita_iniciales.length) return true;
+    
+    return JSON.stringify(materiales_cita) !== JSON.stringify(materiales_cita_iniciales);
   };
 
   const manejarGuardar = async () => {
@@ -791,6 +886,15 @@ export default function Agenda() {
     return fecha_cita < ahora;
   };
 
+  const citaHaFinalizado = (cita: Cita): boolean => {
+    const ahora = new Date();
+    const fecha_inicio = new Date(cita.fecha);
+    const fecha_fin = new Date(fecha_inicio);
+    fecha_fin.setHours(fecha_fin.getHours() + (cita.horas_aproximadas || 0));
+    fecha_fin.setMinutes(fecha_fin.getMinutes() + (cita.minutos_aproximados || 30));
+    return ahora > fecha_fin;
+  };
+
   const abrirDialogoConfirmarMateriales = async (cita: Cita) => {
     if (!cita.id) return;
     setCitaSeleccionada(cita);
@@ -799,24 +903,50 @@ export default function Agenda() {
     // Inicializar estado y monto de la cita
     setEstadoPagoConfirmacion(cita.estado_pago || 'pendiente');
     setMontoConfirmacion(cita.monto_esperado?.toString() || '');
+    setMaterialesAdicionalesConfirmacion([]);
+    setMostrarAgregarMaterialesConfirmacion(false);
     
     try {
-      const datos = await inventarioApi.obtenerMaterialesCita(cita.id);
-      const materiales = (datos.materiales || []).map((m: any) => ({
-        material_cita_id: m.id,
-        producto_nombre: m.producto?.nombre || '',
-        tipo_gestion: m.producto?.tipo_gestion || '',
-        cantidad_planeada: m.cantidad_planeada,
-        cantidad_usada: m.cantidad_usada || m.cantidad_planeada,
-        lote_id: m.lote?.id,
-        activo_id: m.activo?.id,
-        nro_lote: m.lote?.nro_lote,
-        nro_serie: m.activo?.nro_serie,
-        nombre_asignado: m.activo?.nombre_asignado,
-        unidad_medida: m.producto?.unidad_medida,
-      }));
+      const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
+      const materiales_raw = respuesta.materiales || [];
       
-      setMaterialesConfirmacion(materiales);
+      // Transformar materiales al formato plano para confirmación
+      const materiales_confirmacion: any[] = [];
+      
+      for (const material of materiales_raw) {
+        if (material.items && material.items.length > 0) {
+          // Si tiene items específicos (lotes/activos), crear una entrada por cada item
+          for (const item of material.items) {
+            materiales_confirmacion.push({
+              material_cita_id: material.id,
+              producto_nombre: material.producto_nombre,
+              inventario_nombre: material.inventario_nombre,
+              tipo_gestion: material.tipo_gestion,
+              cantidad_planeada: item.cantidad_planeada || 0,
+              cantidad_usada: item.cantidad_planeada || 0,
+              lote_id: item.lote_id,
+              activo_id: item.activo_id,
+              nro_lote: item.nro_lote,
+              nro_serie: item.nro_serie,
+              nombre_asignado: item.nombre_asignado,
+              unidad_medida: material.unidad_medida,
+            });
+          }
+        } else {
+          // Si no tiene items, crear una entrada con la cantidad planeada del material
+          materiales_confirmacion.push({
+            material_cita_id: material.id,
+            producto_nombre: material.producto_nombre,
+            inventario_nombre: material.inventario_nombre,
+            tipo_gestion: material.tipo_gestion,
+            cantidad_planeada: material.cantidad_planeada || 0,
+            cantidad_usada: material.cantidad_planeada || 0,
+            unidad_medida: material.unidad_medida,
+          });
+        }
+      }
+      
+      setMaterialesConfirmacion(materiales_confirmacion);
       setDialogoConfirmarMaterialesAbierto(true);
     } catch (error) {
       console.error('Error al cargar materiales:', error);
@@ -839,12 +969,36 @@ export default function Agenda() {
       await agendaApi.actualizar(cita_seleccionada.id, {
         estado_pago: estado_pago_confirmacion,
         monto_esperado: monto_confirmacion ? parseFloat(monto_confirmacion) : 0,
-        fecha: ajustarFechaParaBackend(cita_seleccionada.fecha),
+        fecha: ajustarFechaParaBackend(new Date(cita_seleccionada.fecha)),
         descripcion: cita_seleccionada.descripcion,
         horas_aproximadas: cita_seleccionada.horas_aproximadas,
         minutos_aproximados: cita_seleccionada.minutos_aproximados,
         paciente_id: cita_seleccionada.paciente?.id,
       });
+
+      // Agregar materiales adicionales primero si hay
+      if (materiales_adicionales_confirmacion.length > 0) {
+        const materiales_a_agregar = [];
+        for (const material of materiales_adicionales_confirmacion) {
+          if (material.producto_id === 0 || material.inventario_id === 0) continue;
+          
+          for (const item of material.items) {
+            materiales_a_agregar.push({
+              producto_id: material.producto_id,
+              inventario_id: material.inventario_id,
+              lote_id: item.lote_id,
+              activo_id: item.activo_id,
+              cantidad_planeada: item.cantidad_planeada,
+            });
+          }
+        }
+        
+        if (materiales_a_agregar.length > 0) {
+          await inventarioApi.asignarMaterialesCita(cita_seleccionada.id, {
+            materiales: materiales_a_agregar
+          });
+        }
+      }
 
       // Confirmar materiales si hay
       if (materiales_confirmacion.length > 0) {
@@ -927,6 +1081,17 @@ export default function Agenda() {
   const tiene_paciente = formulario.paciente_id !== '';
   const filtros_fecha_activos = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
   const es_cita_pasada_edicion = !!(modo_edicion && cita_seleccionada && esCitaPasada(cita_seleccionada.fecha));
+  const hay_cambios = modo_edicion && (materialesCambiaron() || 
+    (cita_seleccionada && (
+      formulario.paciente_id !== (cita_seleccionada.paciente?.id?.toString() || '') ||
+      formulario.descripcion !== cita_seleccionada.descripcion ||
+      formulario.estado_pago !== (cita_seleccionada.estado_pago || 'pendiente') ||
+      formulario.monto_esperado !== (cita_seleccionada.monto_esperado?.toString() || '') ||
+      formulario.horas_aproximadas !== (cita_seleccionada.horas_aproximadas || 0).toString() ||
+      formulario.minutos_aproximados !== (cita_seleccionada.minutos_aproximados || 30).toString() ||
+      new Date(formulario.fecha || '').getTime() !== new Date(cita_seleccionada.fecha).getTime()
+    ))
+  );
 
   const esHoraLibre = (elemento: ElementoAgenda): elemento is HoraLibre & { es_hora_libre: true } => {
     return 'es_hora_libre' in elemento && elemento.es_hora_libre === true;
@@ -1140,7 +1305,6 @@ export default function Agenda() {
                             );
                           } else {
                             const cita = elemento as Cita;
-                            const es_pasada = esCitaPasada(cita.fecha);
                             return (
                               <div
                                 key={cita.id}
@@ -1175,10 +1339,10 @@ export default function Agenda() {
                                         <Clock className="h-3 w-3" />
                                         Duración: {formatearDuracion(cita.horas_aproximadas, cita.minutos_aproximados)}
                                       </p>
-                                      {cita.paciente && cita.monto_esperado && cita.monto_esperado > 0 && (
+                                      {cita.paciente && (
                                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                                           <DollarSign className="h-3 w-3" />
-                                          Monto esperado: {formatearMoneda(cita.monto_esperado)}
+                                          Monto esperado: {formatearMoneda(cita.monto_esperado || 0)}
                                         </p>
                                       )}
                                     </div>
@@ -1190,12 +1354,12 @@ export default function Agenda() {
                                   )}
                                 </div>
                                 <div className="flex gap-2 ml-4">
-                                  {es_pasada && cita.paciente && !cita.materiales_confirmados && (
+                                  {citaHaFinalizado(cita) && cita.paciente && !cita.materiales_confirmados && (
                                     <Button
                                       variant="ghost"
                                       size="icon"
                                       onClick={() => abrirDialogoConfirmarMateriales(cita)}
-                                      className="hover:bg-green-500/20 hover:text-green-600 hover:scale-110 transition-all duration-200 animate-pulse"
+                                      className="hover:bg-green-500/20 hover:text-green-600 hover:scale-110 transition-all duration-200 ring-2 ring-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
                                       title="Confirmar Cita (Estado, Monto y Materiales)"
                                     >
                                       <CheckCircle2 className="h-4 w-4" />
@@ -1361,7 +1525,7 @@ export default function Agenda() {
       </Dialog>
 
       <Dialog open={dialogo_abierto} onOpenChange={setDialogoAbierto}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {modo_edicion ? 'Editar Cita' : 'Nueva Cita'}
@@ -1478,6 +1642,7 @@ export default function Agenda() {
                       valor={formulario.estado_pago}
                       onChange={(valor) => setFormulario({ ...formulario, estado_pago: valor })}
                       placeholder="Estado"
+                      disabled={!modo_edicion}
                     />
                   </div>
 
@@ -1500,7 +1665,16 @@ export default function Agenda() {
 
             {}
             {!es_cita_pasada_edicion && formulario.paciente_id && (
-              <Accordion type="single" collapsible className="w-full border rounded-lg">
+              <Accordion 
+                type="single" 
+                collapsible 
+                className="w-full border rounded-lg"
+                onValueChange={async (value) => {
+                  if (value === 'materiales') {
+                    await cargarInventarios();
+                  }
+                }}
+              >
                 <AccordionItem value="materiales" className="border-none">
                   <AccordionTrigger className="px-4 hover:no-underline">
                     <div className="flex items-center gap-2">
@@ -1525,7 +1699,6 @@ export default function Agenda() {
                       onAgregarItem={agregarItemMaterial}
                       onEliminarItem={eliminarItemMaterial}
                       onActualizarItem={actualizarItemMaterial}
-                      etiqueta_cantidad="Cantidad Planeada"
                       texto_boton_agregar="Agregar Material"
                       cargando={cargando_materiales}
                     />
@@ -1546,7 +1719,7 @@ export default function Agenda() {
             </Button>
             <Button 
               onClick={manejarGuardar} 
-              disabled={guardando}
+              disabled={guardando || (modo_edicion && !hay_cambios)}
               className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
             >
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1558,7 +1731,7 @@ export default function Agenda() {
 
       {}
       <Dialog open={dialogo_confirmar_materiales_abierto} onOpenChange={setDialogoConfirmarMaterialesAbierto}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Confirmar Cita Realizada</DialogTitle>
             <DialogDescription>
@@ -1626,18 +1799,19 @@ export default function Agenda() {
                       <div className="flex-1">
                         <h4 className="font-semibold text-foreground">{material.producto_nombre}</h4>
                         <p className="text-sm text-muted-foreground">
+                          {material.inventario_nombre && `${material.inventario_nombre} · `}
                           {material.tipo_gestion === 'consumible' ? 'Consumible' : 
                            material.tipo_gestion === 'activo_serializado' ? 'Activo Serializado' : 
                            'Activo General'}
                         </p>
                         {material.nro_lote && (
-                          <p className="text-xs text-muted-foreground">Lote: {material.nro_lote}</p>
+                          <p className="text-xs text-muted-foreground mt-1">📦 Lote: {material.nro_lote}</p>
                         )}
                         {material.nro_serie && (
-                          <p className="text-xs text-muted-foreground">Serie: {material.nro_serie}</p>
+                          <p className="text-xs text-muted-foreground mt-1">🔢 Serie: {material.nro_serie}</p>
                         )}
                         {material.nombre_asignado && (
-                          <p className="text-xs text-muted-foreground">Nombre: {material.nombre_asignado}</p>
+                          <p className="text-xs text-muted-foreground mt-1">🏷️ Nombre: {material.nombre_asignado}</p>
                         )}
                       </div>
                       <Badge variant="secondary">
@@ -1673,6 +1847,56 @@ export default function Agenda() {
                 ))}
               </div>
             )}
+
+            {/* Sección para agregar materiales adicionales */}
+            <div className="border-t pt-4 space-y-3">
+              {!mostrar_agregar_materiales_confirmacion ? (
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    await cargarInventarios();
+                    setMostrarAgregarMaterialesConfirmacion(true);
+                  }}
+                  className="w-full hover:bg-primary/10"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar Materiales Adicionales
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      Materiales Adicionales
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setMostrarAgregarMaterialesConfirmacion(false);
+                        setMaterialesAdicionalesConfirmacion([]);
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                  <SelectorMateriales
+                    inventarios={inventarios}
+                    productos_por_inventario={productos_por_inventario}
+                    materiales={materiales_adicionales_confirmacion}
+                    cargarProductos={cargarProductosInventario}
+                    onAgregarMaterial={agregarMaterialAdicionalConfirmacion}
+                    onEliminarMaterial={eliminarMaterialAdicionalConfirmacion}
+                    onActualizarMaterial={actualizarMaterialAdicionalConfirmacion}
+                    onAgregarItem={agregarItemMaterialAdicionalConfirmacion}
+                    onEliminarItem={eliminarItemMaterialAdicionalConfirmacion}
+                    onActualizarItem={actualizarItemMaterialAdicionalConfirmacion}
+                    texto_boton_agregar="Agregar Material"
+                    cargando={cargando_materiales}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <DialogFooter>

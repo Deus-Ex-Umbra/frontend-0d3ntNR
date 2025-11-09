@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { MenuLateralMovil } from '@/componentes/MenuLateral_movil';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { Card, CardContent, CardHeader, CardTitle } from '@/componentes/ui/card';
-import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Sparkles, Loader2, TrendingDown } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
+import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Sparkles, Loader2, TrendingDown, FileSignature, BarChart3 } from 'lucide-react';
 import { estadisticasApi, asistenteApi } from '@/lib/api';
 import { MarkdownRenderer } from '@/componentes/ui/markdown-rendered';
+import { GestionReportes } from '@/componentes/reportes/gestion-reportes';
+import { GestionPlantillasConsentimiento } from '@/componentes/plantillas/gestion-plantillas-consentimiento';
 
 interface Transaccion {
   id: number;
@@ -241,133 +244,161 @@ export default function InicioMobile() {
             </div>
           </div>
 
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-            {tarjetas_estadisticas.map((tarjeta, index) => {
-              const Icono = tarjeta.icono;
-              return (
-                <Card key={index} className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:scale-105 transition-all duration-200 cursor-pointer">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      {tarjeta.titulo}
-                    </CardTitle>
-                    <div className={`${tarjeta.fondo} p-2 rounded-lg hover:scale-110 transition-transform duration-200`}>
-                      <Icono className={`h-5 w-5 ${tarjeta.color}`} />
+          <Tabs defaultValue="dashboard" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="dashboard" className="gap-1 text-xs">
+                <TrendingUp className="h-3 w-3" />
+                Dashboard
+              </TabsTrigger>
+              <TabsTrigger value="reportes" className="gap-1 text-xs">
+                <BarChart3 className="h-3 w-3" />
+                Reportes
+              </TabsTrigger>
+              <TabsTrigger value="consentimientos" className="gap-1 text-xs">
+                <FileSignature className="h-3 w-3" />
+                Consentimientos
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="dashboard" className="space-y-6 mt-6">
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+                {tarjetas_estadisticas.map((tarjeta, index) => {
+                  const Icono = tarjeta.icono;
+                  return (
+                    <Card key={index} className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:scale-105 transition-all duration-200 cursor-pointer">
+                      <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                          {tarjeta.titulo}
+                        </CardTitle>
+                        <div className={`${tarjeta.fondo} p-2 rounded-lg hover:scale-110 transition-transform duration-200`}>
+                          <Icono className={`h-5 w-5 ${tarjeta.color}`} />
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold text-foreground">{tarjeta.valor}</div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+                <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle className="text-xl">Resumen Financiero</CardTitle>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-foreground">{tarjeta.valor}</div>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200">
+                      <span className="text-muted-foreground font-medium">Total Ingresos</span>
+                      <span className="font-bold text-green-400 text-lg">
+                        {formatearMoneda(estadisticas?.ingresos_mes || 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200">
+                      <span className="text-muted-foreground font-medium">Total Egresos</span>
+                      <span className="font-bold text-red-400 text-lg">
+                        {formatearMoneda(estadisticas?.egresos_mes || 0)}
+                      </span>
+                    </div>
+                    <div className="border-t-2 border-border pt-4 mt-4">
+                      <div className="flex justify-between items-center p-4 rounded-lg bg-primary/10 hover:bg-primary/20 hover:scale-105 transition-all duration-200">
+                        <span className="font-bold text-foreground text-lg">Balance</span>
+                        <span className={`text-2xl font-bold ${(estadisticas?.balance_mes || 0) >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                          {formatearMoneda(estadisticas?.balance_mes || 0)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="border-t-2 border-border pt-4 mt-4">
+                      <h4 className="text-sm font-semibold text-muted-foreground mb-3">Últimas Transacciones</h4>
+                      <div className="space-y-2">
+                        {!estadisticas?.ultimas_transacciones || estadisticas.ultimas_transacciones.length === 0 ? (
+                          <p className="text-center text-muted-foreground text-sm py-4">No hay transacciones recientes</p>
+                        ) : (
+                          estadisticas.ultimas_transacciones.map((transaccion) => (
+                            <div key={`${transaccion.tipo}-${transaccion.id}`} className="flex flex-col md:flex-row items-start md:items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200 gap-2 md:gap-0">
+                              <div className="flex items-center gap-3 flex-1 w-full md:w-auto">
+                                <div className={`p-1.5 rounded-lg ${
+                                  transaccion.tipo === 'ingreso' 
+                                    ? 'bg-green-500/10' 
+                                    : 'bg-red-500/10'
+                                }`}>
+                                  {transaccion.tipo === 'ingreso' ? (
+                                    <TrendingUp className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <TrendingDown className="h-4 w-4 text-red-500" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate">{transaccion.concepto}</p>
+                                  <p className="text-xs text-muted-foreground">{formatearFechaTransaccion(transaccion.fecha)}</p>
+                                </div>
+                              </div>
+                              <span className={`text-sm font-bold ${
+                                transaccion.tipo === 'ingreso' 
+                                  ? 'text-green-500' 
+                                  : 'text-red-500'
+                              }`}>
+                                {transaccion.tipo === 'ingreso' ? '+' : '-'}
+                                {formatearMoneda(transaccion.monto)}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
 
-          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-            <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle className="text-xl">Resumen Financiero</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200">
-                  <span className="text-muted-foreground font-medium">Total Ingresos</span>
-                  <span className="font-bold text-green-400 text-lg">
-                    {formatearMoneda(estadisticas?.ingresos_mes || 0)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200">
-                  <span className="text-muted-foreground font-medium">Total Egresos</span>
-                  <span className="font-bold text-red-400 text-lg">
-                    {formatearMoneda(estadisticas?.egresos_mes || 0)}
-                  </span>
-                </div>
-                <div className="border-t-2 border-border pt-4 mt-4">
-                  <div className="flex justify-between items-center p-4 rounded-lg bg-primary/10 hover:bg-primary/20 hover:scale-105 transition-all duration-200">
-                    <span className="font-bold text-foreground text-lg">Balance</span>
-                    <span className={`text-2xl font-bold ${(estadisticas?.balance_mes || 0) >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                      {formatearMoneda(estadisticas?.balance_mes || 0)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="border-t-2 border-border pt-4 mt-4">
-                  <h4 className="text-sm font-semibold text-muted-foreground mb-3">Últimas Transacciones</h4>
-                  <div className="space-y-2">
-                    {!estadisticas?.ultimas_transacciones || estadisticas.ultimas_transacciones.length === 0 ? (
-                      <p className="text-center text-muted-foreground text-sm py-4">No hay transacciones recientes</p>
+                <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                        <Clock className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle className="text-xl">Próximas Citas</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {!estadisticas?.citas_recientes || estadisticas.citas_recientes.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-4">No hay citas programadas</p>
                     ) : (
-                      estadisticas.ultimas_transacciones.map((transaccion) => (
-                        <div key={`${transaccion.tipo}-${transaccion.id}`} className="flex flex-col md:flex-row items-start md:items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200 gap-2 md:gap-0">
-                          <div className="flex items-center gap-3 flex-1 w-full md:w-auto">
-                            <div className={`p-1.5 rounded-lg ${
-                              transaccion.tipo === 'ingreso' 
-                                ? 'bg-green-500/10' 
-                                : 'bg-red-500/10'
-                            }`}>
-                              {transaccion.tipo === 'ingreso' ? (
-                                <TrendingUp className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <TrendingDown className="h-4 w-4 text-red-500" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{transaccion.concepto}</p>
-                              <p className="text-xs text-muted-foreground">{formatearFechaTransaccion(transaccion.fecha)}</p>
-                            </div>
+                      estadisticas.citas_recientes.map((cita) => (
+                        <div key={cita.id} className="flex items-start gap-3 rounded-lg bg-secondary/30 p-4 border border-border hover:bg-secondary/50 hover:scale-105 transition-all duration-200">
+                          <div className="rounded-full bg-primary/20 p-2 hover:scale-110 transition-transform duration-200">
+                            <Calendar className="h-5 w-5 text-primary" />
                           </div>
-                          <span className={`text-sm font-bold ${
-                            transaccion.tipo === 'ingreso' 
-                              ? 'text-green-500' 
-                              : 'text-red-500'
-                          }`}>
-                            {transaccion.tipo === 'ingreso' ? '+' : '-'}
-                            {formatearMoneda(transaccion.monto)}
-                          </span>
+                          <div className="flex-1 space-y-1">
+                            <p className="text-sm font-semibold text-foreground">
+                              {cita.paciente ? `${cita.paciente.nombre} ${cita.paciente.apellidos}` : 'Evento general'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{cita.descripcion}</p>
+                            <p className="text-xs text-muted-foreground font-medium">{formatearFecha(cita.fecha)}</p>
+                          </div>
                         </div>
                       ))
                     )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-            <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                    <Clock className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle className="text-xl">Próximas Citas</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {!estadisticas?.citas_recientes || estadisticas.citas_recientes.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">No hay citas programadas</p>
-                ) : (
-                  estadisticas.citas_recientes.map((cita) => (
-                    <div key={cita.id} className="flex items-start gap-3 rounded-lg bg-secondary/30 p-4 border border-border hover:bg-secondary/50 hover:scale-105 transition-all duration-200">
-                      <div className="rounded-full bg-primary/20 p-2 hover:scale-110 transition-transform duration-200">
-                        <Calendar className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <p className="text-sm font-semibold text-foreground">
-                          {cita.paciente ? `${cita.paciente.nombre} ${cita.paciente.apellidos}` : 'Evento general'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{cita.descripcion}</p>
-                        <p className="text-xs text-muted-foreground font-medium">{formatearFecha(cita.fecha)}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
+            <TabsContent value="reportes" className="mt-6">
+              <GestionReportes />
+            </TabsContent>
+
+            <TabsContent value="consentimientos" className="mt-6">
+              <GestionPlantillasConsentimiento />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
   );
 }
+

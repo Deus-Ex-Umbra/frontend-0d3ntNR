@@ -60,6 +60,7 @@ export default function Configuracion() {
   const [enfermedades, setEnfermedades] = useState<ItemCatalogo[]>([]);
   const [medicamentos, setMedicamentos] = useState<ItemCatalogo[]>([]);
   const [colores, setColores] = useState<ItemCatalogo[]>([]);
+  const [etiquetas, setEtiquetas] = useState<ItemCatalogo[]>([]);
   const [cargando_catalogos, setCargandoCatalogos] = useState(false);
 
   const temas_disponibles = [
@@ -113,16 +114,18 @@ export default function Configuracion() {
   const cargarCatalogos = async () => {
     setCargandoCatalogos(true);
     try {
-      const [alergias_data, enfermedades_data, medicamentos_data, colores_data] = await Promise.all([
+      const [alergias_data, enfermedades_data, medicamentos_data, colores_data, etiquetas_data] = await Promise.all([
         catalogoApi.obtenerAlergias(),
         catalogoApi.obtenerEnfermedades(),
         catalogoApi.obtenerMedicamentos(),
         catalogoApi.obtenerColores(),
+        catalogoApi.obtenerEtiquetas(),
       ]);
       setAlergias(alergias_data);
       setEnfermedades(enfermedades_data);
       setMedicamentos(medicamentos_data);
       setColores(colores_data);
+      setEtiquetas(etiquetas_data);
     } catch (error) {
       console.error('Error al cargar catálogos:', error);
       toast({
@@ -941,6 +944,18 @@ export default function Configuracion() {
                     onEliminar={(id) => catalogoApi.eliminarColor(id)}
                     onRecargar={cargarCatalogos}
                     permitirColor={true}
+                  />
+
+                  <div className="border-t border-border" />
+
+                  <GestionCatalogo
+                    titulo="Etiquetas de Plantillas"
+                    items={etiquetas}
+                    cargando={cargando_catalogos}
+                    onCrear={(datos) => catalogoApi.crearEtiqueta(datos)}
+                    onActualizar={(id, datos) => catalogoApi.actualizarEtiqueta(id, datos)}
+                    onEliminar={(id) => catalogoApi.eliminarEtiqueta(id)}
+                    onRecargar={cargarCatalogos}
                   />
                 </CardContent>
               </Card>
