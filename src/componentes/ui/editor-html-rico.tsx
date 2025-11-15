@@ -89,7 +89,7 @@ export function EditorHtmlRico({
       OrderedList,
       ListItem,
       TextAlign.configure({
-        types: ['paragraph', 'heading', 'listItem'],
+        types: ['paragraph', 'heading', 'bulletList', 'orderedList'],
         alignments: ['left', 'center', 'right'],
         defaultAlignment: 'left',
       }),
