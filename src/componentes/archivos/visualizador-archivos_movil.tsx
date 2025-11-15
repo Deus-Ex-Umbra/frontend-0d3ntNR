@@ -8,7 +8,7 @@ interface ArchivoAdjunto {
   nombre_archivo: string;
   tipo_mime: string;
   descripcion?: string;
-  contenido_base64: string;
+  url?: string;
   fecha_subida: string;
 }
 
@@ -23,12 +23,15 @@ export function VisualizadorArchivosMovil({ archivo, abierto, onCerrar }: Props)
   const [rotacion, setRotacion] = useState(0);
 
   const descargar = () => {
-    const enlace = document.createElement('a');
-    enlace.href = `data:${archivo.tipo_mime};base64,${archivo.contenido_base64}`;
-    enlace.download = archivo.nombre_archivo;
-    document.body.appendChild(enlace);
-    enlace.click();
-    document.body.removeChild(enlace);
+    if (archivo.url) {
+      const enlace = document.createElement('a');
+      enlace.href = archivo.url;
+      enlace.download = archivo.nombre_archivo;
+      enlace.target = '_blank';
+      document.body.appendChild(enlace);
+      enlace.click();
+      document.body.removeChild(enlace);
+    }
   };
 
   const aumentarZoom = () => {
@@ -118,10 +121,10 @@ export function VisualizadorArchivosMovil({ archivo, abierto, onCerrar }: Props)
         </DialogHeader>
 
         <div className="flex-1 overflow-auto bg-secondary/10 rounded-lg p-4 min-h-[300px] max-h-[500px]">
-          {es_imagen && (
+          {es_imagen && archivo.url && (
             <div className="flex items-center justify-center h-full">
               <img
-                src={`data:${archivo.tipo_mime};base64,${archivo.contenido_base64}`}
+                src={archivo.url}
                 alt={archivo.nombre_archivo}
                 className="max-w-full h-auto object-contain transition-all duration-300"
                 style={{
@@ -132,10 +135,10 @@ export function VisualizadorArchivosMovil({ archivo, abierto, onCerrar }: Props)
             </div>
           )}
 
-          {es_pdf && (
+          {es_pdf && archivo.url && (
             <div className="h-full">
               <iframe
-                src={`data:${archivo.tipo_mime};base64,${archivo.contenido_base64}`}
+                src={archivo.url}
                 className="w-full h-full min-h-[300px] rounded border-0"
                 title={archivo.nombre_archivo}
               />

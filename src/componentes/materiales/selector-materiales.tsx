@@ -45,11 +45,7 @@ export default function SelectorMateriales({
 }: SelectorMaterialesProps) {
   
   const agregarProductoAlInventario = (inventario_id: number) => {
-    // Primero agregar el material vacío
     onAgregarMaterial();
-    
-    // Luego actualizar solo el inventario_id (el padre manejará inventario_nombre)
-    // React ejecutará esto en el próximo tick, cuando el material ya esté agregado
     setTimeout(() => {
       const nuevo_indice = materiales.length;
       onActualizarMaterial(nuevo_indice, 'inventario_id', inventario_id);
@@ -57,14 +53,11 @@ export default function SelectorMateriales({
     }, 0);
   };
   
-  // Obtener inventarios ya seleccionados
   const inventarios_seleccionados = new Set(
     materiales
       .map(m => m.inventario_id)
       .filter(id => id && id > 0)
   );
-  
-  // Obtener inventarios disponibles (no seleccionados)
   const inventarios_disponibles = inventarios.filter(
     inv => !inventarios_seleccionados.has(inv.id)
   );
@@ -93,7 +86,6 @@ export default function SelectorMateriales({
     });
   };
   
-  // Función para obtener productos ya seleccionados en un inventario específico
   const obtenerProductosSeleccionados = (inventario_id: number): Set<number> => {
     return new Set(
       materiales
@@ -103,7 +95,6 @@ export default function SelectorMateriales({
     );
   };
   
-  // Función para obtener items (lotes/activos) ya seleccionados en un producto específico
   const obtenerItemsSeleccionados = (material_idx: number): Set<number> => {
     const material = materiales[material_idx];
     const ids = new Set<number>();
@@ -153,11 +144,7 @@ export default function SelectorMateriales({
                       onChange={async (valor) => {
                         const nuevo_inventario_id = parseInt(valor);
                         const material_idx = grupo.materiales_indices[0];
-                        
-                        // Solo actualizar el inventario_id, el padre manejará el resto
                         onActualizarMaterial(material_idx, 'inventario_id', nuevo_inventario_id);
-                        
-                        // Cargar productos si el inventario es válido
                         if (nuevo_inventario_id > 0) {
                           await cargarProductos(nuevo_inventario_id);
                         }
@@ -207,7 +194,6 @@ export default function SelectorMateriales({
                       size="sm"
                       variant="destructive"
                       onClick={() => {
-                        // Eliminar todos los productos de este inventario
                         grupo.materiales_indices.forEach(idx => onEliminarMaterial(idx));
                       }}
                       className="h-8"
@@ -388,4 +374,3 @@ export default function SelectorMateriales({
     </div>
   );
 }
-

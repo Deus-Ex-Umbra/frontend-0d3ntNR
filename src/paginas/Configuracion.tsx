@@ -60,7 +60,7 @@ export default function Configuracion() {
   const [enfermedades, setEnfermedades] = useState<ItemCatalogo[]>([]);
   const [medicamentos, setMedicamentos] = useState<ItemCatalogo[]>([]);
   const [colores, setColores] = useState<ItemCatalogo[]>([]);
-  const [etiquetas, setEtiquetas] = useState<ItemCatalogo[]>([]);
+  const [etiquetas_plantillas, setEtiquetasPlantillas] = useState<ItemCatalogo[]>([]);
   const [cargando_catalogos, setCargandoCatalogos] = useState(false);
 
   const temas_disponibles = [
@@ -114,18 +114,18 @@ export default function Configuracion() {
   const cargarCatalogos = async () => {
     setCargandoCatalogos(true);
     try {
-      const [alergias_data, enfermedades_data, medicamentos_data, colores_data, etiquetas_data] = await Promise.all([
+      const [alergias_data, enfermedades_data, medicamentos_data, colores_data, etiquetas_plantillas_data] = await Promise.all([
         catalogoApi.obtenerAlergias(),
         catalogoApi.obtenerEnfermedades(),
         catalogoApi.obtenerMedicamentos(),
         catalogoApi.obtenerColores(),
-        catalogoApi.obtenerEtiquetas(),
+        catalogoApi.obtenerEtiquetasPlantilla(),
       ]);
       setAlergias(alergias_data);
       setEnfermedades(enfermedades_data);
       setMedicamentos(medicamentos_data);
       setColores(colores_data);
-      setEtiquetas(etiquetas_data);
+      setEtiquetasPlantillas(etiquetas_plantillas_data);
     } catch (error) {
       console.error('Error al cargar catálogos:', error);
       toast({
@@ -907,6 +907,10 @@ export default function Configuracion() {
                     onActualizar={(id, datos) => catalogoApi.actualizarAlergia(id, datos)}
                     onEliminar={(id) => catalogoApi.eliminarAlergia(id)}
                     onRecargar={cargarCatalogos}
+                    placeholderNombre="Ej: Penicilina, Polen, Mariscos"
+                    placeholderDescripcion="Describe los síntomas o severidad de la alergia..."
+                    ayudaNombre="Ingresa el nombre de la alergia del paciente"
+                    ayudaDescripcion="Opcional: Agrega información adicional como reacciones o nivel de gravedad"
                   />
 
                   <div className="border-t border-border" />
@@ -919,6 +923,10 @@ export default function Configuracion() {
                     onActualizar={(id, datos) => catalogoApi.actualizarEnfermedad(id, datos)}
                     onEliminar={(id) => catalogoApi.eliminarEnfermedad(id)}
                     onRecargar={cargarCatalogos}
+                    placeholderNombre="Ej: Diabetes, Hipertensión, Asma"
+                    placeholderDescripcion="Describe el tipo o características de la enfermedad..."
+                    ayudaNombre="Ingresa el nombre de la enfermedad o condición médica"
+                    ayudaDescripcion="Opcional: Agrega información sobre tipo, grado o control de la enfermedad"
                   />
 
                   <div className="border-t border-border" />
@@ -931,6 +939,10 @@ export default function Configuracion() {
                     onActualizar={(id, datos) => catalogoApi.actualizarMedicamento(id, datos)}
                     onEliminar={(id) => catalogoApi.eliminarMedicamento(id)}
                     onRecargar={cargarCatalogos}
+                    placeholderNombre="Ej: Ibuprofeno, Amoxicilina, Losartán"
+                    placeholderDescripcion="Describe la dosis, frecuencia o indicaciones..."
+                    ayudaNombre="Ingresa el nombre del medicamento"
+                    ayudaDescripcion="Opcional: Agrega información sobre presentación, dosis típica o uso común"
                   />
 
                   <div className="border-t border-border" />
@@ -944,18 +956,28 @@ export default function Configuracion() {
                     onEliminar={(id) => catalogoApi.eliminarColor(id)}
                     onRecargar={cargarCatalogos}
                     permitirColor={true}
+                    placeholderNombre="Ej: Urgente, Seguimiento, Revisión"
+                    placeholderDescripcion="Describe cuándo usar esta categoría..."
+                    ayudaNombre="Ingresa el nombre de la categoría o estado"
+                    ayudaDescripcion="Opcional: Explica el propósito o cuándo aplicar este color"
                   />
 
                   <div className="border-t border-border" />
 
                   <GestionCatalogo
                     titulo="Etiquetas de Plantillas"
-                    items={etiquetas}
+                    items={etiquetas_plantillas}
                     cargando={cargando_catalogos}
-                    onCrear={(datos) => catalogoApi.crearEtiqueta(datos)}
-                    onActualizar={(id, datos) => catalogoApi.actualizarEtiqueta(id, datos)}
-                    onEliminar={(id) => catalogoApi.eliminarEtiqueta(id)}
+                    onCrear={(datos) => catalogoApi.crearEtiquetaPlantilla(datos)}
+                    onActualizar={(id, datos) => catalogoApi.actualizarEtiquetaPlantilla(id, datos)}
+                    onEliminar={(id) => catalogoApi.eliminarEtiquetaPlantilla(id)}
                     onRecargar={cargarCatalogos}
+                    permitirCodigo={true}
+                    placeholderNombre="Ej: Nombre del Paciente, Fecha de Nacimiento"
+                    placeholderDescripcion="Describe qué información reemplazará esta etiqueta..."
+                    placeholderCodigo="Ej: [PACIENTE_NOMBRE], [FECHA_NAC]"
+                    ayudaNombre="Ingresa un nombre descriptivo para esta etiqueta"
+                    ayudaDescripcion="Opcional: Explica qué tipo de información dinámica representa esta etiqueta"
                   />
                 </CardContent>
               </Card>

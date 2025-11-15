@@ -168,8 +168,8 @@ export const agendaApi = {
     const respuesta = await api.post('/agenda', datos);
     return respuesta.data;
   },
-  obtenerPorMes: async (mes: number, ano: number) => {
-    const respuesta = await api.get(`/agenda?mes=${mes}&ano=${ano}`);
+  obtenerPorMes: async (mes: number, ano: number, ligero: boolean = true) => {
+    const respuesta = await api.get(`/agenda?mes=${mes}&ano=${ano}&ligero=${ligero}`);
     return respuesta.data;
   },
   filtrarCitas: async (fecha_inicio: Date, fecha_fin: Date) => {
@@ -202,6 +202,10 @@ export const agendaApi = {
   },
   obtenerPorId: async (id: number) => {
     const respuesta = await api.get(`/agenda/${id}`);
+    return respuesta.data;
+  },
+  obtenerPorIdCompleto: async (id: number) => {
+    const respuesta = await api.get(`/agenda/${id}/completo`);
     return respuesta.data;
   },
 };
@@ -359,6 +363,22 @@ export const catalogoApi = {
     const respuesta = await api.delete(`/catalogo/etiquetas/${id}`);
     return respuesta.data;
   },
+  obtenerEtiquetasPlantilla: async () => {
+    const respuesta = await api.get('/catalogo/etiquetas-plantilla');
+    return respuesta.data;
+  },
+  crearEtiquetaPlantilla: async (datos: { nombre: string; codigo: string; descripcion?: string }) => {
+    const respuesta = await api.post('/catalogo/etiquetas-plantilla', datos);
+    return respuesta.data;
+  },
+  actualizarEtiquetaPlantilla: async (id: number, datos: { nombre?: string; codigo?: string; descripcion?: string }) => {
+    const respuesta = await api.put(`/catalogo/etiquetas-plantilla/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminarEtiquetaPlantilla: async (id: number) => {
+    const respuesta = await api.delete(`/catalogo/etiquetas-plantilla/${id}`);
+    return respuesta.data;
+  },
 };
 
 export const archivosApi = {
@@ -435,7 +455,14 @@ export const edicionesImagenesApi = {
 };
 
 export const plantillasConsentimientoApi = {
-  crear: async (datos: { nombre: string; contenido: string }) => {
+  crear: async (datos: { 
+    nombre: string; 
+    contenido: string;
+    margen_superior?: number;
+    margen_inferior?: number;
+    margen_izquierdo?: number;
+    margen_derecho?: number;
+  }) => {
     const respuesta = await api.post('/plantillas-consentimiento', datos);
     return respuesta.data;
   },
@@ -447,7 +474,14 @@ export const plantillasConsentimientoApi = {
     const respuesta = await api.get(`/plantillas-consentimiento/${id}`);
     return respuesta.data;
   },
-  actualizar: async (id: number, datos: { nombre?: string; contenido?: string }) => {
+  actualizar: async (id: number, datos: { 
+    nombre?: string; 
+    contenido?: string;
+    margen_superior?: number;
+    margen_inferior?: number;
+    margen_izquierdo?: number;
+    margen_derecho?: number;
+  }) => {
     const respuesta = await api.put(`/plantillas-consentimiento/${id}`, datos);
     return respuesta.data;
   },

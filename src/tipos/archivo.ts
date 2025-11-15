@@ -7,6 +7,7 @@ export interface ArchivoAdjunto {
   fecha_subida: Date;
   descripcion?: string;
   categoria?: string;
+  url?: string;
 }
 
 export interface EdicionVersion {
@@ -15,4 +16,5 @@ export interface EdicionVersion {
   fecha_edicion: Date;
   observaciones?: string;
 }
+
 

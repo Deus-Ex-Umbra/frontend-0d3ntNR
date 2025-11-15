@@ -16,7 +16,6 @@ import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { SelectConAgregar } from '@/componentes/ui/select-with-add';
 import { GestorArchivos } from '@/componentes/archivos/gestor-archivos';
-import { GestionConsentimientosPaciente } from '@/componentes/pacientes/gestion-consentimientos-paciente';
 import { PhoneInput, formatearTelefonoCompleto, separarTelefono } from '@/componentes/ui/phone-input';
 import { EditorHtmlRico } from '@/componentes/ui/editor-html-rico';
 import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
@@ -277,8 +276,6 @@ export default function Pacientes() {
       const datos = await pacientesApi.obtenerPorId(id);
       setPacienteSeleccionado(datos);
       setDialogoVerAbierto(true);
-      
-      // Cargar información adicional (última cita y tratamiento)
       cargarInfoAdicionalPaciente(id);
     } catch (error) {
       toast({
@@ -810,7 +807,9 @@ export default function Pacientes() {
                 <p className="text-xs text-muted-foreground mb-2">
                   Selecciona un color del catálogo para identificar al paciente
                 </p>
-                <ScrollArea className="h-[200px] rounded-md border border-border p-3">
+                <ScrollArea className={`rounded-md border border-border p-3 ${
+                  catalogos.colores.filter(c => c.color).length > 8 ? 'h-[200px]' : 'h-auto max-h-[200px]'
+                }`}>
                   <div className="flex gap-2 flex-wrap">
                     {catalogos.colores.filter(c => c.color).map((color) => (
                       <button
@@ -1039,7 +1038,7 @@ export default function Pacientes() {
       </Dialog>
 
       <Dialog open={dialogo_color_abierto} onOpenChange={setDialogoColorAbierto}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Agregar Nuevo Color</DialogTitle>
             <DialogDescription>
@@ -1178,12 +1177,10 @@ export default function Pacientes() {
               </div>
 
               <Tabs defaultValue="contacto" className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="contacto">Contacto</TabsTrigger>
-                  <TabsTrigger value="resumen">Resumen</TabsTrigger>
                   <TabsTrigger value="medico">Información Médica</TabsTrigger>
                   <TabsTrigger value="archivos">Archivos</TabsTrigger>
-                  <TabsTrigger value="consentimientos">Consentimientos</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="contacto" className="space-y-4 mt-4">
@@ -1236,39 +1233,36 @@ export default function Pacientes() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="resumen" className="space-y-4 mt-4">
+                <TabsContent value="medico" className="space-y-4 mt-4">
                   {cargando_info_adicional ? (
                     <div className="flex justify-center py-8">
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {/* Última Cita */}
-                      <Card className="border-2">
-                        <CardHeader>
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <Calendar className="h-5 w-5 text-primary" />
-                            Última Cita
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          {ultima_cita ? (
-                            <div className="space-y-3">
-                              <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <Card className="border">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-primary" />
+                              Última Cita
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pb-3">
+                            {ultima_cita ? (
+                              <div className="space-y-2">
                                 <div>
                                   <Label className="text-xs text-muted-foreground">Fecha</Label>
-                                  <p className="text-sm font-medium">
+                                  <p className="text-xs font-medium">
                                     {new Date(ultima_cita.fecha).toLocaleDateString('es-ES', {
                                       day: '2-digit',
-                                      month: 'long',
+                                      month: 'short',
                                       year: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
                                     })}
                                   </p>
                                 </div>
                                 <div>
-                                  <Label className="text-xs text-muted-foreground">Estado de Pago</Label>
+                                  <Label className="text-xs text-muted-foreground">Estado</Label>
                                   <div className="mt-1">
                                     <Badge 
                                       variant={
@@ -1276,6 +1270,7 @@ export default function Pacientes() {
                                         ultima_cita.estado_pago === 'pendiente' ? 'secondary' : 
                                         'destructive'
                                       }
+                                      className="text-xs"
                                     >
                                       {ultima_cita.estado_pago === 'pagado' ? 'Pagado' :
                                        ultima_cita.estado_pago === 'pendiente' ? 'Pendiente' :
@@ -1283,49 +1278,39 @@ export default function Pacientes() {
                                     </Badge>
                                   </div>
                                 </div>
+                                {ultima_cita.monto_esperado && (
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Monto</Label>
+                                    <p className="text-xs font-semibold">
+                                      Bs. {Number(ultima_cita.monto_esperado).toFixed(2)}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
-                              {ultima_cita.descripcion && (
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Descripción</Label>
-                                  <p className="text-sm mt-1">{ultima_cita.descripcion}</p>
-                                </div>
-                              )}
-                              {ultima_cita.monto_esperado && (
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Monto</Label>
-                                  <p className="text-sm font-semibold mt-1">
-                                    Bs. {Number(ultima_cita.monto_esperado).toFixed(2)}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-center py-6">
-                              <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                              <p className="text-sm text-muted-foreground">
-                                No hay citas registradas
-                              </p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-
-                      {/* Último Tratamiento */}
-                      <Card className="border-2">
-                        <CardHeader>
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-primary" />
-                            Último Tratamiento
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          {ultimo_tratamiento ? (
-                            <div className="space-y-3">
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Tratamiento</Label>
-                                <p className="text-base font-semibold">{ultimo_tratamiento.tratamiento.nombre}</p>
+                            ) : (
+                              <div className="text-center py-4">
+                                <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
+                                <p className="text-xs text-muted-foreground">
+                                  Sin citas
+                                </p>
                               </div>
-                              <div className="grid grid-cols-2 gap-3">
+                            )}
+                          </CardContent>
+                        </Card>
+                        <Card className="border">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-primary" />
+                              Último Tratamiento
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pb-3">
+                            {ultimo_tratamiento ? (
+                              <div className="space-y-2">
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Tratamiento</Label>
+                                  <p className="text-xs font-semibold">{ultimo_tratamiento.tratamiento.nombre}</p>
+                                </div>
                                 <div>
                                   <Label className="text-xs text-muted-foreground">Estado</Label>
                                   <div className="mt-1">
@@ -1335,6 +1320,7 @@ export default function Pacientes() {
                                         ultimo_tratamiento.estado === 'en_progreso' ? 'secondary' : 
                                         'outline'
                                       }
+                                      className="text-xs"
                                     >
                                       {ultimo_tratamiento.estado === 'completado' ? 'Completado' :
                                        ultimo_tratamiento.estado === 'en_progreso' ? 'En Progreso' :
@@ -1343,127 +1329,92 @@ export default function Pacientes() {
                                   </div>
                                 </div>
                                 <div>
-                                  <Label className="text-xs text-muted-foreground">Fecha Inicio</Label>
-                                  <p className="text-sm font-medium mt-1">
-                                    {new Date(ultimo_tratamiento.fecha_inicio).toLocaleDateString('es-ES', {
-                                      day: '2-digit',
-                                      month: 'short',
-                                      year: 'numeric'
-                                    })}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Costo Total</Label>
-                                  <p className="text-sm font-semibold">
+                                  <Label className="text-xs text-muted-foreground">Costo</Label>
+                                  <p className="text-xs font-semibold">
                                     Bs. {Number(ultimo_tratamiento.costo_total).toFixed(2)}
                                   </p>
                                 </div>
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Total Abonado</Label>
-                                  <p className="text-sm font-semibold text-green-600">
-                                    Bs. {Number(ultimo_tratamiento.total_abonado).toFixed(2)}
-                                  </p>
-                                </div>
                               </div>
-                              {ultimo_tratamiento.citas && ultimo_tratamiento.citas.length > 0 && (
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">
-                                    Citas: {ultimo_tratamiento.citas.length}
-                                  </Label>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-center py-6">
-                              <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                              <p className="text-sm text-muted-foreground">
-                                No hay tratamientos registrados
-                              </p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
+                            ) : (
+                              <div className="text-center py-4">
+                                <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
+                                <p className="text-xs text-muted-foreground">
+                                  Sin tratamientos
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                      {paciente_seleccionado.alergias && paciente_seleccionado.alergias.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-muted-foreground">Alergias</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {obtenerAlergiasPorIds(paciente_seleccionado.alergias).map((alergia) => (
+                              <Badge key={alergia.id} variant="destructive">
+                                {alergia.nombre}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {paciente_seleccionado.enfermedades && paciente_seleccionado.enfermedades.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-muted-foreground">Enfermedades Preexistentes</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {obtenerEnfermedadesPorIds(paciente_seleccionado.enfermedades).map((enfermedad) => (
+                              <Badge key={enfermedad.id} variant="secondary">
+                                {enfermedad.nombre}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {paciente_seleccionado.medicamentos && paciente_seleccionado.medicamentos.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-muted-foreground">Medicamentos Actuales</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {obtenerMedicamentosPorIds(paciente_seleccionado.medicamentos).map((medicamento) => (
+                              <Badge key={medicamento.id}>
+                                {medicamento.nombre}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {paciente_seleccionado.notas_medicas && (
+                        <div className="space-y-2">
+                          <Label className="text-muted-foreground">Notas Médicas</Label>
+                          <div className="p-3 rounded-lg bg-secondary/30 border border-border">
+                            <RenderizadorHtml contenido={paciente_seleccionado.notas_medicas} />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {(!paciente_seleccionado.alergias || paciente_seleccionado.alergias.length === 0) &&
+                       (!paciente_seleccionado.enfermedades || paciente_seleccionado.enfermedades.length === 0) &&
+                       (!paciente_seleccionado.medicamentos || paciente_seleccionado.medicamentos.length === 0) &&
+                       !paciente_seleccionado.notas_medicas &&
+                       !ultima_cita &&
+                       !ultimo_tratamiento && (
+                        <div className="text-center py-8">
+                          <div className="mx-auto w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center mb-3">
+                            <AlertCircle className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                          <p className="text-muted-foreground">
+                            No hay información médica registrada
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </TabsContent>
 
-                <TabsContent value="medico" className="space-y-4 mt-4">
-                  <div className="space-y-4">
-                    {paciente_seleccionado.alergias && paciente_seleccionado.alergias.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-muted-foreground">Alergias</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {obtenerAlergiasPorIds(paciente_seleccionado.alergias).map((alergia) => (
-                            <Badge key={alergia.id} variant="destructive">
-                              {alergia.nombre}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {paciente_seleccionado.enfermedades && paciente_seleccionado.enfermedades.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-muted-foreground">Enfermedades Preexistentes</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {obtenerEnfermedadesPorIds(paciente_seleccionado.enfermedades).map((enfermedad) => (
-                            <Badge key={enfermedad.id} variant="secondary">
-                              {enfermedad.nombre}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {paciente_seleccionado.medicamentos && paciente_seleccionado.medicamentos.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-muted-foreground">Medicamentos Actuales</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {obtenerMedicamentosPorIds(paciente_seleccionado.medicamentos).map((medicamento) => (
-                            <Badge key={medicamento.id}>
-                              {medicamento.nombre}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {paciente_seleccionado.notas_medicas && (
-                      <div className="space-y-2">
-                        <Label className="text-muted-foreground">Notas Médicas</Label>
-                        <div className="p-3 rounded-lg bg-secondary/30 border border-border">
-                          <RenderizadorHtml contenido={paciente_seleccionado.notas_medicas} />
-                        </div>
-                      </div>
-                    )}
-                    
-                    {(!paciente_seleccionado.alergias || paciente_seleccionado.alergias.length === 0) &&
-                     (!paciente_seleccionado.enfermedades || paciente_seleccionado.enfermedades.length === 0) &&
-                     (!paciente_seleccionado.medicamentos || paciente_seleccionado.medicamentos.length === 0) &&
-                     !paciente_seleccionado.notas_medicas && (
-                      <div className="text-center py-8">
-                        <div className="mx-auto w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center mb-3">
-                          <AlertCircle className="h-6 w-6 text-muted-foreground" />
-                        </div>
-                        <p className="text-muted-foreground">
-                          No hay información médica registrada
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-
                 <TabsContent value="archivos" className="space-y-4 mt-4">
-                  <GestorArchivos 
-                    paciente_id={paciente_seleccionado.id} 
-                    modo="paciente"
-                  />
-                </TabsContent>
-
-                <TabsContent value="consentimientos" className="space-y-4 mt-4">
-                  <GestionConsentimientosPaciente
+                  <GestorArchivos
                     paciente_id={paciente_seleccionado.id}
                     paciente={{
                       nombre: paciente_seleccionado.nombre,
@@ -1472,6 +1423,7 @@ export default function Pacientes() {
                       correo: paciente_seleccionado.correo,
                       direccion: paciente_seleccionado.direccion,
                     }}
+                    modo="paciente"
                   />
                 </TabsContent>
               </Tabs>

@@ -5,13 +5,25 @@ export interface PlantillaConsentimiento {
   usuario_id: number;
   fecha_creacion: Date;
   fecha_actualizacion: Date;
+  margen_superior: number;
+  margen_inferior: number;
+  margen_izquierdo: number;
+  margen_derecho: number;
 }
 
 export interface EtiquetaReemplazable {
   etiqueta: string;
   descripcion: string;
-  tipo: 'texto' | 'fecha' | 'numero' | 'catalogo';
+  tipo: 'texto' | 'fecha' | 'numero' | 'catalogo' | 'personalizada';
   catalogo_id?: number;
+}
+
+export interface EtiquetaPersonalizada {
+  id: number;
+  nombre: string;
+  codigo: string;
+  descripcion: string;
+  activo: boolean;
 }
 
 export const ETIQUETAS_PREDEFINIDAS: EtiquetaReemplazable[] = [

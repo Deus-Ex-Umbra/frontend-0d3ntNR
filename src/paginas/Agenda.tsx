@@ -29,11 +29,6 @@ import {
 } from '@/tipos';
 
 export default function Agenda() {
-  // Estados para datos completos (sin filtrar)
-  const [todas_citas, setTodasCitas] = useState<Cita[]>([]);
-  const [todas_horas_libres, setTodasHorasLibres] = useState<HoraLibre[]>([]);
-  
-  // Estados para datos filtrados por mes
   const [citas, setCitas] = useState<Cita[]>([]);
   const [horas_libres, setHorasLibres] = useState<HoraLibre[]>([]);
   const [mostrar_horas_libres, setMostrarHorasLibres] = useState(false);
@@ -109,7 +104,15 @@ export default function Agenda() {
 
   useEffect(() => {
     filtrarPorMes();
-  }, [mes_actual, ano_actual, filtros.fecha_hora_inicio, filtros.fecha_hora_fin, todas_citas, todas_horas_libres]);
+  }, [mes_actual, ano_actual, filtros.fecha_hora_inicio, filtros.fecha_hora_fin]);
+
+  useEffect(() => {
+    if (mostrar_horas_libres && horas_libres.length === 0) {
+      cargarHorasLibres();
+    } else if (!mostrar_horas_libres) {
+      setHorasLibres([]);
+    }
+  }, [mostrar_horas_libres]);
 
   useEffect(() => {
     aplicarFiltros();
@@ -135,26 +138,19 @@ export default function Agenda() {
   const filtrarPorMes = async () => {
     try {
       const tiene_filtro_fecha = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
-
       let datos_citas;
-      let datos_horas_libres;
-
       if (tiene_filtro_fecha) {
-        [datos_citas, datos_horas_libres] = await Promise.all([
-          agendaApi.filtrarCitas(filtros.fecha_hora_inicio!, filtros.fecha_hora_fin!),
-          agendaApi.filtrarEspaciosLibres(filtros.fecha_hora_inicio!, filtros.fecha_hora_fin!),
-        ]);
+        datos_citas = await agendaApi.filtrarCitas(filtros.fecha_hora_inicio!, filtros.fecha_hora_fin!);
       } else {
-        [datos_citas, datos_horas_libres] = await Promise.all([
-          agendaApi.obtenerPorMes(mes_actual, ano_actual),
-          agendaApi.obtenerEspaciosLibres(mes_actual, ano_actual),
-        ]);
+        datos_citas = await agendaApi.obtenerPorMes(mes_actual, ano_actual, true);
       }
 
-      setTodasCitas(datos_citas);
-      setTodasHorasLibres(datos_horas_libres);
       setCitas(datos_citas);
-      setHorasLibres(datos_horas_libres);
+      if (mostrar_horas_libres) {
+        await cargarHorasLibres();
+      } else {
+        setHorasLibres([]);
+      }
     } catch (error) {
       console.error('Error al cargar datos:', error);
       toast({
@@ -165,12 +161,34 @@ export default function Agenda() {
     }
   };
 
+  const cargarHorasLibres = async () => {
+    try {
+      const tiene_filtro_fecha = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
+      
+      let datos_horas_libres;
+      if (tiene_filtro_fecha) {
+        datos_horas_libres = await agendaApi.filtrarEspaciosLibres(filtros.fecha_hora_inicio!, filtros.fecha_hora_fin!);
+      } else {
+        datos_horas_libres = await agendaApi.obtenerEspaciosLibres(mes_actual, ano_actual);
+      }
+
+      setHorasLibres(datos_horas_libres);
+    } catch (error) {
+      console.error('Error al cargar horas libres:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar las horas libres',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const cargarDatos = async () => {
     await filtrarPorMes();
   };
 
   const cargarInventarios = async () => {
-    if (inventarios.length > 0) return; // Si ya están cargados, no recargar
+    if (inventarios.length > 0) return;
     
     try {
       const datos = await inventarioApi.obtenerInventarios();
@@ -181,7 +199,6 @@ export default function Agenda() {
   };
 
   const cargarProductosInventario = async (inventario_id: number) => {
-    // Si ya están cargados, no recargar
     if (productos_por_inventario[inventario_id]) {
       return;
     }
@@ -271,10 +288,8 @@ export default function Agenda() {
       const inventario = inventarios.find(inv => inv.id === inventario_id);
       if (inventario) {
         nuevos_materiales[index].inventario_nombre = inventario.nombre;
-        // Resetear producto cuando cambia el inventario
         nuevos_materiales[index].producto_id = 0;
         nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
-        // Cargar productos del nuevo inventario
         if (inventario_id > 0) {
           cargarProductosInventario(inventario_id);
         }
@@ -290,7 +305,6 @@ export default function Agenda() {
         nuevos_materiales[index].producto_nombre = producto.nombre;
         nuevos_materiales[index].tipo_gestion = producto.tipo_gestion;
         nuevos_materiales[index].unidad_medida = producto.unidad_medida;
-        // Resetear items cuando cambia el producto
         nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
       }
     }
@@ -306,7 +320,6 @@ export default function Agenda() {
 
   const actualizarItemMaterial = (material_index: number, item_index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_cita];
-    // Crear copia profunda del material y sus items
     nuevos_materiales[material_index] = {
       ...nuevos_materiales[material_index],
       items: [...nuevos_materiales[material_index].items]
@@ -315,8 +328,6 @@ export default function Agenda() {
       ...nuevos_materiales[material_index].items[item_index],
       [campo]: valor
     };
-
-    // Auto-poblar información relacionada cuando se selecciona lote
     if (campo === 'lote_id' && valor) {
       const inventario_id = nuevos_materiales[material_index].inventario_id;
       const productos = productos_por_inventario[inventario_id] || [];
@@ -328,8 +339,6 @@ export default function Agenda() {
         }
       }
     }
-
-    // Auto-poblar información relacionada cuando se selecciona activo
     if (campo === 'activo_id' && valor) {
       const inventario_id = nuevos_materiales[material_index].inventario_id;
       const productos = productos_por_inventario[inventario_id] || [];
@@ -352,7 +361,6 @@ export default function Agenda() {
   const eliminarItemMaterial = (material_index: number, item_index: number) => {
     const nuevos_materiales = [...materiales_cita];
     nuevos_materiales[material_index].items = nuevos_materiales[material_index].items.filter((_, i) => i !== item_index);
-    // Si no quedan items, eliminar el material completo
     if (nuevos_materiales[material_index].items.length === 0) {
       nuevos_materiales.splice(material_index, 1);
     }
@@ -363,8 +371,6 @@ export default function Agenda() {
     const nuevos_materiales = materiales_cita.filter((_, i) => i !== index);
     setMaterialesCita(nuevos_materiales);
   };
-
-  // Funciones para materiales adicionales en confirmación
   const agregarMaterialAdicionalConfirmacion = () => {
     setMaterialesAdicionalesConfirmacion([...materiales_adicionales_confirmacion, {
       producto_id: 0,
@@ -456,8 +462,6 @@ export default function Agenda() {
       const productos = productos_por_inventario[material.inventario_id] || [];
       const producto = productos.find(p => p.id === material.producto_id);
       if (!producto) continue;
-
-      // Validar que cada item tenga lote/activo según el tipo
       for (const item of material.items) {
         if (producto.tipo_gestion === 'consumible') {
           if (!item.lote_id) {
@@ -683,8 +687,6 @@ export default function Agenda() {
       });
       return;
     }
-
-    // Validar materiales si se agregaron
     if (materiales_cita.length > 0) {
       const { valido, advertencias } = validarDisponibilidadMateriales();
       if (!valido) {
@@ -761,11 +763,8 @@ export default function Agenda() {
           description: 'Cita creada correctamente',
         });
       }
-
-      // Guardar materiales si se especificaron
       if (materiales_cita.length > 0 && cita_id) {
         try {
-          // Aplanar los items de cada material para enviar al backend
           const materiales_para_guardar = materiales_cita
             .filter(m => m.producto_id > 0)
             .flatMap(m => 
@@ -899,23 +898,16 @@ export default function Agenda() {
     if (!cita.id) return;
     setCitaSeleccionada(cita);
     setCargandoMateriales(true);
-    
-    // Inicializar estado y monto de la cita
     setEstadoPagoConfirmacion(cita.estado_pago || 'pendiente');
     setMontoConfirmacion(cita.monto_esperado?.toString() || '');
     setMaterialesAdicionalesConfirmacion([]);
     setMostrarAgregarMaterialesConfirmacion(false);
-    
     try {
       const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
       const materiales_raw = respuesta.materiales || [];
-      
-      // Transformar materiales al formato plano para confirmación
       const materiales_confirmacion: any[] = [];
-      
       for (const material of materiales_raw) {
         if (material.items && material.items.length > 0) {
-          // Si tiene items específicos (lotes/activos), crear una entrada por cada item
           for (const item of material.items) {
             materiales_confirmacion.push({
               material_cita_id: material.id,
@@ -933,7 +925,6 @@ export default function Agenda() {
             });
           }
         } else {
-          // Si no tiene items, crear una entrada con la cantidad planeada del material
           materiales_confirmacion.push({
             material_cita_id: material.id,
             producto_nombre: material.producto_nombre,
@@ -965,7 +956,6 @@ export default function Agenda() {
 
     setGuardando(true);
     try {
-      // Actualizar estado y monto de la cita
       await agendaApi.actualizar(cita_seleccionada.id, {
         estado_pago: estado_pago_confirmacion,
         monto_esperado: monto_confirmacion ? parseFloat(monto_confirmacion) : 0,
@@ -975,8 +965,6 @@ export default function Agenda() {
         minutos_aproximados: cita_seleccionada.minutos_aproximados,
         paciente_id: cita_seleccionada.paciente?.id,
       });
-
-      // Agregar materiales adicionales primero si hay
       if (materiales_adicionales_confirmacion.length > 0) {
         const materiales_a_agregar = [];
         for (const material of materiales_adicionales_confirmacion) {
@@ -999,8 +987,6 @@ export default function Agenda() {
           });
         }
       }
-
-      // Confirmar materiales si hay
       if (materiales_confirmacion.length > 0) {
         await inventarioApi.confirmarMaterialesCita(cita_seleccionada.id, {
           materiales: materiales_confirmacion.map(m => ({
@@ -1847,8 +1833,6 @@ export default function Agenda() {
                 ))}
               </div>
             )}
-
-            {/* Sección para agregar materiales adicionales */}
             <div className="border-t pt-4 space-y-3">
               {!mostrar_agregar_materiales_confirmacion ? (
                 <Button

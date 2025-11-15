@@ -27,6 +27,7 @@ interface ItemCatalogo {
   nombre: string;
   descripcion?: string;
   color?: string;
+  codigo?: string;
   activo: boolean;
 }
 
@@ -39,7 +40,13 @@ interface GestionCatalogoProps {
   onEliminar: (id: number) => Promise<void>;
   onRecargar: () => Promise<void>;
   permitirColor?: boolean;
+  permitirCodigo?: boolean;
   icono?: React.ReactNode;
+  placeholderNombre?: string;
+  placeholderDescripcion?: string;
+  placeholderCodigo?: string;
+  ayudaNombre?: string;
+  ayudaDescripcion?: string;
 }
 
 export function GestionCatalogo({
@@ -51,7 +58,13 @@ export function GestionCatalogo({
   onEliminar,
   onRecargar,
   permitirColor = false,
+  permitirCodigo = false,
   icono,
+  placeholderNombre = 'Ej: Penicilina, Diabetes, etc.',
+  placeholderDescripcion = 'Agrega detalles adicionales...',
+  placeholderCodigo = 'Ej: [PACIENTE_NOMBRE]',
+  ayudaNombre,
+  ayudaDescripcion,
 }: GestionCatalogoProps) {
   const [dialogo_crear_abierto, setDialogoCrearAbierto] = useState(false);
   const [dialogo_editar_abierto, setDialogoEditarAbierto] = useState(false);
@@ -69,6 +82,7 @@ export function GestionCatalogo({
   const [formulario, setFormulario] = useState({
     nombre: '',
     descripcion: '',
+    codigo: '',
     color: '#808080',
   });
 
@@ -76,6 +90,7 @@ export function GestionCatalogo({
     setFormulario({
       nombre: '',
       descripcion: '',
+      codigo: '',
       color: '#808080',
     });
   };
@@ -85,6 +100,24 @@ export function GestionCatalogo({
       toast({
         title: 'Error',
         description: 'El nombre es obligatorio',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (permitirCodigo && !formulario.codigo.trim()) {
+      toast({
+        title: 'Error',
+        description: 'El código es obligatorio',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (permitirCodigo && (!formulario.codigo.startsWith('[') || !formulario.codigo.endsWith(']'))) {
+      toast({
+        title: 'Error',
+        description: 'El código debe estar entre corchetes, ej: [MI_ETIQUETA]',
         variant: 'destructive',
       });
       return;
@@ -100,6 +133,10 @@ export function GestionCatalogo({
       
       if (permitirColor) {
         datos.color = formulario.color;
+      }
+
+      if (permitirCodigo) {
+        datos.codigo = formulario.codigo.trim().toUpperCase();
       }
 
       await onCrear(datos);
@@ -133,6 +170,24 @@ export function GestionCatalogo({
       return;
     }
 
+    if (permitirCodigo && !formulario.codigo.trim()) {
+      toast({
+        title: 'Error',
+        description: 'El código es obligatorio',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (permitirCodigo && (!formulario.codigo.startsWith('[') || !formulario.codigo.endsWith(']'))) {
+      toast({
+        title: 'Error',
+        description: 'El código debe estar entre corchetes, ej: [MI_ETIQUETA]',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setGuardando(true);
     try {
       const datos: any = { nombre: formulario.nombre.trim() };
@@ -143,6 +198,10 @@ export function GestionCatalogo({
       
       if (permitirColor) {
         datos.color = formulario.color;
+      }
+
+      if (permitirCodigo) {
+        datos.codigo = formulario.codigo.trim().toUpperCase();
       }
 
       await onActualizar(item_editar.id, datos);
@@ -170,6 +229,7 @@ export function GestionCatalogo({
     setFormulario({
       nombre: item.nombre,
       descripcion: item.descripcion || '',
+      codigo: item.codigo || '',
       color: item.color || '#808080',
     });
     setDialogoEditarAbierto(true);
@@ -196,7 +256,6 @@ export function GestionCatalogo({
     }
   };
 
-  // Filtrar items según la búsqueda
   const items_filtrados = items.filter(item =>
     item.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
     (item.descripcion && item.descripcion.toLowerCase().includes(busqueda.toLowerCase()))
@@ -366,9 +425,14 @@ export function GestionCatalogo({
                 id="nombre-crear"
                 value={formulario.nombre}
                 onChange={(e) => setFormulario({ ...formulario, nombre: e.target.value })}
-                placeholder="Ej: Penicilina, Diabetes, etc."
+                placeholder={placeholderNombre}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
               />
+              {ayudaNombre && (
+                <p className="text-xs text-muted-foreground">
+                  {ayudaNombre}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -377,11 +441,32 @@ export function GestionCatalogo({
                 id="descripcion-crear"
                 value={formulario.descripcion}
                 onChange={(e) => setFormulario({ ...formulario, descripcion: e.target.value })}
-                placeholder="Agrega detalles adicionales..."
+                placeholder={placeholderDescripcion}
                 rows={3}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
               />
+              {ayudaDescripcion && (
+                <p className="text-xs text-muted-foreground">
+                  {ayudaDescripcion}
+                </p>
+              )}
             </div>
+
+            {permitirCodigo && (
+              <div className="space-y-2">
+                <Label htmlFor="codigo-crear">Código *</Label>
+                <Input
+                  id="codigo-crear"
+                  value={formulario.codigo}
+                  onChange={(e) => setFormulario({ ...formulario, codigo: e.target.value.toUpperCase() })}
+                  placeholder={placeholderCodigo}
+                  className="hover:border-primary/50 focus:border-primary transition-all duration-200 font-mono"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Debe estar entre corchetes, ej: [MI_ETIQUETA]
+                </p>
+              </div>
+            )}
 
             {permitirColor && (
               <div className="space-y-2">
@@ -451,9 +536,14 @@ export function GestionCatalogo({
                 id="nombre-editar"
                 value={formulario.nombre}
                 onChange={(e) => setFormulario({ ...formulario, nombre: e.target.value })}
-                placeholder="Ej: Penicilina, Diabetes, etc."
+                placeholder={placeholderNombre}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
               />
+              {ayudaNombre && (
+                <p className="text-xs text-muted-foreground">
+                  {ayudaNombre}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -462,11 +552,32 @@ export function GestionCatalogo({
                 id="descripcion-editar"
                 value={formulario.descripcion}
                 onChange={(e) => setFormulario({ ...formulario, descripcion: e.target.value })}
-                placeholder="Agrega detalles adicionales..."
+                placeholder={placeholderDescripcion}
                 rows={3}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
               />
+              {ayudaDescripcion && (
+                <p className="text-xs text-muted-foreground">
+                  {ayudaDescripcion}
+                </p>
+              )}
             </div>
+
+            {permitirCodigo && (
+              <div className="space-y-2">
+                <Label htmlFor="codigo-editar">Código *</Label>
+                <Input
+                  id="codigo-editar"
+                  value={formulario.codigo}
+                  onChange={(e) => setFormulario({ ...formulario, codigo: e.target.value.toUpperCase() })}
+                  placeholder={placeholderCodigo}
+                  className="hover:border-primary/50 focus:border-primary transition-all duration-200 font-mono"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Debe estar entre corchetes, ej: [MI_ETIQUETA]
+                </p>
+              </div>
+            )}
 
             {permitirColor && (
               <div className="space-y-2">

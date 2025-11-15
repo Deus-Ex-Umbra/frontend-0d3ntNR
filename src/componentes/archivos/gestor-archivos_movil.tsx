@@ -24,7 +24,7 @@ interface ArchivoAdjunto {
   nombre_archivo: string;
   tipo_mime: string;
   descripcion?: string;
-  contenido_base64: string;
+  url?: string;
   fecha_subida: Date;
 }
 
@@ -328,10 +328,13 @@ export function GestorArchivosMovil({ paciente_id, plan_tratamiento_id, modo = '
   };
 
   const manejarDescargar = (archivo: ArchivoAdjunto) => {
-    const link = document.createElement('a');
-    link.href = `data:${archivo.tipo_mime};base64,${archivo.contenido_base64}`;
-    link.download = archivo.nombre_archivo;
-    link.click();
+    if (archivo.url) {
+      const link = document.createElement('a');
+      link.href = archivo.url;
+      link.download = archivo.nombre_archivo;
+      link.target = '_blank';
+      link.click();
+    }
   };
 
   const verArchivo = (archivo: ArchivoAdjunto) => {
@@ -357,13 +360,6 @@ export function GestorArchivosMovil({ paciente_id, plan_tratamiento_id, modo = '
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
-
-  const formatearTamano = (base64: string): string => {
-    const bytes = (base64.length * 3) / 4;
-    if (bytes < 1024) return `${bytes.toFixed(0)} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   };
 
   const obtenerIconoTipo = (tipo_mime: string) => {
@@ -432,8 +428,6 @@ export function GestorArchivosMovil({ paciente_id, plan_tratamiento_id, modo = '
                       )}
                       <div className="flex flex-col md:flex-row gap-1 md:gap-2 items-start md:items-center text-xs text-muted-foreground mt-1">
                         <span>{formatearFecha(archivo.fecha_subida)}</span>
-                        <span className="hidden md:inline">•</span>
-                        <span>{formatearTamano(archivo.contenido_base64)}</span>
                       </div>
                     </div>
                   </div>
@@ -693,10 +687,10 @@ export function GestorArchivosMovil({ paciente_id, plan_tratamiento_id, modo = '
           </DialogHeader>
 
           <div className="flex-1 overflow-auto bg-secondary/10 rounded-lg p-4 min-h-[300px] max-h-[500px]">
-            {archivo_seleccionado && esImagen(archivo_seleccionado.tipo_mime) && (
+            {archivo_seleccionado && esImagen(archivo_seleccionado.tipo_mime) && archivo_seleccionado.url && (
               <div className="flex items-center justify-center h-full">
                 <img
-                  src={`data:${archivo_seleccionado.tipo_mime};base64,${archivo_seleccionado.contenido_base64}`}
+                  src={archivo_seleccionado.url}
                   alt={archivo_seleccionado.nombre_archivo}
                   className="max-w-full h-auto object-contain transition-all duration-300"
                   style={{
@@ -707,10 +701,10 @@ export function GestorArchivosMovil({ paciente_id, plan_tratamiento_id, modo = '
               </div>
             )}
 
-            {archivo_seleccionado && esPdf(archivo_seleccionado.tipo_mime) && (
+            {archivo_seleccionado && esPdf(archivo_seleccionado.tipo_mime) && archivo_seleccionado.url && (
               <div className="h-full">
                 <iframe
-                  src={`data:${archivo_seleccionado.tipo_mime};base64,${archivo_seleccionado.contenido_base64}`}
+                  src={archivo_seleccionado.url}
                   className="w-full h-full min-h-[300px] rounded border-0"
                   title={archivo_seleccionado.nombre_archivo}
                 />

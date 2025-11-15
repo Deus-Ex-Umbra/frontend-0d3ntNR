@@ -3,14 +3,15 @@ import { Button } from '@/componentes/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
 import { Label } from '@/componentes/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
 import { Input } from '@/componentes/ui/input';
 import { consentimientosApi, plantillasConsentimientoApi } from '@/lib/api';
-import { FileSignature, Download, Trash2, Plus, Loader2 } from 'lucide-react';
+import { FileSignature, Download, Trash2, Plus, Loader2, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
+import { VisualizadorArchivos } from '@/componentes/archivos/visualizador-archivos';
+import { Combobox } from '@/componentes/ui/combobox';
 
 interface ConsentimientoGuardado {
   id: number;
@@ -48,6 +49,16 @@ export function GestionConsentimientosPaciente({
   const [plantilla_seleccionada, setPlantillaSeleccionada] = useState<number | null>(null);
   const [nombre_consentimiento, setNombreConsentimiento] = useState('');
   const [contenido_preview, setContenidoPreview] = useState('');
+  const [visualizador_abierto, setVisualizadorAbierto] = useState(false);
+  const [consentimiento_visualizando, setConsentimientoVisualizando] = useState<{
+    id: number;
+    nombre_archivo: string;
+    tipo_mime: string;
+    descripcion?: string;
+    url?: string;
+    fecha_subida: string;
+  } | null>(null);
+  const [consentimiento_cargando_id, setConsentimientoCargandoId] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -184,6 +195,33 @@ export function GestionConsentimientosPaciente({
     }
   };
 
+  const verConsentimiento = async (consentimiento: ConsentimientoGuardado) => {
+    setConsentimientoCargandoId(consentimiento.id);
+    try {
+      const blob = await consentimientosApi.descargar(consentimiento.id);
+      const url = URL.createObjectURL(blob);
+
+      setConsentimientoVisualizando({
+        id: consentimiento.id,
+        nombre_archivo: `${consentimiento.nombre}.pdf`,
+        tipo_mime: 'application/pdf',
+        descripcion: `Generado el ${format(new Date(consentimiento.fecha_creacion), 'dd/MM/yyyy HH:mm', { locale: es })}`,
+        url: url,
+        fecha_subida: new Date(consentimiento.fecha_creacion).toISOString(),
+      });
+      setVisualizadorAbierto(true);
+    } catch (error) {
+      console.error('Error al visualizar consentimiento:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo cargar el consentimiento seleccionado',
+        variant: 'destructive',
+      });
+    } finally {
+      setConsentimientoCargandoId(null);
+    }
+  };
+
   const eliminarConsentimiento = async (id: number) => {
     try {
       await consentimientosApi.eliminar(id);
@@ -217,7 +255,7 @@ export function GestionConsentimientosPaciente({
               Nuevo Consentimiento
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Crear Consentimiento Informado</DialogTitle>
               <DialogDescription>
@@ -228,39 +266,39 @@ export function GestionConsentimientosPaciente({
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="nombre">Nombre del Documento</Label>
-                <Input
-                  id="nombre"
-                  value={nombre_consentimiento}
-                  onChange={(e) => setNombreConsentimiento(e.target.value)}
-                  placeholder="Ej: Consentimiento para Extracción Dental"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="nombre"
+                    value={nombre_consentimiento}
+                    onChange={(e) => setNombreConsentimiento(e.target.value)}
+                    placeholder="Ej: Consentimiento para Extracción Dental"
+                    className="flex-1"
+                  />
+                  <Input
+                    value=".pdf"
+                    disabled
+                    className="w-16 text-center bg-muted"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="plantilla">Plantilla</Label>
-                <Select
-                  value={plantilla_seleccionada?.toString()}
-                  onValueChange={(valor) => setPlantillaSeleccionada(parseInt(valor))}
+                <Combobox
+                  opciones={plantillas.map(p => ({ valor: p.id.toString(), etiqueta: p.nombre }))}
+                  valor={plantilla_seleccionada?.toString() || ''}
+                  onChange={(valor: string) => setPlantillaSeleccionada(parseInt(valor))}
+                  placeholder="Buscar plantilla..."
+                  textoVacio="No se encontraron plantillas"
                   disabled={cargando_plantillas}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar plantilla" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {plantillas.map((plantilla) => (
-                      <SelectItem key={plantilla.id} value={plantilla.id.toString()}>
-                        {plantilla.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               {contenido_preview && (
                 <div className="space-y-2">
                   <Label>Vista Previa</Label>
-                  <div className="border rounded-lg p-4 max-h-[400px] overflow-y-auto bg-background">
-                    <div style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                  <div className="border rounded-lg p-4 max-h-[300px] overflow-y-auto bg-background">
+                    <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: '12px' }}>
                       <RenderizadorHtml contenido={contenido_preview} />
                     </div>
                   </div>
@@ -314,6 +352,19 @@ export function GestionConsentimientosPaciente({
                     <Button
                       variant="outline"
                       size="icon"
+                      onClick={() => verConsentimiento(consentimiento)}
+                      disabled={consentimiento_cargando_id === consentimiento.id}
+                      title="Ver PDF"
+                    >
+                      {consentimiento_cargando_id === consentimiento.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
                       onClick={() => descargarConsentimiento(consentimiento)}
                     >
                       <Download className="h-4 w-4" />
@@ -331,6 +382,17 @@ export function GestionConsentimientosPaciente({
             </Card>
           ))}
         </div>
+      )}
+
+      {consentimiento_visualizando && visualizador_abierto && (
+        <VisualizadorArchivos
+          archivo={consentimiento_visualizando}
+          abierto={visualizador_abierto}
+          onCerrar={() => {
+            setVisualizadorAbierto(false);
+            setConsentimientoVisualizando(null);
+          }}
+        />
       )}
     </div>
   );

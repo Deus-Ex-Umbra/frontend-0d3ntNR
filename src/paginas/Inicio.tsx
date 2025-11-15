@@ -3,6 +3,7 @@ import { MenuLateral } from '@/componentes/MenuLateral';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { Card, CardContent, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
+import { Toaster } from '@/componentes/ui/toaster';
 import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Sparkles, Loader2, TrendingDown, FileSignature, BarChart3 } from 'lucide-react';
 import { estadisticasApi, asistenteApi } from '@/lib/api';
 import { MarkdownRenderer } from '@/componentes/ui/markdown-rendered';
@@ -398,6 +399,7 @@ export default function Inicio() {
           </Tabs>
         </div>
       </div>
+      <Toaster />
     </div>
   );
 }

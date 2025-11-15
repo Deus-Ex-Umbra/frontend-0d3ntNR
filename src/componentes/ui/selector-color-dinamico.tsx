@@ -62,7 +62,6 @@ export function SelectorColorDinamico({
         </PopoverTrigger>
         <PopoverContent className="w-80 p-3" align="start">
           <div className="space-y-4">
-            {/* Selector personalizado */}
             <div className="space-y-2">
               <Label className="text-xs">Color personalizado</Label>
               <div className="flex gap-2">
@@ -77,7 +76,6 @@ export function SelectorColorDinamico({
                   value={color}
                   onChange={(e) => {
                     const valor = e.target.value;
-                    // Validar formato hexadecimal
                     if (/^#[0-9A-Fa-f]{0,6}$/.test(valor)) {
                       onChange(valor);
                     }
@@ -87,8 +85,6 @@ export function SelectorColorDinamico({
                 />
               </div>
             </div>
-
-            {/* Colores predefinidos */}
             <div className="space-y-2">
               <Label className="text-xs">Colores predefinidos</Label>
               <div className="grid grid-cols-8 gap-2">
@@ -116,8 +112,6 @@ export function SelectorColorDinamico({
                 ))}
               </div>
             </div>
-
-            {/* Vista previa */}
             <div className="p-3 rounded-lg border-2 border-border bg-secondary/20">
               <p className="text-xs text-muted-foreground mb-2">Vista previa</p>
               <div className="flex items-center gap-2">

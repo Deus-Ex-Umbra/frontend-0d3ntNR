@@ -307,7 +307,7 @@ export default function Tratamientos() {
   };
 
   const cargarInventarios = async () => {
-    if (inventarios.length > 0) return; // Si ya están cargados, no recargar
+    if (inventarios.length > 0) return;
     
     try {
       const datos_inventarios = await inventarioApi.obtenerInventarios();
@@ -421,7 +421,6 @@ export default function Tratamientos() {
       }
       
       setMaterialesCitaEdicion(Object.values(materiales_agrupados));
-      // Guardar copia inicial para detección de cambios
       setMaterialesCitaEdicionIniciales(JSON.parse(JSON.stringify(Object.values(materiales_agrupados))));
     } catch (error) {
       console.error('Error al cargar materiales de la cita:', error);
@@ -435,8 +434,6 @@ export default function Tratamientos() {
     try {
       const respuesta = await inventarioApi.obtenerMaterialesTratamiento(plan_tratamiento_id);
       const materiales = respuesta.materiales || [];
-      
-      // Verificar si ya fueron confirmados (buscar materiales con tipo 'inicio' confirmados)
       const materiales_confirmados = materiales.some((mat: any) => 
         mat.tipo === 'inicio' && mat.confirmado === true
       );
@@ -471,9 +468,6 @@ export default function Tratamientos() {
       setCargandoMateriales(false);
     }
   };
-
-  // NOTA: La confirmación automática de materiales generales fue reemplazada por confirmación manual
-  // const verificarYConfirmarMaterialesGenerales fue removido
 
   const agregarMaterialGeneral = () => {
     setMaterialesGenerales([...materiales_generales, {
@@ -524,16 +518,12 @@ export default function Tratamientos() {
 
   const actualizarItemMaterialGeneral = (material_index: number, item_index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_generales];
-    
-    // Convertir el valor a número si es un ID
     const valor_procesado = (campo === 'lote_id' || campo === 'activo_id') ? parseInt(valor) : valor;
     
     nuevos_materiales[material_index].items[item_index] = {
       ...nuevos_materiales[material_index].items[item_index],
       [campo]: valor_procesado
     };
-
-    // Auto-poblar información cuando se selecciona lote
     if (campo === 'lote_id' && valor) {
       const material = nuevos_materiales[material_index];
       const producto = productos_por_inventario[material.inventario_id]?.find(p => p.id === material.producto_id);
@@ -544,8 +534,6 @@ export default function Tratamientos() {
         }
       }
     }
-
-    // Auto-poblar información cuando se selecciona activo
     if (campo === 'activo_id' && valor) {
       const material = nuevos_materiales[material_index];
       const producto = productos_por_inventario[material.inventario_id]?.find(p => p.id === material.producto_id);
@@ -567,7 +555,6 @@ export default function Tratamientos() {
   const eliminarItemMaterialGeneral = (material_index: number, item_index: number) => {
     const nuevos_materiales = [...materiales_generales];
     nuevos_materiales[material_index].items = nuevos_materiales[material_index].items.filter((_, i) => i !== item_index);
-    // Si no quedan items, eliminar el material completo
     if (nuevos_materiales[material_index].items.length === 0) {
       nuevos_materiales.splice(material_index, 1);
     }
@@ -589,12 +576,8 @@ export default function Tratamientos() {
 
   const actualizarMaterialPorCita = (index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_por_cita];
-    
-    // Convertir el valor a número si es producto_id o inventario_id
     const valor_procesado = (campo === 'producto_id' || campo === 'inventario_id') ? parseInt(valor) : valor;
     nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor_procesado };
-    
-    // Si cambió el inventario, cargar productos y resetear producto_id
     if (campo === 'inventario_id') {
       const inventario_id = parseInt(valor);
       const inventario = inventarios.find(inv => inv.id === inventario_id);
@@ -608,7 +591,6 @@ export default function Tratamientos() {
       }
     }
     
-    // Si cambió el producto, actualizar campos relacionados
     if (campo === 'producto_id') {
       const producto_id = parseInt(valor);
       const inventario_id = nuevos_materiales[index].inventario_id;
@@ -633,16 +615,12 @@ export default function Tratamientos() {
 
   const actualizarItemMaterialPorCita = (material_index: number, item_index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_por_cita];
-    
-    // Convertir el valor a número si es un ID
     const valor_procesado = (campo === 'lote_id' || campo === 'activo_id') ? parseInt(valor) : valor;
     
     nuevos_materiales[material_index].items[item_index] = {
       ...nuevos_materiales[material_index].items[item_index],
       [campo]: valor_procesado
     };
-
-    // Auto-poblar información cuando se selecciona lote
     if (campo === 'lote_id' && valor) {
       const material = nuevos_materiales[material_index];
       const producto = productos_por_inventario[material.inventario_id]?.find(p => p.id === material.producto_id);
@@ -654,7 +632,6 @@ export default function Tratamientos() {
       }
     }
 
-    // Auto-poblar información cuando se selecciona activo
     if (campo === 'activo_id' && valor) {
       const material = nuevos_materiales[material_index];
       const producto = productos_por_inventario[material.inventario_id]?.find(p => p.id === material.producto_id);
@@ -676,7 +653,6 @@ export default function Tratamientos() {
   const eliminarItemMaterialPorCita = (material_index: number, item_index: number) => {
     const nuevos_materiales = [...materiales_por_cita];
     nuevos_materiales[material_index].items = nuevos_materiales[material_index].items.filter((_, i) => i !== item_index);
-    // Si no quedan items, eliminar el material completo
     if (nuevos_materiales[material_index].items.length === 0) {
       nuevos_materiales.splice(material_index, 1);
     }
@@ -698,8 +674,6 @@ export default function Tratamientos() {
 
   const actualizarMaterialCitaEdicion = (index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_cita_edicion];
-    
-    // Convertir el valor a número si es producto_id o inventario_id
     const valor_procesado = (campo === 'producto_id' || campo === 'inventario_id') ? parseInt(valor) : valor;
     nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor_procesado };
     
@@ -740,14 +714,10 @@ export default function Tratamientos() {
 
   const actualizarItemMaterialCitaEdicion = (material_index: number, item_index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_cita_edicion];
-    
-    // Crear copia profunda del material y sus items
     nuevos_materiales[material_index] = {
       ...nuevos_materiales[material_index],
       items: [...nuevos_materiales[material_index].items]
     };
-    
-    // Convertir el valor a número si es un ID
     const valor_procesado = (campo === 'lote_id' || campo === 'activo_id') ? parseInt(valor) : valor;
     
     nuevos_materiales[material_index].items[item_index] = {
@@ -771,7 +741,6 @@ export default function Tratamientos() {
     setMaterialesCitaEdicion(nuevos_materiales);
   };
 
-  // Funciones para materiales adicionales en confirmación (copiar lógica de Agenda.tsx)
   const agregarMaterialAdicionalConfirmacion = () => {
     setMaterialesAdicionalesConfirmacion([...materiales_adicionales_confirmacion, {
       producto_id: 0,
@@ -870,13 +839,9 @@ export default function Tratamientos() {
     setTratamientoSeleccionado(tratamiento);
     setModoEdicion(true);
     setDialogoPlantillaAbierto(true);
-
-    // Cargar materiales de la plantilla
     try {
-      const materiales = await tratamientosApi.obtenerMaterialesPlantilla(tratamiento.id);
-      
+      const materiales = await tratamientosApi.obtenerMaterialesPlantilla(tratamiento.id);   
       if (materiales && materiales.length > 0) {
-        // Agrupar materiales por inventario
         const materiales_por_inv: { [key: number]: Producto[] } = {};
         const generales: MaterialGeneral[] = [];
         const por_cita: MaterialCita[] = [];
@@ -1002,10 +967,7 @@ export default function Tratamientos() {
 
     setGuardando(true);
     try {
-      // Preparar materiales para enviar al backend
       const materiales: Array<{ producto_id: number; tipo: string; cantidad: number }> = [];
-
-      // Agregar materiales generales
       materiales_generales.forEach((mat) => {
         const cantidad_total = mat.items.reduce((sum, item) => {
           return sum + (item.cantidad_por_cita || 0);
@@ -1019,7 +981,6 @@ export default function Tratamientos() {
         }
       });
 
-      // Agregar materiales por cita
       materiales_por_cita.forEach((mat) => {
         const cantidad_total = mat.items.reduce((sum, item) => {
           return sum + (item.cantidad_planeada || 0);
@@ -1180,8 +1141,6 @@ export default function Tratamientos() {
   const verDetallePlan = async (plan: PlanTratamiento) => {
     setPlanSeleccionado(plan);
     setDialogoDetallePlanAbierto(true);
-    
-    // Cargar materiales para verificar estado de confirmación
     await cargarMaterialesTratamiento(plan.id);
   };
 
@@ -1255,7 +1214,6 @@ export default function Tratamientos() {
       return;
     }
 
-    // Validar materiales si se agregaron
     if (materiales_cita_edicion.length > 0) {
       const { valido, advertencias } = validarDisponibilidadMateriales();
       if (!valido) {
@@ -1298,8 +1256,6 @@ export default function Tratamientos() {
         const estado_cambio = cita_seleccionada.estado_pago !== formulario_cita.estado_pago;
         const cambio_a_pagado = cita_seleccionada.estado_pago !== 'pagado' && formulario_cita.estado_pago === 'pagado';
         const cambio_desde_pagado = cita_seleccionada.estado_pago === 'pagado' && formulario_cita.estado_pago !== 'pagado';
-        
-        // Guardar materiales si se especificaron
         if (materiales_cita_edicion.length > 0) {
           try {
             const materiales_para_guardar = materiales_cita_edicion
@@ -1352,8 +1308,6 @@ export default function Tratamientos() {
       } else {
         const cita_creada = await agendaApi.crear(datos);
         cita_id = cita_creada.id;
-        
-        // Guardar materiales si se especificaron
         if (materiales_cita_edicion.length > 0 && cita_id) {
           try {
             const materiales_para_guardar = materiales_cita_edicion
@@ -1546,8 +1500,6 @@ export default function Tratamientos() {
     if (!cita.id) return;
     setCitaSeleccionada(cita);
     setCargandoMateriales(true);
-    
-    // Inicializar estado y monto de la cita
     setEstadoPagoConfirmacion(cita.estado_pago || 'pendiente');
     setMontoConfirmacion(cita.monto_esperado?.toString() || '');
     setMaterialesAdicionalesConfirmacion([]);
@@ -1556,13 +1508,9 @@ export default function Tratamientos() {
     try {
       const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
       const materiales_raw = respuesta.materiales || [];
-      
-      // Transformar materiales al formato plano para confirmación
       const materiales_confirmacion: any[] = [];
-      
       for (const material of materiales_raw) {
         if (material.items && material.items.length > 0) {
-          // Si tiene items específicos (lotes/activos), crear una entrada por cada item
           for (const item of material.items) {
             materiales_confirmacion.push({
               material_cita_id: material.id,
@@ -1580,7 +1528,6 @@ export default function Tratamientos() {
             });
           }
         } else {
-          // Si no tiene items, crear una entrada con la cantidad planeada del material
           materiales_confirmacion.push({
             material_cita_id: material.id,
             producto_nombre: material.producto_nombre,
@@ -1612,7 +1559,6 @@ export default function Tratamientos() {
 
     setGuardando(true);
     try {
-      // Primero asignar materiales adicionales si hay
       if (materiales_adicionales_confirmacion.length > 0) {
         const materiales_para_asignar = materiales_adicionales_confirmacion.flatMap(m => {
           return m.items.map(item => ({
@@ -1628,7 +1574,6 @@ export default function Tratamientos() {
         });
       }
 
-      // Actualizar estado y monto de la cita
       await agendaApi.actualizar(cita_seleccionada.id, {
         estado_pago: estado_pago_confirmacion,
         monto_esperado: monto_confirmacion ? parseFloat(monto_confirmacion) : 0,
@@ -1640,7 +1585,6 @@ export default function Tratamientos() {
         plan_tratamiento_id: plan_seleccionado?.id,
       });
 
-      // Confirmar materiales si hay
       if (materiales_confirmacion.length > 0) {
         await inventarioApi.confirmarMaterialesCita(cita_seleccionada.id, {
           materiales: materiales_confirmacion.map(m => ({
@@ -1671,16 +1615,10 @@ export default function Tratamientos() {
 
   const abrirDialogoConfirmarMaterialesTratamiento = async () => {
     if (!plan_seleccionado) return;
-    
-    // Cargar materiales del tratamiento
     try {
       const respuesta = await inventarioApi.obtenerMaterialesTratamiento(plan_seleccionado.id);
       const materiales = respuesta.materiales || [];
-      
-      // Filtrar solo materiales de tipo 'inicio' (generales)
       const materiales_inicio = materiales.filter((mat: any) => mat.tipo === 'inicio');
-      
-      // Preparar materiales para confirmación con cantidad editable
       const materiales_preparados = materiales_inicio.map((mat: any) => ({
         id: mat.id,
         producto_id: mat.producto_id,
@@ -1689,7 +1627,7 @@ export default function Tratamientos() {
         tipo_gestion: mat.tipo_gestion,
         unidad_medida: mat.unidad_medida,
         cantidad_planeada: mat.cantidad_planeada,
-        cantidad_usada: mat.cantidad_planeada, // Por defecto usar la planeada
+        cantidad_usada: mat.cantidad_planeada,
       }));
       
       setMaterialesTratamientoConfirmacion(materiales_preparados);
@@ -1712,15 +1650,12 @@ export default function Tratamientos() {
 
     setGuardando(true);
     try {
-      // Preparar datos para confirmación
       const datos_confirmacion: any = {
         materiales: materiales_tratamiento_confirmacion.map(mat => ({
           material_tratamiento_id: mat.id,
           cantidad_usada: mat.cantidad_usada,
         })),
       };
-
-      // Agregar información de pago si se proporciona
       if (estado_pago_tratamiento && estado_pago_tratamiento !== 'pendiente') {
         datos_confirmacion.estado_pago = estado_pago_tratamiento;
         

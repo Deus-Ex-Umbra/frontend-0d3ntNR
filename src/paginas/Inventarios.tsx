@@ -96,17 +96,14 @@ export default function Inventarios() {
   const [activo_seleccionado, setActivoSeleccionado] = useState<Activo | null>(null);
   const [activo_a_eliminar, setActivoAEliminar] = useState<Activo | null>(null);
   const [usuario_a_remover, setUsuarioARemover] = useState<any>(null);
-  
   const [busqueda_inventarios, setBusquedaInventarios] = useState('');
   const [busqueda_productos, setBusquedaProductos] = useState('');
   const [vista_actual, setVistaActual] = useState<'lista' | 'detalle'>('lista');
   const [tab_activo, setTabActivo] = useState<'productos' | 'historial' | 'usuarios'>('productos');
   const [filtro_tipo_producto, setFiltroTipoProducto] = useState<string>('todos');
-
-  // Estados para filtros avanzados de historial
   const [filtros_historial, setFiltrosHistorial] = useState({
-    tipo_operacion: [] as string[], // 'entrada_stock', 'salida_stock', 'creacion', 'edicion', 'eliminacion'
-    tipo_entidad: [] as string[], // 'producto', 'lote', 'serie', 'general' (solo aplica a creacion/edicion/eliminacion)
+    tipo_operacion: [] as string[],
+    tipo_entidad: [] as string[],
     fecha_inicio: undefined as Date | undefined,
     fecha_fin: undefined as Date | undefined,
     limit: 100,
@@ -182,7 +179,6 @@ export default function Inventarios() {
     { valor: 'desechado', etiqueta: 'Desechado' },
   ];
 
-  // Tipos de operación principales
   const tipos_operacion = [
     { valor: 'entrada_stock', etiqueta: 'Entrada de Stock' },
     { valor: 'salida_stock', etiqueta: 'Salida de Stock' },
@@ -191,7 +187,6 @@ export default function Inventarios() {
     { valor: 'eliminacion', etiqueta: 'Eliminación' },
   ];
 
-  // Tipos de entidad (solo aplica a creacion/edicion/eliminacion)
   const tipos_entidad = [
     { valor: 'producto', etiqueta: 'Producto' },
     { valor: 'lote', etiqueta: 'Lote' },
@@ -199,7 +194,6 @@ export default function Inventarios() {
     { valor: 'general', etiqueta: 'General' },
   ];
 
-  // Mapeo de operaciones a tipos de movimiento del backend
   const mapearATiposBackend = (tipo_operacion: string[], tipo_entidad: string[]): string[] => {
     const tipos: string[] = [];
 
@@ -209,7 +203,6 @@ export default function Inventarios() {
       } else if (op === 'salida_stock') {
         tipos.push('salida', 'uso_cita', 'uso_tratamiento');
       } else if (op === 'creacion') {
-        // Si no hay filtro de entidad, incluir todos
         if (tipo_entidad.length === 0) {
           tipos.push('producto_creado', 'lote_creado', 'activo_creado');
         } else {
@@ -241,7 +234,7 @@ export default function Inventarios() {
       }
     });
 
-    return [...new Set(tipos)]; // Eliminar duplicados
+    return [...new Set(tipos)];
   };
 
   const estaVencido = (fecha_vencimiento: Date | null | undefined): boolean => {
@@ -315,8 +308,6 @@ export default function Inventarios() {
           limit: filtros_historial.limit,
         }),
       ]);
-
-      // Actualizar el inventario seleccionado con los datos más recientes (incluye permisos)
       setInventarioSeleccionado(inventario_actualizado);
       setProductos(productos_respuesta);
       setReporteValor(reporte_respuesta);
@@ -360,7 +351,6 @@ export default function Inventarios() {
   };
 
   const limpiarFiltrosHistorial = async () => {
-    // Limpiar los filtros
     setFiltrosHistorial({
       tipo_operacion: [],
       tipo_entidad: [],
@@ -368,8 +358,6 @@ export default function Inventarios() {
       fecha_fin: undefined,
       limit: 100,
     });
-
-    // Cargar historial sin filtros automáticamente
     if (!inventario_seleccionado) return;
 
     try {
@@ -475,9 +463,7 @@ export default function Inventarios() {
     setGuardando(true);
     try {
       if (modo_edicion && inventario_seleccionado) {
-        // Si cambiamos a privado, eliminar todos los permisos
         if (formulario_inventario.visibilidad === 'privado' && inventario_seleccionado.visibilidad === 'publico') {
-          // Eliminar todos los permisos antes de actualizar
           if (inventario_seleccionado.permisos && inventario_seleccionado.permisos.length > 0) {
             await Promise.all(
               inventario_seleccionado.permisos.map(permiso =>
@@ -492,11 +478,7 @@ export default function Inventarios() {
           title: 'Éxito',
           description: 'Inventario actualizado correctamente',
         });
-        
-        // Recargar inventarios
         await cargarInventarios();
-        
-        // Si estamos en vista detalle, recargar el inventario actualizado
         if (vista_actual === 'detalle') {
           const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
           setInventarioSeleccionado(inventario_actualizado);
@@ -553,7 +535,6 @@ export default function Inventarios() {
   const verDetalleInventario = async (inventario: Inventario) => {
     setInventarioSeleccionado(inventario);
     setVistaActual('detalle');
-    // Guardar en localStorage para persistencia
     localStorage.setItem('inventario_seleccionado_id', inventario.id.toString());
     await cargarDetalleInventario(inventario);
   };
@@ -591,8 +572,6 @@ export default function Inventarios() {
       });
 
       setDialogoInvitarAbierto(false);
-      
-      // Recargar inventarios y actualizar el seleccionado
       await cargarInventarios();
       const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
       setInventarioSeleccionado(inventario_actualizado);
@@ -624,8 +603,6 @@ export default function Inventarios() {
       });
       setDialogoRemoverUsuarioAbierto(false);
       setUsuarioARemover(null);
-      
-      // Recargar inventarios y actualizar el seleccionado
       await cargarInventarios();
       const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
       setInventarioSeleccionado(inventario_actualizado);
@@ -661,8 +638,6 @@ export default function Inventarios() {
         description: 'Permiso actualizado correctamente',
       });
       setDialogoEditarPermisoAbierto(false);
-      
-      // Recargar inventarios y actualizar el seleccionado
       await cargarInventarios();
       const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
       setInventarioSeleccionado(inventario_actualizado);
@@ -1166,7 +1141,6 @@ export default function Inventarios() {
     setReporteValor(null);
     setMovimientos([]);
     setTabActivo('productos');
-    // Limpiar la persistencia al volver a la lista
     localStorage.removeItem('inventario_seleccionado_id');
   };
 
@@ -1218,13 +1192,8 @@ export default function Inventarios() {
     const coincide_tipo = filtro_tipo_producto === 'todos' || p.tipo_gestion === filtro_tipo_producto;
     return coincide_busqueda && coincide_tipo && p.activo;
   });
-
-  // Filtrar usuarios para no incluir al usuario actual ni usuarios ya invitados
   const usuarios_disponibles_para_invitar = usuarios.filter(u => {
-    // Excluir al usuario actual
     if (usuario_actual && u.id === usuario_actual.id) return false;
-    
-    // Excluir usuarios ya invitados
     if (inventario_seleccionado?.permisos) {
       const ya_invitado = inventario_seleccionado.permisos.some(
         permiso => permiso.usuario_invitado.id === u.id
@@ -1242,10 +1211,14 @@ export default function Inventarios() {
 
   if (cargando) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground">Cargando inventarios...</p>
+      <div className="flex h-screen bg-background overflow-hidden">
+        <MenuLateral />
+        <Toaster />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <p className="text-muted-foreground">Cargando inventarios...</p>
+          </div>
         </div>
       </div>
     );
@@ -1829,7 +1802,6 @@ export default function Inventarios() {
             <TabsContent value="historial" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
               <ScrollArea className="flex-1">
                 <div className="p-6 space-y-6">
-                  {/* Sección de filtros */}
                   <div className="space-y-4 pb-6 border-b">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -1907,8 +1879,6 @@ export default function Inventarios() {
                       </Select>
                     </div>
                   </div>
-
-                  {/* Filtro de entidad solo visible si hay operaciones de auditoría seleccionadas */}
                   {filtros_historial.tipo_operacion.some(op => ['creacion', 'edicion', 'eliminacion'].includes(op)) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-2">
@@ -1977,8 +1947,6 @@ export default function Inventarios() {
                     </div>
                   )}
                   </div>
-
-                  {/* Contenido del historial */}
                   {cargando_detalle ? (
                   <div className="flex items-center justify-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />

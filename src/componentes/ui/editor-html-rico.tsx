@@ -7,6 +7,7 @@ import { ListItem } from '@tiptap/extension-list-item';
 import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
 import { TextAlign } from '@tiptap/extension-text-align';
+import { FontSize } from '@/lib/tiptap-font-size';
 import { useEffect, useState } from 'react';
 import { Button } from '@/componentes/ui/button';
 import { Toggle } from '@/componentes/ui/toggle';
@@ -17,17 +18,15 @@ import {
   Strikethrough, 
   List, 
   ListOrdered,
-  Heading1,
-  Heading2,
-  Heading3,
-  Type,
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utilidades';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
 import { HexColorPicker } from 'react-colorful';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
 
 interface EditorHtmlRicoProps {
   contenido: string;
@@ -38,8 +37,23 @@ interface EditorHtmlRicoProps {
 }
 
 const colores_predefinidos = [
-  '#000000', '#ef4444', '#22c55e', '#3b82f6', 
+  '#000000', '#FFFFFF', '#ef4444', '#22c55e', '#3b82f6', 
   '#eab308', '#a855f7', '#ec4899', '#6b7280',
+];
+
+const tamanos_fuente = [
+  { label: '8px', value: '8px' },
+  { label: '10px', value: '10px' },
+  { label: '12px', value: '12px' },
+  { label: '14px', value: '14px' },
+  { label: '16px', value: '16px' },
+  { label: '18px', value: '18px' },
+  { label: '20px', value: '20px' },
+  { label: '24px', value: '24px' },
+  { label: '28px', value: '28px' },
+  { label: '32px', value: '32px' },
+  { label: '36px', value: '36px' },
+  { label: '48px', value: '48px' },
 ];
 
 export function EditorHtmlRico({ 
@@ -51,6 +65,13 @@ export function EditorHtmlRico({
 }: EditorHtmlRicoProps) {
   const [colorActual, setColorActual] = useState('#000000');
   const [popoverAbierto, setPopoverAbierto] = useState(false);
+  const [tamanoActual, setTamanoActual] = useState('16px');
+  const [formatosActivos, setFormatosActivos] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strike: false,
+  });
 
   const editor = useEditor({
     extensions: [
@@ -58,15 +79,17 @@ export function EditorHtmlRico({
         bulletList: false,
         orderedList: false,
         listItem: false,
+        heading: false,
       }),
       TextStyle,
       Color,
+      FontSize,
       Underline,
       BulletList,
       OrderedList,
       ListItem,
       TextAlign.configure({
-        types: ['heading', 'paragraph'],
+        types: ['paragraph', 'heading', 'listItem'],
         alignments: ['left', 'center', 'right'],
         defaultAlignment: 'left',
       }),
@@ -79,8 +102,28 @@ export function EditorHtmlRico({
     },
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
-      const color = editor.getAttributes('textStyle').color || '#000000';
-      setColorActual(color);
+      
+      const tamano = editor.getAttributes('textStyle').fontSize;
+      if (tamano) {
+        setTamanoActual(tamano);
+      }
+    },
+    onSelectionUpdate: ({ editor }) => {
+      const color = editor.getAttributes('textStyle').color;
+      if (color) {
+        setColorActual(color);
+      }
+      
+      const tamano = editor.getAttributes('textStyle').fontSize;
+      if (tamano) {
+        setTamanoActual(tamano);
+      }
+      setFormatosActivos({
+        bold: editor.isActive('bold'),
+        italic: editor.isActive('italic'),
+        underline: editor.isActive('underline'),
+        strike: editor.isActive('strike'),
+      });
     },
   });
 
@@ -94,6 +137,9 @@ export function EditorHtmlRico({
     if (editor) {
       const color = editor.getAttributes('textStyle').color || '#000000';
       setColorActual(color);
+      
+      const tamano = editor.getAttributes('textStyle').fontSize || '16px';
+      setTamanoActual(tamano);
     }
   }, [editor]);
 
@@ -106,90 +152,123 @@ export function EditorHtmlRico({
     setColorActual(color);
   };
 
+  const aplicarTamano = (tamano: string) => {
+    editor.chain().focus().setFontSize(tamano).run();
+    setTamanoActual(tamano);
+  };
+
+  const aumentarTamano = () => {
+    const tamanoActualIndex = tamanos_fuente.findIndex(t => t.value === tamanoActual);
+    if (tamanoActualIndex < tamanos_fuente.length - 1) {
+      aplicarTamano(tamanos_fuente[tamanoActualIndex + 1].value);
+    }
+  };
+
+  const disminuirTamano = () => {
+    const tamanoActualIndex = tamanos_fuente.findIndex(t => t.value === tamanoActual);
+    if (tamanoActualIndex > 0) {
+      aplicarTamano(tamanos_fuente[tamanoActualIndex - 1].value);
+    }
+  };
+
   return (
     <div className={cn('border rounded-lg overflow-hidden bg-background', className)}>
       <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/30">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive('heading', { level: 1 })}
-          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          aria-label="Título 1"
-        >
-          <Heading1 className="h-4 w-4" />
-        </Toggle>
-
-        <Toggle
-          size="sm"
-          pressed={editor.isActive('heading', { level: 2 })}
-          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          aria-label="Título 2"
-        >
-          <Heading2 className="h-4 w-4" />
-        </Toggle>
-
-        <Toggle
-          size="sm"
-          pressed={editor.isActive('heading', { level: 3 })}
-          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          aria-label="Título 3"
-        >
-          <Heading3 className="h-4 w-4" />
-        </Toggle>
-
-        <Toggle
-          size="sm"
-          pressed={editor.isActive('paragraph')}
-          onPressedChange={() => editor.chain().focus().setParagraph().run()}
-          aria-label="Texto normal"
-        >
-          <Type className="h-4 w-4" />
-        </Toggle>
-
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2"
+            onClick={disminuirTamano}
+            disabled={tamanos_fuente[0].value === tamanoActual}
+            title="Disminuir tamaño"
+          >
+            A-
+          </Button>
+          
+          <Select value={tamanoActual} onValueChange={aplicarTamano}>
+            <SelectTrigger className="h-8 w-[80px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {tamanos_fuente.map((tamano) => (
+                <SelectItem key={tamano.value} value={tamano.value}>
+                  {tamano.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2"
+            onClick={aumentarTamano}
+            disabled={tamanos_fuente[tamanos_fuente.length - 1].value === tamanoActual}
+            title="Aumentar tamaño"
+          >
+            A+
+          </Button>
+        </div>
         <div className="w-px h-6 bg-border mx-1" />
-
         <Toggle
           size="sm"
-          pressed={editor.isActive('bold')}
-          onPressedChange={() => editor.chain().focus().toggleBold().run()}
+          pressed={formatosActivos.bold}
+          onPressedChange={() => {
+            editor.chain().focus().toggleBold().run();
+            setFormatosActivos(prev => ({ ...prev, bold: !prev.bold }));
+          }}
           aria-label="Negrita"
+          data-state={formatosActivos.bold ? 'on' : 'off'}
         >
           <Bold className="h-4 w-4" />
         </Toggle>
 
         <Toggle
           size="sm"
-          pressed={editor.isActive('italic')}
-          onPressedChange={() => editor.chain().focus().toggleItalic().run()}
+          pressed={formatosActivos.italic}
+          onPressedChange={() => {
+            editor.chain().focus().toggleItalic().run();
+            setFormatosActivos(prev => ({ ...prev, italic: !prev.italic }));
+          }}
           aria-label="Cursiva"
+          data-state={formatosActivos.italic ? 'on' : 'off'}
         >
           <Italic className="h-4 w-4" />
         </Toggle>
 
         <Toggle
           size="sm"
-          pressed={editor.isActive('underline')}
-          onPressedChange={() => editor.chain().focus().toggleUnderline().run()}
+          pressed={formatosActivos.underline}
+          onPressedChange={() => {
+            editor.chain().focus().toggleUnderline().run();
+            setFormatosActivos(prev => ({ ...prev, underline: !prev.underline }));
+          }}
           aria-label="Subrayado"
+          data-state={formatosActivos.underline ? 'on' : 'off'}
         >
           <UnderlineIcon className="h-4 w-4" />
         </Toggle>
 
         <Toggle
           size="sm"
-          pressed={editor.isActive('strike')}
-          onPressedChange={() => editor.chain().focus().toggleStrike().run()}
+          pressed={formatosActivos.strike}
+          onPressedChange={() => {
+            editor.chain().focus().toggleStrike().run();
+            setFormatosActivos(prev => ({ ...prev, strike: !prev.strike }));
+          }}
           aria-label="Tachado"
+          data-state={formatosActivos.strike ? 'on' : 'off'}
         >
           <Strikethrough className="h-4 w-4" />
         </Toggle>
-
         <div className="w-px h-6 bg-border mx-1" />
-
         <Toggle
           size="sm"
           pressed={editor.isActive('bulletList')}
           onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
           aria-label="Lista con viñetas"
+          data-state={editor.isActive('bulletList') ? 'on' : 'off'}
         >
           <List className="h-4 w-4" />
         </Toggle>
@@ -199,17 +278,17 @@ export function EditorHtmlRico({
           pressed={editor.isActive('orderedList')}
           onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
           aria-label="Lista numerada"
+          data-state={editor.isActive('orderedList') ? 'on' : 'off'}
         >
           <ListOrdered className="h-4 w-4" />
         </Toggle>
-
         <div className="w-px h-6 bg-border mx-1" />
-
         <Toggle
           size="sm"
           pressed={editor.isActive({ textAlign: 'left' })}
           onPressedChange={() => editor.chain().focus().setTextAlign('left').run()}
           aria-label="Alinear a la izquierda"
+          data-state={editor.isActive({ textAlign: 'left' }) ? 'on' : 'off'}
         >
           <AlignLeft className="h-4 w-4" />
         </Toggle>
@@ -219,6 +298,7 @@ export function EditorHtmlRico({
           pressed={editor.isActive({ textAlign: 'center' })}
           onPressedChange={() => editor.chain().focus().setTextAlign('center').run()}
           aria-label="Centrar"
+          data-state={editor.isActive({ textAlign: 'center' }) ? 'on' : 'off'}
         >
           <AlignCenter className="h-4 w-4" />
         </Toggle>
@@ -228,39 +308,37 @@ export function EditorHtmlRico({
           pressed={editor.isActive({ textAlign: 'right' })}
           onPressedChange={() => editor.chain().focus().setTextAlign('right').run()}
           aria-label="Alinear a la derecha"
+          data-state={editor.isActive({ textAlign: 'right' }) ? 'on' : 'off'}
         >
           <AlignRight className="h-4 w-4" />
         </Toggle>
-
         <div className="w-px h-6 bg-border mx-1" />
-
-        <Popover open={popoverAbierto} onOpenChange={setPopoverAbierto}>
-          <PopoverTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-8 w-8 p-0"
-              aria-label="Color de texto"
-            >
-              <div 
-                className="w-4 h-4 rounded border border-border"
-                style={{ backgroundColor: colorActual }}
-              />
-            </Button>
-          </PopoverTrigger>
+        <div className="flex items-center gap-1">
+          <Popover open={popoverAbierto} onOpenChange={setPopoverAbierto}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 w-8 p-0"
+                aria-label="Color de texto"
+              >
+                <div 
+                  className="w-4 h-4 rounded border border-border"
+                  style={{ backgroundColor: colorActual }}
+                />
+              </Button>
+            </PopoverTrigger>
           <PopoverContent 
             className="w-64 p-3" 
             align="start"
             onInteractOutside={(e) => {
               const target = e.target as HTMLElement;
-              // No cerrar si se hace clic dentro del popover completo
               if (target.closest('.react-colorful') || target.closest('[role="dialog"]')) {
                 e.preventDefault();
               }
             }}
             onPointerDownOutside={(e) => {
               const target = e.target as HTMLElement;
-              // Prevenir cierre al hacer clic en cualquier parte del selector de color
               if (target.closest('.react-colorful') || target.closest('[role="dialog"]')) {
                 e.preventDefault();
               }
@@ -274,14 +352,18 @@ export function EditorHtmlRico({
                   aplicarColor(color);
                 }}
               />
-              <div className="grid grid-cols-8 gap-2">
+              <div className="grid grid-cols-9 gap-2">
                 {colores_predefinidos.map((color) => (
                   <button
                     key={color}
                     type="button"
-                    className="h-6 w-6 rounded border-2 border-border hover:scale-110 transition-transform"
+                    className={cn(
+                      "h-6 w-6 rounded border-2 hover:scale-110 transition-transform",
+                      color === '#FFFFFF' ? 'border-gray-300' : 'border-border'
+                    )}
                     style={{ backgroundColor: color }}
                     onClick={() => aplicarColor(color)}
+                    title={color}
                   />
                 ))}
               </div>
@@ -302,14 +384,16 @@ export function EditorHtmlRico({
                 className="w-full"
                 onClick={() => setPopoverAbierto(false)}
               >
+                <Check className="h-4 w-4 mr-2" />
                 Cerrar
               </Button>
             </div>
           </PopoverContent>
         </Popover>
       </div>
+      </div>
 
-      <div style={{ minHeight }}>
+      <div style={{ minHeight, maxHeight: '600px', overflowY: 'auto' }}>
         <EditorContent editor={editor} />
       </div>
 
@@ -327,41 +411,69 @@ export function EditorHtmlRico({
           float: left;
           height: 0;
         }
-        .ProseMirror h1 {
-          font-size: 2em;
-          font-weight: bold;
-          margin: 0.67em 0;
-          line-height: 1.2;
-        }
-        .ProseMirror h2 {
-          font-size: 1.5em;
-          font-weight: bold;
-          margin: 0.75em 0;
-          line-height: 1.3;
-        }
-        .ProseMirror h3 {
-          font-size: 1.17em;
-          font-weight: bold;
-          margin: 0.83em 0;
-          line-height: 1.4;
-        }
         .ProseMirror p {
           margin: 0.5em 0;
         }
         .ProseMirror ul,
         .ProseMirror ol {
-          padding: 0 1.5rem;
+          padding-left: 2rem;
           margin: 0.5rem 0;
+          list-style-position: outside;
+          color: currentColor;
         }
         .ProseMirror ul li,
         .ProseMirror ol li {
           margin: 0.25rem 0;
+          display: list-item;
+          color: currentColor;
+        }
+        .ProseMirror ul li::marker,
+        .ProseMirror ol li::marker {
+          color: currentColor;
         }
         .ProseMirror ul {
           list-style-type: disc;
         }
         .ProseMirror ol {
           list-style-type: decimal;
+        }
+        .ProseMirror ul[style*="text-align: center"],
+        .ProseMirror ol[style*="text-align: center"] {
+          display: table;
+          text-align: left;
+          list-style-position: outside;
+          padding-left: 2rem;
+          margin-left: auto;
+          margin-right: auto;
+        }
+        .ProseMirror ul[style*="text-align: right"],
+        .ProseMirror ol[style*="text-align: right"] {
+          display: table;
+          text-align: left;
+          list-style-position: outside;
+          padding-left: 2rem;
+          margin-left: auto;
+          margin-right: 0;
+        }
+        .ProseMirror ul[style*="text-align: left"],
+        .ProseMirror ol[style*="text-align: left"] {
+          display: block;
+          text-align: left;
+          list-style-position: outside;
+          padding-left: 2rem;
+          margin-left: 0;
+          margin-right: auto;
+        }
+        .ProseMirror ul[style*="text-align: center"] li,
+        .ProseMirror ol[style*="text-align: center"] li,
+        .ProseMirror ul[style*="text-align: right"] li,
+        .ProseMirror ol[style*="text-align: right"] li {
+          text-align: left;
+          display: list-item;
+        }
+        button[data-state="on"] {
+          background-color: hsl(var(--primary));
+          color: hsl(var(--primary-foreground));
         }
       `}</style>
     </div>

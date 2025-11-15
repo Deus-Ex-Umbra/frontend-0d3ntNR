@@ -9,12 +9,12 @@ export interface ItemMaterialCita {
 
 export interface MaterialCita {
   producto_id: number;
-  inventario_id: number; // Inventario del que proviene el producto
-  inventario_nombre?: string; // Nombre del inventario para mostrar
+  inventario_id: number;
+  inventario_nombre?: string;
   producto_nombre?: string;
   tipo_gestion?: string;
   unidad_medida?: string;
-  items: ItemMaterialCita[]; // Lista de lotes/activos dentro del producto
+  items: ItemMaterialCita[];
 }
 
 export interface MaterialCitaConfirmacion {
@@ -35,7 +35,7 @@ export interface MaterialCitaConfirmacion {
 export interface ItemMaterialGeneral {
   lote_id?: number;
   activo_id?: number;
-  cantidad_por_cita?: number; // Solo para consumibles
+  cantidad_por_cita?: number;
   nro_lote?: string;
   nro_serie?: string;
   nombre_asignado?: string;
@@ -43,11 +43,11 @@ export interface ItemMaterialGeneral {
 
 export interface MaterialGeneral {
   producto_id: number;
-  inventario_id: number; // Inventario del que proviene el producto
-  inventario_nombre?: string; // Nombre del inventario para mostrar
+  inventario_id: number;
+  inventario_nombre?: string;
   producto_nombre?: string;
   tipo_gestion?: string;
   unidad_medida?: string;
-  items: ItemMaterialGeneral[]; // Lista de lotes/activos dentro del producto
+  items: ItemMaterialGeneral[];
 }
 

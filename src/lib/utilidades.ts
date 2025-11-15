@@ -46,3 +46,4 @@ export function finDelDia(fecha: Date): Date {
   nueva_fecha.setHours(23, 59, 59, 999);
   return nueva_fecha;
 }
+

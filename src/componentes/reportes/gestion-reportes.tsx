@@ -5,13 +5,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/componentes/ui/label';
 import { Calendar } from '@/componentes/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
+import { Switch } from '@/componentes/ui/switch';
 import { reportesApi } from '@/lib/api';
 import { AreaReporte } from '@/tipos';
-import { FileText, Calendar as CalendarIcon, Download, Loader2, Trash2, RefreshCw } from 'lucide-react';
+import { FileText, Calendar as CalendarIcon, Download, Loader2, Trash2, RefreshCw, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utilidades';
 import { useToast } from '@/hooks/use-toast';
+import { VisualizadorArchivos } from '@/componentes/archivos/visualizador-archivos';
 
 interface ReporteGuardado {
   id: number;
@@ -20,6 +22,7 @@ interface ReporteGuardado {
   fecha_inicio?: Date;
   fecha_fin?: Date;
   fecha_creacion: Date;
+  analisis_gemini?: string;
 }
 
 export function GestionReportes() {
@@ -27,9 +30,21 @@ export function GestionReportes() {
   const [areas_seleccionadas, setAreasSeleccionadas] = useState<AreaReporte[]>([]);
   const [fecha_inicio, setFechaInicio] = useState<Date>();
   const [fecha_fin, setFechaFin] = useState<Date>();
+  const [usar_intervalo, setUsarIntervalo] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [cargando_lista, setCargandoLista] = useState(true);
   const [reportes_guardados, setReportesGuardados] = useState<ReporteGuardado[]>([]);
+
+  const [reporte_visualizando, setReporteVisualizando] = useState<{
+    id: number;
+    nombre_archivo: string;
+    tipo_mime: string;
+    descripcion?: string;
+    url?: string;
+    fecha_subida: string;
+  } | null>(null);
+  const [visualizador_abierto, setVisualizadorAbierto] = useState(false);
+  const [reporte_cargando_id, setReporteCargandoId] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -78,12 +93,21 @@ export function GestionReportes() {
       return;
     }
 
+    if (usar_intervalo && (!fecha_inicio || !fecha_fin)) {
+      toast({
+        title: 'Error',
+        description: 'Debes seleccionar las fechas de inicio y fin para el intervalo',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setCargando(true);
     try {
       const datos = {
         areas: areas_seleccionadas,
-        fecha_inicio: fecha_inicio ? format(fecha_inicio, 'yyyy-MM-dd') : undefined,
-        fecha_fin: fecha_fin ? format(fecha_fin, 'yyyy-MM-dd') : undefined,
+        fecha_inicio: usar_intervalo && fecha_inicio ? format(fecha_inicio, 'yyyy-MM-dd') : undefined,
+        fecha_fin: usar_intervalo && fecha_fin ? format(fecha_fin, 'yyyy-MM-dd') : undefined,
       };
 
       await reportesApi.generar(datos);
@@ -97,8 +121,7 @@ export function GestionReportes() {
       setAreasSeleccionadas([]);
       setFechaInicio(undefined);
       setFechaFin(undefined);
-      
-      // Recargar la lista de reportes
+      setUsarIntervalo(false);
       await cargarReportes();
     } catch (error) {
       console.error('Error al generar reporte:', error);
@@ -146,6 +169,33 @@ export function GestionReportes() {
         description: 'No se pudo eliminar el reporte',
         variant: 'destructive',
       });
+    }
+  };
+
+  const verReporte = async (reporte: ReporteGuardado) => {
+    setReporteCargandoId(reporte.id);
+    try {
+      const blob = await reportesApi.descargar(reporte.id);
+      const url = URL.createObjectURL(blob);
+
+      setReporteVisualizando({
+        id: reporte.id,
+        nombre_archivo: `${reporte.nombre}-${format(new Date(reporte.fecha_creacion), 'yyyy-MM-dd')}.pdf`,
+        tipo_mime: 'application/pdf',
+        descripcion: `Áreas: ${reporte.areas.join(', ')}`,
+        url: url,
+        fecha_subida: new Date(reporte.fecha_creacion).toISOString(),
+      });
+      setVisualizadorAbierto(true);
+    } catch (error) {
+      console.error('Error al visualizar reporte:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo cargar el reporte seleccionado',
+        variant: 'destructive',
+      });
+    } finally {
+      setReporteCargandoId(null);
     }
   };
 
@@ -199,61 +249,79 @@ export function GestionReportes() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Fecha de inicio (opcional)</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          'w-full justify-start text-left font-normal',
-                          !fecha_inicio && 'text-muted-foreground'
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {fecha_inicio ? format(fecha_inicio, 'PPP', { locale: es }) : 'Seleccionar'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={fecha_inicio}
-                        onSelect={setFechaInicio}
-                        locale={es}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between space-x-2">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="usar-intervalo">Filtrar por intervalo de fechas</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Desactivado: Incluye todos los datos desde el inicio
+                    </p>
+                  </div>
+                  <Switch
+                    id="usar-intervalo"
+                    checked={usar_intervalo}
+                    onCheckedChange={setUsarIntervalo}
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Fecha de fin (opcional)</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          'w-full justify-start text-left font-normal',
-                          !fecha_fin && 'text-muted-foreground'
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {fecha_fin ? format(fecha_fin, 'PPP', { locale: es }) : 'Seleccionar'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={fecha_fin}
-                        onSelect={setFechaFin}
-                        locale={es}
-                        disabled={(date) => fecha_inicio ? date < fecha_inicio : false}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                {usar_intervalo && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Fecha de inicio *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              'w-full justify-start text-left font-normal',
+                              !fecha_inicio && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {fecha_inicio ? format(fecha_inicio, 'PPP', { locale: es }) : 'Seleccionar'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={fecha_inicio}
+                            onSelect={setFechaInicio}
+                            locale={es}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Fecha de fin *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              'w-full justify-start text-left font-normal',
+                              !fecha_fin && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {fecha_fin ? format(fecha_fin, 'PPP', { locale: es }) : 'Seleccionar'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={fecha_fin}
+                            onSelect={setFechaFin}
+                            locale={es}
+                            disabled={(date) => fecha_inicio ? date < fecha_inicio : false}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -310,7 +378,21 @@ export function GestionReportes() {
                     <Button
                       variant="outline"
                       size="icon"
+                      onClick={() => verReporte(reporte)}
+                      disabled={reporte_cargando_id === reporte.id}
+                      title="Visualizar PDF"
+                    >
+                      {reporte_cargando_id === reporte.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
                       onClick={() => descargarReporte(reporte)}
+                      title="Descargar PDF"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -318,6 +400,7 @@ export function GestionReportes() {
                       variant="outline"
                       size="icon"
                       onClick={() => eliminarReporte(reporte.id)}
+                      title="Eliminar reporte"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -327,6 +410,17 @@ export function GestionReportes() {
             </Card>
           ))}
         </div>
+      )}
+
+      {reporte_visualizando && visualizador_abierto && (
+        <VisualizadorArchivos
+          archivo={reporte_visualizando}
+          abierto={visualizador_abierto}
+          onCerrar={() => {
+            setVisualizadorAbierto(false);
+            setReporteVisualizando(null);
+          }}
+        />
       )}
     </div>
   );

@@ -117,8 +117,6 @@ export default function Finanzas() {
       const anio = fecha_local.getFullYear();
       const mes = String(fecha_local.getMonth() + 1).padStart(2, '0');
       const dia = String(fecha_local.getDate()).padStart(2, '0');
-      
-      // Usar hora local (12:00:00) sin convertir a UTC
       const fecha_str = `${anio}-${mes}-${dia}T12:00:00`;
 
       const datos: DatosGrafico[] = await finanzasApi.obtenerDatosGrafico(tipo_grafico, fecha_str);

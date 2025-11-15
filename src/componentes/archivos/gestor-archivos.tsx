@@ -15,22 +15,54 @@ import {
   Card,
   CardContent,
 } from '@/componentes/ui/card';
-import { FileText, Upload, Download, Trash2, Edit, Loader2, Eye, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
-import { archivosApi } from '@/lib/api';
+import { FileText, Upload, Download, Trash2, Edit, Loader2, Eye, FileSignature } from 'lucide-react';
+import { archivosApi, plantillasConsentimientoApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
+import { VisualizadorArchivos } from '@/componentes/archivos/visualizador-archivos';
+import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
+import { ScrollArea } from '@/componentes/ui/scroll-area';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface ArchivoAdjunto {
   id: number;
   nombre_archivo: string;
   tipo_mime: string;
   descripcion?: string;
-  contenido_base64: string;
+  url?: string;
   fecha_subida: Date;
+}
+
+interface Plantilla {
+  id: number;
+  nombre: string;
+  contenido: string;
+  fecha_creacion: Date;
+}
+
+interface EtiquetaPersonalizada {
+  id: number;
+  nombre: string;
+  codigo: string;
+  descripcion: string;
+}
+
+interface ValorEtiqueta {
+  codigo: string;
+  nombre: string;
+  valor: string;
 }
 
 interface GestorArchivosProps {
   paciente_id: number;
   plan_tratamiento_id?: number;
+  paciente?: {
+    nombre: string;
+    apellidos: string;
+    telefono?: string;
+    correo?: string;
+    direccion?: string;
+  };
   modo?: 'paciente' | 'plan';
 }
 
@@ -50,9 +82,10 @@ const validarNombreArchivo = (nombre: string): { valido: boolean; error?: string
   const caracteres_invalidos = /[<>:"/\\|?*\x00-\x1F]/g;
   
   if (caracteres_invalidos.test(nombre)) {
+    const simbolos_encontrados = nombre.match(caracteres_invalidos)?.join(' ') || '';
     return {
       valido: false,
-      error: 'El nombre contiene caracteres no permitidos',
+      error: `El nombre contiene símbolos no permitidos: ${simbolos_encontrados}. No uses: < > : " / \\ | ? *`,
     };
   }
 
@@ -86,18 +119,24 @@ const obtenerExtension = (nombre_completo: string): string => {
   return nombre_completo.substring(ultima_punto);
 };
 
-export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'paciente' }: GestorArchivosProps) {
+export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, modo = 'paciente' }: GestorArchivosProps) {
   const [archivos, setArchivos] = useState<ArchivoAdjunto[]>([]);
   const [cargando, setCargando] = useState(true);
   const [dialogo_subir_abierto, setDialogoSubirAbierto] = useState(false);
   const [dialogo_editar_abierto, setDialogoEditarAbierto] = useState(false);
-  const [dialogo_ver_abierto, setDialogoVerAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [archivo_seleccionado, setArchivoSeleccionado] = useState<ArchivoAdjunto | null>(null);
   const [archivo_a_eliminar, setArchivoAEliminar] = useState<ArchivoAdjunto | null>(null);
   const [subiendo, setSubiendo] = useState(false);
-  const [zoom, setZoom] = useState(100);
-  const [rotacion, setRotacion] = useState(0);
+  const [visualizador_abierto, setVisualizadorAbierto] = useState(false);
+  const [archivo_visualizando, setArchivoVisualizando] = useState<ArchivoAdjunto | null>(null);
+  const [dialogo_consentimiento_abierto, setDialogoConsentimientoAbierto] = useState(false);
+  const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
+  const [plantilla_seleccionada, setPlantillaSeleccionada] = useState<Plantilla | null>(null);
+  const [etiquetas_personalizadas, setEtiquetasPersonalizadas] = useState<EtiquetaPersonalizada[]>([]);
+  const [valores_etiquetas, setValoresEtiquetas] = useState<ValorEtiqueta[]>([]);
+  const [generando, setGenerando] = useState(false);
+  const [vista_previa, setVistaPrevia] = useState(false);
 
   const [formulario, setFormulario] = useState({
     nombre_sin_extension: '',
@@ -114,7 +153,17 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
 
   useEffect(() => {
     cargarArchivos();
+    if (paciente) {
+      cargarPlantillas();
+      cargarEtiquetasPersonalizadas();
+    }
   }, [paciente_id, plan_tratamiento_id, modo]);
+
+  useEffect(() => {
+    if (plantilla_seleccionada) {
+      extraerYPrepararEtiquetas();
+    }
+  }, [plantilla_seleccionada, etiquetas_personalizadas]);
 
   const cargarArchivos = async () => {
     setCargando(true);
@@ -135,6 +184,199 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
       });
     } finally {
       setCargando(false);
+    }
+  };
+
+  const cargarPlantillas = async () => {
+    try {
+      const datos = await plantillasConsentimientoApi.obtenerTodas();
+      setPlantillas(datos);
+    } catch (error) {
+      console.error('Error al cargar plantillas:', error);
+    }
+  };
+
+  const cargarEtiquetasPersonalizadas = async () => {
+    try {
+      const etiquetas = await catalogoApi.obtenerEtiquetasPlantilla();
+      setEtiquetasPersonalizadas(etiquetas);
+    } catch (error) {
+      console.error('Error al cargar etiquetas personalizadas:', error);
+    }
+  };
+
+  const extraerEtiquetasDelContenido = (contenido: string): string[] => {
+    const regex = /data-etiqueta="([^"]+)"/g;
+    const etiquetas: string[] = [];
+    let match;
+    
+    while ((match = regex.exec(contenido)) !== null) {
+      if (!etiquetas.includes(match[1])) {
+        etiquetas.push(match[1]);
+      }
+    }
+    
+    return etiquetas;
+  };
+
+  const extraerYPrepararEtiquetas = () => {
+    if (!plantilla_seleccionada) return;
+
+    const codigos_etiquetas = extraerEtiquetasDelContenido(plantilla_seleccionada.contenido);
+    
+    const valores: ValorEtiqueta[] = codigos_etiquetas.map(codigo => {
+      const etiqueta_encontrada = etiquetas_personalizadas.find(e => e.codigo === codigo);
+      return {
+        codigo,
+        nombre: etiqueta_encontrada?.nombre || codigo,
+        valor: obtenerValorPredeterminado(codigo)
+      };
+    });
+
+    setValoresEtiquetas(valores);
+  };
+
+  const obtenerValorPredeterminado = (codigo: string): string => {
+    if (!paciente) return '';
+    
+    switch (codigo) {
+      case '[PACIENTE_NOMBRE]':
+        return paciente.nombre;
+      case '[PACIENTE_APELLIDOS]':
+        return paciente.apellidos;
+      case '[PACIENTE_TELEFONO]':
+        return paciente.telefono || '';
+      case '[PACIENTE_CORREO]':
+        return paciente.correo || '';
+      case '[PACIENTE_DIRECCION]':
+        return paciente.direccion || '';
+      case '[FECHA_ACTUAL]':
+        return new Date().toLocaleDateString('es-BO');
+      default:
+        return '';
+    }
+  };
+
+  const actualizarValorEtiqueta = (codigo: string, valor: string) => {
+    setValoresEtiquetas(prev => 
+      prev.map(etiqueta => 
+        etiqueta.codigo === codigo ? { ...etiqueta, valor } : etiqueta
+      )
+    );
+  };
+
+  const procesarContenidoConValores = (): string => {
+    if (!plantilla_seleccionada) return '';
+
+    let contenido_procesado = plantilla_seleccionada.contenido;
+
+    valores_etiquetas.forEach(({ codigo, valor }) => {
+      const regex = new RegExp(codigo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      contenido_procesado = contenido_procesado.replace(regex, valor);
+    });
+    contenido_procesado = contenido_procesado.replace(/data-etiqueta="[^"]*"/g, '');
+    contenido_procesado = contenido_procesado.replace(/contenteditable="[^"]*"/g, '');
+    contenido_procesado = contenido_procesado.replace(/class="[^"]*editable[^"]*"/g, '');
+    contenido_procesado = contenido_procesado.replace(/style="[^"]*border[^"]*dashed[^"]*"/g, '');
+
+    return contenido_procesado;
+  };
+
+  const abrirDialogoConsentimiento = () => {
+    setPlantillaSeleccionada(null);
+    setValoresEtiquetas([]);
+    setVistaPrevia(false);
+    setDialogoConsentimientoAbierto(true);
+  };
+
+  const generarYGuardarConsentimiento = async () => {
+    if (!plantilla_seleccionada) {
+      toast({
+        title: 'Error',
+        description: 'Debes seleccionar una plantilla',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const etiquetas_vacias = valores_etiquetas.filter(e => !e.valor.trim());
+    if (etiquetas_vacias.length > 0) {
+      toast({
+        title: 'Error',
+        description: `Debes completar todas las etiquetas: ${etiquetas_vacias.map(e => e.nombre).join(', ')}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGenerando(true);
+    try {
+      const contenido_procesado = procesarContenidoConValores();
+      const elemento_temporal = document.createElement('div');
+      elemento_temporal.style.cssText = 'position: absolute; left: -9999px; width: 800px; background: white; padding: 40px; font-family: "Times New Roman", Times, serif; font-size: 12px; line-height: 1.6;';
+      elemento_temporal.innerHTML = contenido_procesado;
+      document.body.appendChild(elemento_temporal);
+      const canvas = await html2canvas(elemento_temporal, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      document.body.removeChild(elemento_temporal);
+
+      const img_data = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const img_width = 210;
+      const img_height = (canvas.height * img_width) / canvas.width;
+      let altura_restante = img_height;
+      let posicion = 0;
+
+      while (altura_restante > 0) {
+        pdf.addImage(img_data, 'PNG', 0, posicion, img_width, img_height);
+        altura_restante -= 297;
+        posicion -= 297;
+        if (altura_restante > 0) {
+          pdf.addPage();
+        }
+      }
+
+      const pdf_base64 = pdf.output('dataurlstring').split(',')[1];
+      const fecha_actual = new Date().toISOString().split('T')[0];
+      const nombre_archivo = `Consentimiento_${plantilla_seleccionada.nombre}_${fecha_actual}.pdf`;
+
+      await archivosApi.subir({
+        nombre_archivo,
+        tipo_mime: 'application/pdf',
+        descripcion: `Consentimiento informado generado desde la plantilla: ${plantilla_seleccionada.nombre}`,
+        contenido_base64: pdf_base64,
+        paciente_id: paciente_id,
+      });
+
+      toast({
+        title: 'Consentimiento generado',
+        description: 'El consentimiento informado se ha generado y guardado correctamente',
+      });
+
+      setDialogoConsentimientoAbierto(false);
+      setPlantillaSeleccionada(null);
+      setValoresEtiquetas([]);
+      setVistaPrevia(false);
+
+      await cargarArchivos();
+    } catch (error) {
+      console.error('Error al generar consentimiento:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo generar el consentimiento',
+        variant: 'destructive',
+      });
+    } finally {
+      setGenerando(false);
     }
   };
 
@@ -328,28 +570,23 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
   };
 
   const manejarDescargar = (archivo: ArchivoAdjunto) => {
-    const link = document.createElement('a');
-    link.href = `data:${archivo.tipo_mime};base64,${archivo.contenido_base64}`;
-    link.download = archivo.nombre_archivo;
-    link.click();
+    if (archivo.url) {
+      const link = document.createElement('a');
+      link.href = archivo.url;
+      link.download = archivo.nombre_archivo;
+      link.target = '_blank';
+      link.click();
+    }
   };
 
-  const verArchivo = (archivo: ArchivoAdjunto) => {
-    setArchivoSeleccionado(archivo);
-    setZoom(100);
-    setRotacion(0);
-    setDialogoVerAbierto(true);
+  const verArchivo = async (archivo: ArchivoAdjunto) => {
+    if (archivo.url) {
+      setArchivoVisualizando(archivo);
+      setVisualizadorAbierto(true);
+    }
   };
 
-  const aumentarZoom = () => setZoom(prev => Math.min(prev + 25, 200));
-  const disminuirZoom = () => setZoom(prev => Math.max(prev - 25, 50));
-  const rotar = () => setRotacion(prev => (prev + 90) % 360);
-  const resetearVista = () => {
-    setZoom(100);
-    setRotacion(0);
-  };
-
-  const formatearFecha = (fecha: Date): string => {
+  const formatearFecha = (fecha: Date | string): string => {
     return new Date(fecha).toLocaleDateString('es-BO', {
       day: '2-digit',
       month: 'short',
@@ -357,13 +594,6 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
-
-  const formatearTamano = (base64: string): string => {
-    const bytes = (base64.length * 3) / 4;
-    if (bytes < 1024) return `${bytes.toFixed(0)} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   };
 
   const obtenerIconoTipo = (tipo_mime: string) => {
@@ -389,14 +619,27 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
             </p>
           </div>
         </div>
-        <Button
-          onClick={() => setDialogoSubirAbierto(true)}
-          size="sm"
-          className="hover:scale-105 transition-all duration-200"
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          Subir Archivo
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setDialogoSubirAbierto(true)}
+            size="sm"
+            className="hover:scale-105 transition-all duration-200"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Subir Archivo
+          </Button>
+          {paciente && (
+            <Button
+              onClick={abrirDialogoConsentimiento}
+              size="sm"
+              variant="outline"
+              className="hover:scale-105 transition-all duration-200"
+            >
+              <FileSignature className="h-4 w-4 mr-2" />
+              Consentimiento
+            </Button>
+          )}
+        </div>
       </div>
 
       {cargando ? (
@@ -420,24 +663,22 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
           {archivos.map((archivo) => (
             <Card key={archivo.id} className="hover:shadow-md transition-all duration-200">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="text-3xl">{obtenerIconoTipo(archivo.tipo_mime)}</div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="text-3xl flex-shrink-0">{obtenerIconoTipo(archivo.tipo_mime)}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{archivo.nombre_archivo}</p>
+                      <p className="font-medium break-words">{archivo.nombre_archivo}</p>
                       {archivo.descripcion && (
-                        <p className="text-sm text-muted-foreground truncate">
+                        <p className="text-sm text-muted-foreground break-words mt-1">
                           {archivo.descripcion}
                         </p>
                       )}
                       <div className="flex gap-2 items-center text-xs text-muted-foreground mt-1">
                         <span>{formatearFecha(archivo.fecha_subida)}</span>
-                        <span>•</span>
-                        <span>{formatearTamano(archivo.contenido_base64)}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-shrink-0">
                     {(esImagen(archivo.tipo_mime) || esPdf(archivo.tipo_mime)) && (
                       <Button
                         variant="ghost"
@@ -630,105 +871,6 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogo_ver_abierto} onOpenChange={setDialogoVerAbierto}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <div className="flex items-center justify-between pr-8">
-              <DialogTitle className="truncate pr-4">
-                {archivo_seleccionado?.nombre_archivo}
-              </DialogTitle>
-              <div className="flex gap-2 flex-shrink-0">
-                {archivo_seleccionado && esImagen(archivo_seleccionado.tipo_mime) && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={disminuirZoom}
-                      disabled={zoom <= 50}
-                      title="Alejar"
-                    >
-                      <ZoomOut className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={aumentarZoom}
-                      disabled={zoom >= 200}
-                      title="Acercar"
-                    >
-                      <ZoomIn className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={rotar}
-                      title="Rotar"
-                    >
-                      <RotateCw className="h-4 w-4" />
-                    </Button>
-                    {(zoom !== 100 || rotacion !== 0) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={resetearVista}
-                      >
-                        Resetear
-                      </Button>
-                    )}
-                  </>
-                )}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => archivo_seleccionado && manejarDescargar(archivo_seleccionado)}
-                  title="Descargar"
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            {archivo_seleccionado?.descripcion && (
-              <p className="text-sm text-muted-foreground mt-2">
-                {archivo_seleccionado.descripcion}
-              </p>
-            )}
-          </DialogHeader>
-
-          <div className="flex-1 overflow-auto bg-secondary/10 rounded-lg p-4 min-h-[400px] max-h-[600px]">
-            {archivo_seleccionado && esImagen(archivo_seleccionado.tipo_mime) && (
-              <div className="flex items-center justify-center h-full">
-                <img
-                  src={`data:${archivo_seleccionado.tipo_mime};base64,${archivo_seleccionado.contenido_base64}`}
-                  alt={archivo_seleccionado.nombre_archivo}
-                  className="max-w-full h-auto object-contain transition-all duration-300"
-                  style={{
-                    transform: `scale(${zoom / 100}) rotate(${rotacion}deg)`,
-                    transformOrigin: 'center',
-                  }}
-                />
-              </div>
-            )}
-
-            {archivo_seleccionado && esPdf(archivo_seleccionado.tipo_mime) && (
-              <div className="h-full">
-                <iframe
-                  src={`data:${archivo_seleccionado.tipo_mime};base64,${archivo_seleccionado.contenido_base64}`}
-                  className="w-full h-full min-h-[500px] rounded border-0"
-                  title={archivo_seleccionado.nombre_archivo}
-                />
-              </div>
-            )}
-          </div>
-
-          {archivo_seleccionado && esImagen(archivo_seleccionado.tipo_mime) && (
-            <div className="text-center text-sm text-muted-foreground pt-2">
-              Zoom: {zoom}%
-              {rotacion > 0 && ` • Rotación: ${rotacion}°`}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -780,6 +922,151 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
             >
               Eliminar Archivo
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {archivo_visualizando && visualizador_abierto && (
+        <VisualizadorArchivos
+          archivo={archivo_visualizando}
+          abierto={visualizador_abierto}
+          onCerrar={() => {
+            setVisualizadorAbierto(false);
+            setArchivoVisualizando(null);
+          }}
+        />
+      )}
+
+      <Dialog open={dialogo_consentimiento_abierto} onOpenChange={setDialogoConsentimientoAbierto}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Generar Consentimiento Informado</DialogTitle>
+            <DialogDescription>
+              {paciente && `Para ${paciente.nombre} ${paciente.apellidos}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-6 py-4">
+              {!plantilla_seleccionada ? (
+                <div className="space-y-4">
+                  <Label>Seleccionar plantilla</Label>
+                  {plantillas.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No hay plantillas disponibles</p>
+                      <p className="text-sm">Crea una plantilla primero en la sección de Inicio</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {plantillas.map((plantilla) => (
+                        <Button
+                          key={plantilla.id}
+                          variant="outline"
+                          className="h-auto py-4 px-4 justify-start text-left"
+                          onClick={() => setPlantillaSeleccionada(plantilla)}
+                        >
+                          <div className="flex-1">
+                            <div className="font-semibold">{plantilla.nombre}</div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Creada el {new Date(plantilla.fecha_creacion).toLocaleDateString('es-BO')}
+                            </div>
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold">
+                        Plantilla: {plantilla_seleccionada.nombre}
+                      </Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setPlantillaSeleccionada(null);
+                          setValoresEtiquetas([]);
+                          setVistaPrevia(false);
+                        }}
+                      >
+                        Cambiar plantilla
+                      </Button>
+                    </div>
+
+                    {valores_etiquetas.length > 0 && (
+                      <div className="space-y-3">
+                        <Label>Completar información</Label>
+                        <div className="grid gap-4">
+                          {valores_etiquetas.map((etiqueta) => (
+                            <div key={etiqueta.codigo} className="space-y-2">
+                              <Label htmlFor={etiqueta.codigo}>
+                                {etiqueta.nombre}
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  ({etiqueta.codigo})
+                                </span>
+                              </Label>
+                              <Input
+                                id={etiqueta.codigo}
+                                value={etiqueta.valor}
+                                onChange={(e) => actualizarValorEtiqueta(etiqueta.codigo, e.target.value)}
+                                placeholder={`Ingrese ${etiqueta.nombre.toLowerCase()}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>Vista previa</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setVistaPrevia(!vista_previa)}
+                        >
+                          {vista_previa ? 'Ocultar' : 'Mostrar'} vista previa
+                        </Button>
+                      </div>
+                      
+                      {vista_previa && (
+                        <div className="border rounded-lg p-4 max-h-96 overflow-auto bg-white">
+                          <div style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '12px', lineHeight: '1.6' }}>
+                            <RenderizadorHtml contenido={procesarContenidoConValores()} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setDialogoConsentimientoAbierto(false);
+                setPlantillaSeleccionada(null);
+                setValoresEtiquetas([]);
+                setVistaPrevia(false);
+              }}
+            >
+              Cancelar
+            </Button>
+            {plantilla_seleccionada && (
+              <Button 
+                onClick={generarYGuardarConsentimiento} 
+                disabled={generando || valores_etiquetas.some(e => !e.valor.trim())}
+              >
+                {generando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Generar y Guardar
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
