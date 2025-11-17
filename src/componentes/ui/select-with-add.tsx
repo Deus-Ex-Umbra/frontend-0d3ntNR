@@ -36,6 +36,7 @@ interface SelectConAgregarProps {
   valor?: string
   onChange: (valor: string) => void
   onAgregarNuevo?: (nombre: string) => Promise<void> | void
+  tamanoConfig?: { onCrear: (datos: { nombre: string; anchoCm: number; altoCm: number; descripcion?: string }) => Promise<void> | void }
   placeholder?: string
   textoVacio?: string
   textoAgregar?: string
@@ -51,6 +52,7 @@ export function SelectConAgregar({
   valor,
   onChange,
   onAgregarNuevo,
+  tamanoConfig,
   placeholder = "Seleccionar...",
   textoVacio = "No se encontraron resultados",
   textoAgregar = "Agregar nuevo...",
@@ -64,10 +66,31 @@ export function SelectConAgregar({
   const [modal_abierto, setModalAbierto] = React.useState(false)
   const [nuevo_valor, setNuevoValor] = React.useState("")
   const [guardando, setGuardando] = React.useState(false)
+  // Unidad fija: mm
+  const [formTamano, setFormTamano] = React.useState({ nombre: '', ancho: '', alto: '', descripcion: '' })
+  // Sin preferencia de unidad; siempre mm
 
   const opcion_seleccionada = opciones.find((opcion) => opcion.valor === valor)
 
   const manejarAgregar = async () => {
+    if (tamanoConfig) {
+      if (!formTamano.nombre.trim()) return
+      const nAncho = Number((formTamano.ancho || '').toString().replace(',', '.'))
+      const nAlto = Number((formTamano.alto || '').toString().replace(',', '.'))
+      if (!Number.isFinite(nAncho) || !Number.isFinite(nAlto) || nAncho <= 0 || nAlto <= 0) return
+      setGuardando(true)
+      try {
+        const descripcion = formTamano.descripcion?.trim() || `${Math.round(nAncho)} × ${Math.round(nAlto)} mm`
+        await tamanoConfig.onCrear({ nombre: formTamano.nombre.trim(), anchoCm: nAncho, altoCm: nAlto, descripcion })
+        setModalAbierto(false)
+        setFormTamano({ nombre:'', ancho:'', alto:'', descripcion:'' })
+      } catch (e) {
+        console.error('Error al agregar tamaño:', e)
+      } finally {
+        setGuardando(false)
+      }
+      return
+    }
     if (!nuevo_valor.trim() || !onAgregarNuevo) return
     
     setGuardando(true)
@@ -141,7 +164,7 @@ export function SelectConAgregar({
         </PopoverContent>
       </Popover>
 
-      <Dialog open={modal_abierto} onOpenChange={setModalAbierto}>
+      <Dialog open={modal_abierto} onOpenChange={(open)=>{ setModalAbierto(open); if(!open){ setFormTamano({nombre:'', ancho:'', alto:'', descripcion:''}); setNuevoValor('') } }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{tituloModal}</DialogTitle>
@@ -149,32 +172,51 @@ export function SelectConAgregar({
               {descripcionModal}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="nombre">
-                Nombre
-              </Label>
-              <Input
-                id="nombre"
-                value={nuevo_valor}
-                onChange={(e) => setNuevoValor(e.target.value)}
-                placeholder={placeholderInput}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    manejarAgregar()
-                  }
-                }}
-              />
+          {tamanoConfig ? (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>Nombre</Label>
+                <Input value={formTamano.nombre} onChange={(e)=>setFormTamano({...formTamano, nombre:e.target.value})} placeholder="Ej: Oficio personal" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-2">
+                  <Label>Ancho (mm)</Label>
+                  <Input value={formTamano.ancho} onChange={(e)=>setFormTamano({...formTamano, ancho:e.target.value})} placeholder={'210'} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Alto (mm)</Label>
+                  <Input value={formTamano.alto} onChange={(e)=>setFormTamano({...formTamano, alto:e.target.value})} placeholder={'297'} />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>Descripción (opcional)</Label>
+                <Input value={formTamano.descripcion} onChange={(e)=>setFormTamano({...formTamano, descripcion:e.target.value})} placeholder="Se autogenera si se deja vacío" />
+              </div>
+              {/* Unidad fija en mm, sin toggle */}
             </div>
-          </div>
+          ) : (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="nombre">Nombre</Label>
+                <Input
+                  id="nombre"
+                  value={nuevo_valor}
+                  onChange={(e) => setNuevoValor(e.target.value)}
+                  placeholder={placeholderInput}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); manejarAgregar() }
+                  }}
+                />
+              </div>
+            </div>
+          )}
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
               onClick={() => {
                 setModalAbierto(false)
-                setNuevoValor("")
+                setNuevoValor(""); setFormTamano({ nombre:'', ancho:'', alto:'', descripcion:'' })
               }}
               disabled={guardando}
             >
@@ -183,7 +225,7 @@ export function SelectConAgregar({
             <Button
               type="button"
               onClick={manejarAgregar}
-              disabled={guardando || !nuevo_valor.trim()}
+              disabled={guardando || (tamanoConfig ? !formTamano.nombre.trim() : !nuevo_valor.trim())}
             >
               {guardando ? "Guardando..." : "Guardar"}
             </Button>

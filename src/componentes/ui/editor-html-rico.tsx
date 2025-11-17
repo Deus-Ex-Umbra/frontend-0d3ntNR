@@ -3,12 +3,12 @@ import StarterKit from '@tiptap/starter-kit';
 import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Underline } from '@tiptap/extension-underline';
-import { ListItem } from '@tiptap/extension-list-item';
+import { ListItem as BaseListItem } from '@tiptap/extension-list-item';
 import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { FontSize } from '@/lib/tiptap-font-size';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/componentes/ui/button';
 import { Toggle } from '@/componentes/ui/toggle';
 import { 
@@ -63,7 +63,8 @@ export function EditorHtmlRico({
   className,
   minHeight = '150px'
 }: EditorHtmlRicoProps) {
-  const [colorActual, setColorActual] = useState('#000000');
+  const [colorActual, setColorActual] = useState('#000000'); // color aplicado actualmente
+  const [colorTemporal, setColorTemporal] = useState('#000000'); // color que se "juega" en el picker sin aplicar todavía
   const [popoverAbierto, setPopoverAbierto] = useState(false);
   const [tamanoActual, setTamanoActual] = useState('16px');
   const [formatosActivos, setFormatosActivos] = useState({
@@ -87,7 +88,21 @@ export function EditorHtmlRico({
       Underline,
       BulletList,
       OrderedList,
-      ListItem,
+      BaseListItem.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            color: {
+              default: null,
+              parseHTML: element => element.style?.color || null,
+              renderHTML: attributes => {
+                if (!attributes.color) return {};
+                return { style: `color: ${attributes.color}` };
+              },
+            },
+          };
+        },
+      }),
       TextAlign.configure({
         types: ['paragraph', 'heading', 'bulletList', 'orderedList'],
         alignments: ['left', 'center', 'right'],
@@ -101,8 +116,14 @@ export function EditorHtmlRico({
       },
     },
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
-      
+      // Debounce para evitar lag al escribir
+      if (debounceRef.current) {
+        window.clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = window.setTimeout(() => {
+        onChange(editor.getHTML());
+      }, 120);
+
       const tamano = editor.getAttributes('textStyle').fontSize;
       if (tamano) {
         setTamanoActual(tamano);
@@ -110,8 +131,12 @@ export function EditorHtmlRico({
     },
     onSelectionUpdate: ({ editor }) => {
       const color = editor.getAttributes('textStyle').color;
-      if (color) {
-        setColorActual(color);
+      // Si no hay atributo de color, asumimos negro real (#000000) para evitar quedarse con el último color seleccionado
+      setColorActual(color || '#000000');
+      if (!color) {
+        setColorTemporal('#000000');
+      } else {
+        setColorTemporal(color);
       }
       
       const tamano = editor.getAttributes('textStyle').fontSize;
@@ -127,6 +152,9 @@ export function EditorHtmlRico({
     },
   });
 
+  // Ref para debounce
+  const debounceRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (editor && contenido !== editor.getHTML()) {
       editor.commands.setContent(contenido);
@@ -137,19 +165,45 @@ export function EditorHtmlRico({
     if (editor) {
       const color = editor.getAttributes('textStyle').color || '#000000';
       setColorActual(color);
-      
+      setColorTemporal(color);
       const tamano = editor.getAttributes('textStyle').fontSize || '16px';
       setTamanoActual(tamano);
     }
   }, [editor]);
 
+  
+
   if (!editor) {
     return null;
   }
 
+  const [selectionGuardada, setSelectionGuardada] = useState<{from:number;to:number}|null>(null);
+
+  useEffect(() => {
+    if (popoverAbierto && editor) {
+      const { from, to } = editor.state.selection;
+      setSelectionGuardada({ from, to });
+      // Cuando se abre el popover iniciamos el color temporal con el color aplicado actual
+      setColorTemporal(colorActual);
+    }
+  }, [popoverAbierto, editor, colorActual]);
+
   const aplicarColor = (color: string) => {
-    editor.chain().focus().setColor(color).run();
+    if (!editor) return;
+    const { from, to } = selectionGuardada || editor.state.selection;
+    editor.chain().focus().setTextSelection({ from, to }).setColor(color).run();
+    editor.commands.command(({ tr, state }) => {
+      const listItemType = state.schema.nodes.listItem;
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (node.type === listItemType) {
+          tr.setNodeMarkup(pos, listItemType, { ...node.attrs, color });
+        }
+      });
+      return true;
+    });
+    editor.chain().setTextSelection({ from, to }).run();
     setColorActual(color);
+    setColorTemporal(color);
   };
 
   const aplicarTamano = (tamano: string) => {
@@ -173,7 +227,7 @@ export function EditorHtmlRico({
 
   return (
     <div className={cn('border rounded-lg overflow-hidden bg-background', className)}>
-      <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/30">
+      <div className="flex flex-wrap items-center gap-2 p-2 border-b bg-muted/30">
         <div className="flex items-center gap-1">
           <Button
             variant="outline"
@@ -345,13 +399,21 @@ export function EditorHtmlRico({
             }}
           >
             <div className="space-y-3">
+              {/* Picker ahora solo modifica colorTemporal (previsualización) */}
               <HexColorPicker 
-                color={colorActual}
+                color={colorTemporal}
                 onChange={(color) => {
-                  setColorActual(color);
-                  aplicarColor(color);
+                  setColorTemporal(color);
                 }}
               />
+              <div className="flex items-center justify-between text-xs">
+                <span className="px-2 py-1 rounded border bg-muted" style={{ backgroundColor: colorTemporal, color: '#fff' }}>
+                  {colorTemporal.toUpperCase()}
+                </span>
+                {colorTemporal !== colorActual && (
+                  <span className="text-muted-foreground">(no aplicado)</span>
+                )}
+              </div>
               <div className="grid grid-cols-9 gap-2">
                 {colores_predefinidos.map((color) => (
                   <button
@@ -374,32 +436,54 @@ export function EditorHtmlRico({
                 onClick={() => {
                   editor.chain().focus().unsetColor().run();
                   setColorActual('#000000');
+                  setColorTemporal('#000000');
                 }}
               >
                 Quitar color
               </Button>
-              <Button
-                variant="default"
-                size="sm"
-                className="w-full"
-                onClick={() => setPopoverAbierto(false)}
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Cerrar
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    aplicarColor(colorTemporal);
+                    setPopoverAbierto(false);
+                  }}
+                >
+                  <Check className="h-4 w-4 mr-2" /> Aplicar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    setColorTemporal(colorActual); // revertimos cambios
+                    setPopoverAbierto(false);
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
           </PopoverContent>
         </Popover>
       </div>
       </div>
-
-      <div style={{ minHeight, maxHeight: '600px', overflowY: 'auto' }}>
+      <div style={{ minHeight, maxHeight: '600px', overflowY: 'auto', padding: '12px' }}>
         <EditorContent editor={editor} />
       </div>
 
       <style>{`
         .ProseMirror {
           min-height: ${minHeight};
+          white-space: pre-wrap;
+          background-color: transparent !important;
+          padding: 0;
+          box-sizing: content-box;
+          overflow-wrap: break-word;
+          word-break: break-word;
+          hyphens: auto;
         }
         .ProseMirror:focus {
           outline: none;
@@ -413,6 +497,9 @@ export function EditorHtmlRico({
         }
         .ProseMirror p {
           margin: 0.5em 0;
+          min-height: 1em;
+          color: inherit;
+          max-width: 100%;
         }
         .ProseMirror ul,
         .ProseMirror ol {
@@ -431,11 +518,24 @@ export function EditorHtmlRico({
         .ProseMirror ol li::marker {
           color: currentColor;
         }
+        
         .ProseMirror ul {
           list-style-type: disc;
         }
         .ProseMirror ol {
           list-style-type: decimal;
+        }
+        /* Garantizar que elementos no excedan el ancho disponible */
+        .ProseMirror table,
+        .ProseMirror img,
+        .ProseMirror pre,
+        .ProseMirror code,
+        .ProseMirror blockquote,
+        .ProseMirror div,
+        .ProseMirror p,
+        .ProseMirror ul,
+        .ProseMirror ol {
+          max-width: 100%;
         }
         .ProseMirror ul[style*="text-align: center"],
         .ProseMirror ol[style*="text-align: center"] {

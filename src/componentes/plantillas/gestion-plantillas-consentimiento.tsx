@@ -3,6 +3,7 @@ import { Button } from '@/componentes/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
 import { Input } from '@/componentes/ui/input';
+import { MultiSelect } from '@/componentes/ui/mulit-select';
 import { Label } from '@/componentes/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/componentes/ui/accordion';
 import { plantillasConsentimientoApi, catalogoApi } from '@/lib/api';
@@ -14,6 +15,9 @@ import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/componentes/ui/command';
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
+import { SelectConAgregar, OpcionSelectConAgregar } from '@/componentes/ui/select-with-add';
+import { cn } from '@/lib/utilidades';
 
 interface EtiquetaPersonalizada {
   id: number;
@@ -30,12 +34,34 @@ export function GestionPlantillasConsentimiento() {
   const [dialogo_edicion, setDialogoEdicion] = useState(false);
   const [nombre_plantilla, setNombrePlantilla] = useState('');
   const [contenido_plantilla, setContenidoPlantilla] = useState('');
+  const [tamano_papel, setTamanoPapel] = useState<'carta' | 'legal' | 'a4'>('carta');
+    const [tamanos_hoja, setTamanosHoja] = useState<Array<{ id:number; nombre:string; ancho:number; alto:number; descripcion?:string; protegido:boolean }>>([]);
+    const [tamano_hoja_id, setTamanoHojaId] = useState<number | null>(null);
   const [margenes_plantilla, setMargenesPlantilla] = useState({
     superior: 20,
     inferior: 20,
     izquierdo: 20,
     derecho: 20,
   });
+  // Dimensiones de hoja según tamaño (mm)
+  const pageMm = tamano_papel === 'carta'
+    ? { width: 216, height: 279 }
+    : tamano_papel === 'legal'
+    ? { width: 216, height: 356 }
+    : { width: 210, height: 297 };
+  const maxLeft = Math.max(0, pageMm.width - margenes_plantilla.derecho);
+  const maxRight = Math.max(0, pageMm.width - margenes_plantilla.izquierdo);
+  const maxTop = Math.max(0, pageMm.height - margenes_plantilla.inferior);
+  const maxBottom = Math.max(0, pageMm.height - margenes_plantilla.superior);
+  const horizontalZero = margenes_plantilla.izquierdo + margenes_plantilla.derecho === pageMm.width;
+  const verticalZero = margenes_plantilla.superior + margenes_plantilla.inferior === pageMm.height;
+
+  const clamp = (v: number, min: number, max: number) => {
+    if (Number.isNaN(v)) return min;
+    return Math.min(Math.max(v, min), max);
+  };
+
+  // handleCambioTamanoPapel eliminado: reemplazado por seleccionarTamanoHoja con catálogo
   const [etiquetas_personalizadas, setEtiquetasPersonalizadas] = useState<EtiquetaPersonalizada[]>([]);
   const [botones_etiquetas, setBotonesEtiquetas] = useState<{ codigo: string; nombre: string; descripcion: string }[]>([]);
   const [dialogo_nueva_etiqueta, setDialogoNuevaEtiqueta] = useState(false);
@@ -46,6 +72,9 @@ export function GestionPlantillasConsentimiento() {
   const [dialogo_visualizacion, setDialogoVisualizacion] = useState(false);
   const [plantilla_visualizando, setPlantillaVisualizando] = useState<PlantillaConsentimiento | null>(null);
   const [etiquetas_expandidas, setEtiquetasExpandidas] = useState<Set<number>>(new Set());
+  const [filtro_nombre, setFiltroNombre] = useState('');
+  const [filtro_etiquetas, setFiltroEtiquetas] = useState<string[]>([]);
+  const [opciones_etiquetas, setOpcionesEtiquetas] = useState<Array<{ valor: string; etiqueta: string }>>([]);
   const editorRef = useRef<any>(null);
 
   const { toast } = useToast();
@@ -61,7 +90,63 @@ export function GestionPlantillasConsentimiento() {
   useEffect(() => {
     cargarPlantillas();
     cargarEtiquetasPersonalizadas();
+    cargarTamanosHoja();
   }, []);
+
+  const cargarTamanosHoja = async () => {
+    try {
+      const lista = await (catalogoApi as any).obtenerTamanosHoja?.();
+      if (Array.isArray(lista)) setTamanosHoja(lista);
+    } catch (e) {
+      console.error('Error cargando tamaños de hoja', e);
+    }
+  };
+
+  const opciones_tamanos: OpcionSelectConAgregar[] = tamanos_hoja.map(t => {
+    const etiquetaMedidas = `${Math.round(t.ancho)} × ${Math.round(t.alto)} mm`;
+    return ({ valor: String(t.id), etiqueta: `${t.nombre} (${t.descripcion || etiquetaMedidas})` });
+  });
+  const tamanoSeleccionado = tamano_hoja_id ? tamanos_hoja.find(t => t.id === tamano_hoja_id) : undefined;
+  const seleccionarTamanoHoja = (valor: string) => {
+    if (!valor) { setTamanoHojaId(null); return; }
+    const id = Number(valor);
+    const item = tamanos_hoja.find(t => t.id === id);
+    if (item) {
+      setTamanoHojaId(item.id);
+      // Ajustar márgenes a límites del nuevo tamaño (mm)
+      const dims = { width: Math.round(item.ancho), height: Math.round(item.alto) };
+      const maxL = Math.max(0, dims.width - margenes_plantilla.derecho);
+      const maxR = Math.max(0, dims.width - margenes_plantilla.izquierdo);
+      const maxT = Math.max(0, dims.height - margenes_plantilla.inferior);
+      const maxB = Math.max(0, dims.height - margenes_plantilla.superior);
+      setMargenesPlantilla({
+        superior: clamp(margenes_plantilla.superior, 0, maxT),
+        inferior: clamp(margenes_plantilla.inferior, 0, maxB),
+        izquierdo: clamp(margenes_plantilla.izquierdo, 0, maxL),
+        derecho: clamp(margenes_plantilla.derecho, 0, maxR),
+      });
+    }
+  };
+  const crearTamanoHoja = async (datos: { nombre: string; anchoCm: number; altoCm: number; descripcion?: string }) => {
+    // Interpretamos anchoCm/altoCm como mm para el backend
+    const creado = await (catalogoApi as any).crearTamanoHoja?.({ nombre: datos.nombre, ancho: datos.anchoCm, alto: datos.altoCm, descripcion: datos.descripcion });
+    await cargarTamanosHoja();
+    if (creado?.id) setTamanoHojaId(creado.id);
+  };
+
+  useEffect(() => {
+    // Derivar las etiquetas usadas en las plantillas visibles
+    const mapCodigoNombre = new Map<string, string>(
+      etiquetas_personalizadas.map((e) => [e.codigo, e.nombre])
+    );
+    const usados = new Set<string>();
+    plantillas.forEach((p) => {
+      extraerEtiquetasDelContenido(p.contenido).forEach((c) => usados.add(c));
+    });
+    const opciones = Array.from(usados).map((c) => ({ valor: c, etiqueta: mapCodigoNombre.get(c) || c }));
+    opciones.sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'es'));
+    setOpcionesEtiquetas(opciones);
+  }, [plantillas, etiquetas_personalizadas]);
 
   const cargarEtiquetasPersonalizadas = async () => {
     try {
@@ -116,6 +201,7 @@ export function GestionPlantillasConsentimiento() {
       await plantillasConsentimientoApi.crear({
         nombre: nombre_plantilla,
         contenido: contenido_plantilla,
+        tamano_papel,
         margen_superior: margenes_plantilla.superior,
         margen_inferior: margenes_plantilla.inferior,
         margen_izquierdo: margenes_plantilla.izquierdo,
@@ -131,6 +217,7 @@ export function GestionPlantillasConsentimiento() {
       setDialogoAbierto(false);
       setNombrePlantilla('');
       setContenidoPlantilla('');
+      setTamanoPapel('carta');
       setMargenesPlantilla({ superior: 20, inferior: 20, izquierdo: 20, derecho: 20 });
       setBotonesEtiquetas([]);
       await cargarPlantillas();
@@ -165,6 +252,7 @@ export function GestionPlantillasConsentimiento() {
       await plantillasConsentimientoApi.actualizar(plantilla_seleccionada.id, {
         nombre: nombre_plantilla,
         contenido: contenido_plantilla,
+        tamano_papel,
         margen_superior: margenes_plantilla.superior,
         margen_inferior: margenes_plantilla.inferior,
         margen_izquierdo: margenes_plantilla.izquierdo,
@@ -181,6 +269,7 @@ export function GestionPlantillasConsentimiento() {
       setPlantillaSeleccionada(null);
       setNombrePlantilla('');
       setContenidoPlantilla('');
+      setTamanoPapel('carta');
       setMargenesPlantilla({ superior: 20, inferior: 20, izquierdo: 20, derecho: 20 });
       setBotonesEtiquetas([]);
       await cargarPlantillas();
@@ -223,6 +312,7 @@ export function GestionPlantillasConsentimiento() {
     setPlantillaSeleccionada(plantilla);
     setNombrePlantilla(plantilla.nombre);
     setContenidoPlantilla(plantilla.contenido);
+    setTamanoPapel((plantilla as any).tamano_papel || 'carta');
     setMargenesPlantilla({
       superior: plantilla.margen_superior || 20,
       inferior: plantilla.margen_inferior || 20,
@@ -363,7 +453,7 @@ export function GestionPlantillasConsentimiento() {
           setBotonesEtiquetas([]);
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-5xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Crear Nueva Plantilla</DialogTitle>
             <DialogDescription>
@@ -371,7 +461,7 @@ export function GestionPlantillasConsentimiento() {
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[calc(90vh-200px)] pr-4">
+          <div className="max-h-[calc(90vh-200px)] pr-4 overflow-y-auto overflow-x-auto">
             <div className="space-y-6 py-4">
               <div className="space-y-2">
                 <Label htmlFor="nombre">Nombre de la plantilla</Label>
@@ -388,11 +478,29 @@ export function GestionPlantillasConsentimiento() {
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex items-center gap-2">
                       <Info className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm font-medium">Configuración de márgenes del PDF</span>
+                      <span className="text-sm font-medium">Configuración de papel y márgenes del PDF</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-4 pt-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Tamaño de papel</Label>
+                          <SelectConAgregar
+                            opciones={opciones_tamanos}
+                            valor={tamano_hoja_id ? String(tamano_hoja_id) : ''}
+                            onChange={seleccionarTamanoHoja}
+                            tamanoConfig={{ onCrear: crearTamanoHoja }}
+                            placeholder="Seleccionar tamaño"
+                            tituloModal="Agregar tamaño de hoja"
+                            descripcionModal="Ingresa nombre y medidas; se guardan en mm"
+                            placeholderInput="Nombre"
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Selecciona el tamaño de hoja para vista previa y PDF. Los márgenes se aplican encima del área útil de la hoja.
+                        </div>
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         Define los márgenes predeterminados para esta plantilla. Estos valores se utilizarán al generar el PDF.
                       </p>
@@ -402,11 +510,18 @@ export function GestionPlantillasConsentimiento() {
                           <Input
                             id="margen-superior-crear"
                             type="number"
-                            min="0"
-                            max="50"
+                            min={0}
+                            max={maxTop}
                             value={margenes_plantilla.superior}
-                            onChange={(e) => setMargenesPlantilla({ ...margenes_plantilla, superior: Number(e.target.value) })}
-                            className="h-8"
+                            onChange={(e) => {
+                              const nuevo = clamp(Number(e.target.value), 0, maxTop);
+                              setMargenesPlantilla({ ...margenes_plantilla, superior: nuevo });
+                            }}
+                            className={cn(
+                              "h-8",
+                              (margenes_plantilla.superior > 999 || verticalZero) && "border-yellow-400"
+                            )}
+                            title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.superior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                           />
                         </div>
                         <div className="space-y-1">
@@ -414,11 +529,18 @@ export function GestionPlantillasConsentimiento() {
                           <Input
                             id="margen-inferior-crear"
                             type="number"
-                            min="0"
-                            max="50"
+                            min={0}
+                            max={maxBottom}
                             value={margenes_plantilla.inferior}
-                            onChange={(e) => setMargenesPlantilla({ ...margenes_plantilla, inferior: Number(e.target.value) })}
-                            className="h-8"
+                            onChange={(e) => {
+                              const nuevo = clamp(Number(e.target.value), 0, maxBottom);
+                              setMargenesPlantilla({ ...margenes_plantilla, inferior: nuevo });
+                            }}
+                            className={cn(
+                              "h-8",
+                              (margenes_plantilla.inferior > 999 || verticalZero) && "border-yellow-400"
+                            )}
+                            title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.inferior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                           />
                         </div>
                         <div className="space-y-1">
@@ -426,11 +548,18 @@ export function GestionPlantillasConsentimiento() {
                           <Input
                             id="margen-izquierdo-crear"
                             type="number"
-                            min="0"
-                            max="50"
+                            min={0}
+                            max={maxLeft}
                             value={margenes_plantilla.izquierdo}
-                            onChange={(e) => setMargenesPlantilla({ ...margenes_plantilla, izquierdo: Number(e.target.value) })}
-                            className="h-8"
+                            onChange={(e) => {
+                              const nuevo = clamp(Number(e.target.value), 0, maxLeft);
+                              setMargenesPlantilla({ ...margenes_plantilla, izquierdo: nuevo });
+                            }}
+                            className={cn(
+                              "h-8",
+                              (margenes_plantilla.izquierdo > 999 || horizontalZero) && "border-yellow-400"
+                            )}
+                            title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.izquierdo > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                           />
                         </div>
                         <div className="space-y-1">
@@ -438,17 +567,26 @@ export function GestionPlantillasConsentimiento() {
                           <Input
                             id="margen-derecho-crear"
                             type="number"
-                            min="0"
-                            max="50"
+                            min={0}
+                            max={maxRight}
                             value={margenes_plantilla.derecho}
-                            onChange={(e) => setMargenesPlantilla({ ...margenes_plantilla, derecho: Number(e.target.value) })}
-                            className="h-8"
+                            onChange={(e) => {
+                              const nuevo = clamp(Number(e.target.value), 0, maxRight);
+                              setMargenesPlantilla({ ...margenes_plantilla, derecho: nuevo });
+                            }}
+                            className={cn(
+                              "h-8",
+                              (margenes_plantilla.derecho > 999 || horizontalZero) && "border-yellow-400"
+                            )}
+                            title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.derecho > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                           />
                         </div>
                       </div>
-                      <p className="text-xs p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
-                        💡 <strong>Nota:</strong> Tamaño de papel: Carta (216mm × 279mm)
-                      </p>
+                      {(horizontalZero || verticalZero) && (
+                        <div className="text-xs text-yellow-700 mt-1">
+                          ⚠️ El área de escritura {horizontalZero && verticalZero ? 'horizontal y vertical' : horizontalZero ? 'horizontal' : 'vertical'} es nula.
+                        </div>
+                      )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -552,10 +690,12 @@ export function GestionPlantillasConsentimiento() {
                     contenido={contenido_plantilla}
                     onChange={setContenidoPlantilla}
                     minHeight="400px"
+                    tamanoPapel={tamano_papel}
+                    tamanoPersonalizado={tamanoSeleccionado ? { widthMm: Math.round(tamanoSeleccionado.ancho), heightMm: Math.round(tamanoSeleccionado.alto) } : undefined as any}
                   />
                 </div>
               </div>
-            </ScrollArea>
+          </div>
 
             <DialogFooter>
               <Button 
@@ -564,6 +704,7 @@ export function GestionPlantillasConsentimiento() {
                   setDialogoAbierto(false);
                   setNombrePlantilla('');
                   setContenidoPlantilla('');
+                  setTamanoPapel('carta');
                   setMargenesPlantilla({ superior: 20, inferior: 20, izquierdo: 20, derecho: 20 });
                   setBotonesEtiquetas([]);
                 }}
@@ -599,6 +740,28 @@ export function GestionPlantillasConsentimiento() {
         </Button>
       </div>
 
+      {/* Filtros */}
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-1">
+          <Label className="text-sm">Buscar por nombre</Label>
+          <Input
+            placeholder="Escribe el nombre de la plantilla..."
+            value={filtro_nombre}
+            onChange={(e) => setFiltroNombre(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-sm">Etiquetas</Label>
+          <MultiSelect
+            opciones={opciones_etiquetas}
+            valores={filtro_etiquetas}
+            onChange={setFiltroEtiquetas}
+            placeholder="Filtrar por etiquetas (opcional)"
+            textoVacio="Sin etiquetas"
+          />
+        </div>
+      </div>
+
       {cargando ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -615,7 +778,16 @@ export function GestionPlantillasConsentimiento() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {plantillas.map((plantilla) => {
+          {plantillas
+            .filter((p) => {
+              const termino = filtro_nombre.trim().toLowerCase();
+              const coincideNombre = termino ? p.nombre.toLowerCase().includes(termino) : true;
+              const codigos = extraerEtiquetasDelContenido(p.contenido);
+              const coincideEtiquetas = filtro_etiquetas.length === 0 ||
+                filtro_etiquetas.every((sel) => codigos.includes(sel));
+              return coincideNombre && coincideEtiquetas;
+            })
+            .map((plantilla) => {
             const etiquetas = obtenerNombresEtiquetas(plantilla);
             const expandido = etiquetas_expandidas.has(plantilla.id);
             const mostrar_boton = etiquetas.length > 3;
@@ -712,7 +884,7 @@ export function GestionPlantillasConsentimiento() {
           setBotonesEtiquetas([]);
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-5xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Editar Plantilla</DialogTitle>
             <DialogDescription>
@@ -720,7 +892,7 @@ export function GestionPlantillasConsentimiento() {
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[calc(90vh-200px)] pr-4">
+          <div className="max-h-[calc(90vh-200px)] pr-4 overflow-y-auto overflow-x-auto">
             <div className="space-y-6 py-4">
               <div className="space-y-2">
                 <Label htmlFor="nombre-editar">Nombre de la plantilla</Label>
@@ -736,11 +908,29 @@ export function GestionPlantillasConsentimiento() {
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex items-center gap-2">
                       <Info className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm font-medium">Configuración de márgenes del PDF</span>
+                      <span className="text-sm font-medium">Configuración de papel y márgenes del PDF</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-4 pt-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Tamaño de papel</Label>
+                          <SelectConAgregar
+                            opciones={opciones_tamanos}
+                            valor={tamano_hoja_id ? String(tamano_hoja_id) : ''}
+                            onChange={seleccionarTamanoHoja}
+                            tamanoConfig={{ onCrear: crearTamanoHoja }}
+                            placeholder="Seleccionar tamaño"
+                            tituloModal="Agregar tamaño de hoja"
+                            descripcionModal="Ingresa nombre y medidas; se guardan en mm"
+                            placeholderInput="Nombre"
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Selecciona el tamaño de hoja para vista previa y PDF. Los márgenes se aplican encima del área útil de la hoja.
+                        </div>
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         Define los márgenes predeterminados para esta plantilla. Estos valores se utilizarán al generar el PDF.
                       </p>
@@ -750,11 +940,15 @@ export function GestionPlantillasConsentimiento() {
                           <Input
                             id="margen-superior-edit"
                             type="number"
-                            min="0"
-                            max="50"
+                            min={0}
+                            max={maxTop}
                             value={margenes_plantilla.superior}
-                            onChange={(e) => setMargenesPlantilla({ ...margenes_plantilla, superior: Number(e.target.value) })}
-                            className="h-8"
+                            onChange={(e) => {
+                              const nuevo = clamp(Number(e.target.value), 0, maxTop);
+                              setMargenesPlantilla({ ...margenes_plantilla, superior: nuevo });
+                            }}
+                            className={cn("h-8", (margenes_plantilla.superior > 999 || verticalZero) && "border-yellow-400")}
+                            title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.superior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                           />
                         </div>
                         <div className="space-y-1">
@@ -762,11 +956,15 @@ export function GestionPlantillasConsentimiento() {
                           <Input
                             id="margen-inferior-edit"
                             type="number"
-                            min="0"
-                            max="50"
+                            min={0}
+                            max={maxBottom}
                             value={margenes_plantilla.inferior}
-                            onChange={(e) => setMargenesPlantilla({ ...margenes_plantilla, inferior: Number(e.target.value) })}
-                            className="h-8"
+                            onChange={(e) => {
+                              const nuevo = clamp(Number(e.target.value), 0, maxBottom);
+                              setMargenesPlantilla({ ...margenes_plantilla, inferior: nuevo });
+                            }}
+                            className={cn("h-8", (margenes_plantilla.inferior > 999 || verticalZero) && "border-yellow-400")}
+                            title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.inferior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                           />
                         </div>
                         <div className="space-y-1">
@@ -774,11 +972,15 @@ export function GestionPlantillasConsentimiento() {
                           <Input
                             id="margen-izquierdo-edit"
                             type="number"
-                            min="0"
-                            max="50"
+                            min={0}
+                            max={maxLeft}
                             value={margenes_plantilla.izquierdo}
-                            onChange={(e) => setMargenesPlantilla({ ...margenes_plantilla, izquierdo: Number(e.target.value) })}
-                            className="h-8"
+                            onChange={(e) => {
+                              const nuevo = clamp(Number(e.target.value), 0, maxLeft);
+                              setMargenesPlantilla({ ...margenes_plantilla, izquierdo: nuevo });
+                            }}
+                            className={cn("h-8", (margenes_plantilla.izquierdo > 999 || horizontalZero) && "border-yellow-400")}
+                            title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.izquierdo > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                           />
                         </div>
                         <div className="space-y-1">
@@ -786,17 +988,23 @@ export function GestionPlantillasConsentimiento() {
                           <Input
                             id="margen-derecho-edit"
                             type="number"
-                            min="0"
-                            max="50"
+                            min={0}
+                            max={maxRight}
                             value={margenes_plantilla.derecho}
-                            onChange={(e) => setMargenesPlantilla({ ...margenes_plantilla, derecho: Number(e.target.value) })}
-                            className="h-8"
+                            onChange={(e) => {
+                              const nuevo = clamp(Number(e.target.value), 0, maxRight);
+                              setMargenesPlantilla({ ...margenes_plantilla, derecho: nuevo });
+                            }}
+                            className={cn("h-8", (margenes_plantilla.derecho > 999 || horizontalZero) && "border-yellow-400")}
+                            title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.derecho > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                           />
                         </div>
                       </div>
-                      <p className="text-xs p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
-                        💡 <strong>Nota:</strong> Tamaño de papel: Carta (216mm × 279mm)
-                      </p>
+                      {(horizontalZero || verticalZero) && (
+                        <div className="text-xs text-yellow-700 mt-1">
+                          ⚠️ El área de escritura {horizontalZero && verticalZero ? 'horizontal y vertical' : horizontalZero ? 'horizontal' : 'vertical'} es nula.
+                        </div>
+                      )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -900,10 +1108,13 @@ export function GestionPlantillasConsentimiento() {
                   contenido={contenido_plantilla}
                   onChange={setContenidoPlantilla}
                   minHeight="400px"
+                  tamanoPapel={tamano_papel}
+                  tamanoPersonalizado={tamanoSeleccionado ? { widthMm: Math.round(tamanoSeleccionado.ancho), heightMm: Math.round(tamanoSeleccionado.alto) } : undefined as any}
+                  margenes={{ top: margenes_plantilla.superior, right: margenes_plantilla.derecho, bottom: margenes_plantilla.inferior, left: margenes_plantilla.izquierdo }}
                 />
               </div>
             </div>
-          </ScrollArea>
+          </div>
 
           <DialogFooter>
             <Button 
@@ -913,6 +1124,7 @@ export function GestionPlantillasConsentimiento() {
                 setPlantillaSeleccionada(null);
                 setNombrePlantilla('');
                 setContenidoPlantilla('');
+                setTamanoPapel('carta');
                 setMargenesPlantilla({ superior: 20, inferior: 20, izquierdo: 20, derecho: 20 });
                 setBotonesEtiquetas([]);
               }}
@@ -994,15 +1206,24 @@ export function GestionPlantillasConsentimiento() {
 
           <ScrollArea className="max-h-[calc(90vh-200px)] pr-4">
             <div className="space-y-4 py-4">
-              <div className="border-2 rounded-lg bg-white shadow-sm">
+              <div className="border-2 rounded-lg bg-transparent shadow-sm">
                 <div className="bg-muted/30 px-4 py-2 border-b">
                   <p className="text-sm font-medium text-muted-foreground">
                     Vista previa del documento
                   </p>
                 </div>
-                <div className="p-8">
+                <div className="p-8 overflow-x-auto">
                   <RenderizadorHtml 
                     contenido={plantilla_visualizando?.contenido || ''}
+                    modoDocumento
+                    tamanoPapel={(plantilla_visualizando as any)?.tamano_papel || 'carta'}
+                    tamanoPersonalizado={tamanoSeleccionado ? { widthMm: Math.round(tamanoSeleccionado.ancho), heightMm: Math.round(tamanoSeleccionado.alto) } : undefined as any}
+                    margenes={{
+                      top: plantilla_visualizando?.margen_superior ?? 20,
+                      bottom: plantilla_visualizando?.margen_inferior ?? 20,
+                      left: plantilla_visualizando?.margen_izquierdo ?? 20,
+                      right: plantilla_visualizando?.margen_derecho ?? 20,
+                    }}
                     className="[&_span[data-etiqueta]]:bg-yellow-100 [&_span[data-etiqueta]]:px-2 [&_span[data-etiqueta]]:py-0.5 [&_span[data-etiqueta]]:rounded [&_span[data-etiqueta]]:font-medium [&_span[data-etiqueta]]:text-yellow-900"
                   />
                 </div>

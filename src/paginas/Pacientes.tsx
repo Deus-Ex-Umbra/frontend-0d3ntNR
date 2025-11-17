@@ -17,6 +17,7 @@ import { Toaster } from '@/componentes/ui/toaster';
 import { SelectConAgregar } from '@/componentes/ui/select-with-add';
 import { GestorArchivos } from '@/componentes/archivos/gestor-archivos';
 import { PhoneInput, formatearTelefonoCompleto, separarTelefono } from '@/componentes/ui/phone-input';
+import { EditorDocumento, type DocumentoConfig } from '@/componentes/ui/editor-documento';
 import { EditorHtmlRico } from '@/componentes/ui/editor-html-rico';
 import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
 import { HexColorPicker } from 'react-colorful';
@@ -43,6 +44,20 @@ export default function Pacientes() {
   const [ultima_cita, setUltimaCita] = useState<any>(null);
   const [ultimo_tratamiento, setUltimoTratamiento] = useState<any>(null);
   const [cargando_info_adicional, setCargandoInfoAdicional] = useState(false);
+  const [notas_generales_config, setNotasGeneralesConfig] = useState<DocumentoConfig>({
+    tamano_hoja_id: null,
+    nombre_tamano: 'Carta',
+    widthMm: 216,
+    heightMm: 279,
+    margenes: { top: 20, right: 20, bottom: 20, left: 20 },
+  });
+  const [notas_medicas_config, setNotasMedicasConfig] = useState<DocumentoConfig>({
+    tamano_hoja_id: null,
+    nombre_tamano: 'Carta',
+    widthMm: 216,
+    heightMm: 279,
+    margenes: { top: 20, right: 20, bottom: 20, left: 20 },
+  });
 
   const abrirDialogoConfirmarEliminar = (id: number) => {
     setPacienteAEliminar(id);
@@ -155,6 +170,8 @@ export default function Pacientes() {
       color_categoria: '',
     });
     setModoEdicion(false);
+    setNotasGeneralesConfig({ tamano_hoja_id: null, nombre_tamano: 'Carta', widthMm: 216, heightMm: 279, margenes: { top: 20, right: 20, bottom: 20, left: 20 } });
+    setNotasMedicasConfig({ tamano_hoja_id: null, nombre_tamano: 'Carta', widthMm: 216, heightMm: 279, margenes: { top: 20, right: 20, bottom: 20, left: 20 } });
     setDialogoAbierto(true);
   };
 
@@ -181,6 +198,28 @@ export default function Pacientes() {
         color_categoria: datos_completos.color_categoria || '',
       });
       setPacienteSeleccionado(datos_completos);
+      if (datos_completos.notas_generales_config) {
+        setNotasGeneralesConfig({
+          tamano_hoja_id: datos_completos.notas_generales_config.tamano_hoja_id ?? null,
+          nombre_tamano: datos_completos.notas_generales_config.nombre_tamano ?? 'Personalizado',
+          widthMm: datos_completos.notas_generales_config.widthMm ?? 216,
+          heightMm: datos_completos.notas_generales_config.heightMm ?? 279,
+          margenes: datos_completos.notas_generales_config.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 },
+        });
+      } else {
+        setNotasGeneralesConfig({ tamano_hoja_id: null, nombre_tamano: 'Carta', widthMm: 216, heightMm: 279, margenes: { top: 20, right: 20, bottom: 20, left: 20 } });
+      }
+      if (datos_completos.notas_medicas_config) {
+        setNotasMedicasConfig({
+          tamano_hoja_id: datos_completos.notas_medicas_config.tamano_hoja_id ?? null,
+          nombre_tamano: datos_completos.notas_medicas_config.nombre_tamano ?? 'Personalizado',
+          widthMm: datos_completos.notas_medicas_config.widthMm ?? 216,
+          heightMm: datos_completos.notas_medicas_config.heightMm ?? 279,
+          margenes: datos_completos.notas_medicas_config.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 },
+        });
+      } else {
+        setNotasMedicasConfig({ tamano_hoja_id: null, nombre_tamano: 'Carta', widthMm: 216, heightMm: 279, margenes: { top: 20, right: 20, bottom: 20, left: 20 } });
+      }
       setModoEdicion(true);
       setDialogoAbierto(true);
     } catch (error) {
@@ -215,10 +254,12 @@ export default function Pacientes() {
         correo: formulario.correo || undefined,
         direccion: formulario.direccion || undefined,
         notas_generales: formulario.notas_generales || undefined,
+        notas_generales_config: notas_generales_config,
         alergias_ids: formulario.alergias_ids,
         enfermedades_ids: formulario.enfermedades_ids,
         medicamentos_ids: formulario.medicamentos_ids,
         notas_medicas: formulario.notas_medicas || undefined,
+        notas_medicas_config: notas_medicas_config,
         color_categoria: formulario.color_categoria || undefined,
       };
 
@@ -703,7 +744,7 @@ export default function Pacientes() {
       </Dialog>
 
       <Dialog open={dialogo_abierto} onOpenChange={setDialogoAbierto}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {modo_edicion ? 'Editar Paciente' : 'Nuevo Paciente'}
@@ -785,8 +826,9 @@ export default function Pacientes() {
                 <EditorHtmlRico
                   contenido={formulario.notas_generales}
                   onChange={(contenido) => setFormulario({ ...formulario, notas_generales: contenido })}
-                  placeholder="Escribe notas adicionales sobre el paciente..."
-                  minHeight="120px"
+                  minHeight="180px"
+                  placeholder="Notas generales del paciente..."
+                  className="border rounded-md"
                 />
               </div>
 
@@ -956,11 +998,12 @@ export default function Pacientes() {
 
               <div className="space-y-2">
                 <Label htmlFor="notas_medicas">Notas Médicas Importantes</Label>
-                <EditorHtmlRico
-                  contenido={formulario.notas_medicas}
-                  onChange={(contenido) => setFormulario({ ...formulario, notas_medicas: contenido })}
-                  placeholder="Otras notas médicas relevantes..."
-                  minHeight="120px"
+                <EditorDocumento
+                  valorHtml={formulario.notas_medicas}
+                  onChangeHtml={(contenido) => setFormulario({ ...formulario, notas_medicas: contenido })}
+                  config={notas_medicas_config}
+                  onChangeConfig={setNotasMedicasConfig}
+                  minHeight="200px"
                 />
               </div>
             </TabsContent>
@@ -1226,7 +1269,9 @@ export default function Pacientes() {
                       <div>
                         <Label className="text-muted-foreground">Notas Generales</Label>
                         <div className="mt-2 p-3 rounded-lg bg-secondary/30 border border-border">
-                          <RenderizadorHtml contenido={paciente_seleccionado.notas_generales} />
+                          <RenderizadorHtml 
+                            contenido={paciente_seleccionado.notas_generales}
+                          />
                         </div>
                       </div>
                     )}
@@ -1389,7 +1434,15 @@ export default function Pacientes() {
                         <div className="space-y-2">
                           <Label className="text-muted-foreground">Notas Médicas</Label>
                           <div className="p-3 rounded-lg bg-secondary/30 border border-border">
-                            <RenderizadorHtml contenido={paciente_seleccionado.notas_medicas} />
+                            <RenderizadorHtml 
+                              contenido={paciente_seleccionado.notas_medicas}
+                              modoDocumento
+                              tamanoPersonalizado={{
+                                widthMm: (paciente_seleccionado as any).notas_medicas_config?.widthMm ?? 216,
+                                heightMm: (paciente_seleccionado as any).notas_medicas_config?.heightMm ?? 279,
+                              }}
+                              margenes={(paciente_seleccionado as any).notas_medicas_config?.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 }}
+                            />
                           </div>
                         </div>
                       )}

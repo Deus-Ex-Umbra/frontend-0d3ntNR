@@ -21,6 +21,7 @@ import { toast } from '@/hooks/use-toast';
 import { VisualizadorArchivos } from '@/componentes/archivos/visualizador-archivos';
 import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
+import { MultiSelect } from '@/componentes/ui/mulit-select';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -137,6 +138,8 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
   const [valores_etiquetas, setValoresEtiquetas] = useState<ValorEtiqueta[]>([]);
   const [generando, setGenerando] = useState(false);
   const [vista_previa, setVistaPrevia] = useState(false);
+  const [filtro_plantillas, setFiltroPlantillas] = useState('');
+  const [filtro_etiquetas, setFiltroEtiquetas] = useState<string[]>([]);
 
   const [formulario, setFormulario] = useState({
     nombre_sin_extension: '',
@@ -217,6 +220,16 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
     }
     
     return etiquetas;
+  };
+  const etiquetasUsadasEnPlantillas = (): Array<{ valor: string; etiqueta: string }> => {
+    const usados = new Set<string>();
+    plantillas.forEach((p) => {
+      extraerEtiquetasDelContenido(p.contenido).forEach((c) => usados.add(c));
+    });
+    const mapCodigoNombre = new Map(etiquetas_personalizadas.map(e => [e.codigo, e.nombre]));
+    const opciones = Array.from(usados).map((c) => ({ valor: c, etiqueta: mapCodigoNombre.get(c) || c }));
+    opciones.sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'es'));
+    return opciones;
   };
 
   const extraerYPrepararEtiquetas = () => {
@@ -946,11 +959,25 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 pr-4">
+          <ScrollArea className="flex-1 pr-4 overflow-y-auto">
             <div className="space-y-6 py-4">
               {!plantilla_seleccionada ? (
                 <div className="space-y-4">
                   <Label>Seleccionar plantilla</Label>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Input
+                      placeholder="Buscar por nombre..."
+                      value={filtro_plantillas}
+                      onChange={(e) => setFiltroPlantillas(e.target.value)}
+                    />
+                    <MultiSelect
+                      opciones={etiquetasUsadasEnPlantillas()}
+                      valores={filtro_etiquetas}
+                      onChange={setFiltroEtiquetas}
+                      placeholder="Filtrar por etiquetas (opcional)"
+                      textoVacio="Sin etiquetas"
+                    />
+                  </div>
                   {plantillas.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground border rounded-lg">
                       <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -959,7 +986,16 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
                     </div>
                   ) : (
                     <div className="grid gap-3">
-                      {plantillas.map((plantilla) => (
+                      {plantillas
+                        .filter((p) => {
+                          const termino = filtro_plantillas.trim().toLowerCase();
+                          const coincideNombre = termino ? p.nombre.toLowerCase().includes(termino) : true;
+                          if (filtro_etiquetas.length === 0) return coincideNombre;
+                          const codigos = extraerEtiquetasDelContenido(p.contenido);
+                          const coincideEtiquetas = filtro_etiquetas.every((sel) => codigos.includes(sel));
+                          return coincideNombre && coincideEtiquetas;
+                        })
+                        .map((plantilla) => (
                         <Button
                           key={plantilla.id}
                           variant="outline"
@@ -1033,7 +1069,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
                       </div>
                       
                       {vista_previa && (
-                        <div className="border rounded-lg p-4 max-h-96 overflow-auto bg-white">
+                        <div className="border rounded-lg p-4 bg-white">
                           <div style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '12px', lineHeight: '1.6' }}>
                             <RenderizadorHtml contenido={procesarContenidoConValores()} />
                           </div>

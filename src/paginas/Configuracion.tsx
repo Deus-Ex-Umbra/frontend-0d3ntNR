@@ -18,6 +18,7 @@ import { MarkdownRenderer } from '@/componentes/ui/markdown-rendered';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ItemCatalogo } from '@/tipos';
+import { GestionTamanosPapel } from '@/componentes/catalogo/gestion-tamanos-papel';
 
 interface Nota {
   id: number;
@@ -899,6 +900,11 @@ export default function Configuracion() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-8">
+                  {/* Tamaños de Papel primero */}
+                  <GestionTamanosPapel />
+
+                  <div className="border-t border-border" />
+
                   <GestionCatalogo
                     titulo="Alergias"
                     items={alergias}
@@ -944,6 +950,8 @@ export default function Configuracion() {
                     ayudaNombre="Ingresa el nombre del medicamento"
                     ayudaDescripcion="Opcional: Agrega información sobre presentación, dosis típica o uso común"
                   />
+
+                  
 
                   <div className="border-t border-border" />
 

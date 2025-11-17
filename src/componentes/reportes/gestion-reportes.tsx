@@ -3,6 +3,8 @@ import { Button } from '@/componentes/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
 import { Label } from '@/componentes/ui/label';
+import { Input } from '@/componentes/ui/input';
+import { MultiSelect } from '@/componentes/ui/mulit-select';
 import { Calendar } from '@/componentes/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
 import { Switch } from '@/componentes/ui/switch';
@@ -34,6 +36,8 @@ export function GestionReportes() {
   const [cargando, setCargando] = useState(false);
   const [cargando_lista, setCargandoLista] = useState(true);
   const [reportes_guardados, setReportesGuardados] = useState<ReporteGuardado[]>([]);
+  const [filtro_nombre, setFiltroNombre] = useState('');
+  const [filtro_areas, setFiltroAreas] = useState<string[]>([]);
 
   const [reporte_visualizando, setReporteVisualizando] = useState<{
     id: number;
@@ -340,6 +344,27 @@ export function GestionReportes() {
           {cargando_lista ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
         </Button>
       </div>
+      {/* Filtros de lista */}
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-1">
+          <Label className="text-sm">Buscar por nombre</Label>
+          <Input
+            placeholder="Escribe el nombre del reporte..."
+            value={filtro_nombre}
+            onChange={(e) => setFiltroNombre(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-sm">Áreas</Label>
+          <MultiSelect
+            opciones={areas_disponibles.map(a => ({ valor: String(a.valor), etiqueta: a.etiqueta }))}
+            valores={filtro_areas}
+            onChange={setFiltroAreas}
+            placeholder="Filtrar por áreas (opcional)"
+            textoVacio="Sin áreas"
+          />
+        </div>
+      </div>
 
       {cargando_lista ? (
         <div className="flex items-center justify-center py-16">
@@ -357,7 +382,15 @@ export function GestionReportes() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {reportes_guardados.map((reporte) => (
+          {reportes_guardados
+            .filter((reporte) => {
+              const termino = filtro_nombre.trim().toLowerCase();
+              const coincideNombre = termino ? reporte.nombre.toLowerCase().includes(termino) : true;
+              const coincideAreas = filtro_areas.length === 0 ||
+                filtro_areas.every((a) => reporte.areas.map(String).includes(a));
+              return coincideNombre && coincideAreas;
+            })
+            .map((reporte) => (
             <Card key={reporte.id} className="overflow-hidden">
               <CardHeader>
                 <div className="flex items-start justify-between">

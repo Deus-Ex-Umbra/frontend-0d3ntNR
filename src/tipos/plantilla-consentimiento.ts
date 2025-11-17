@@ -9,6 +9,7 @@ export interface PlantillaConsentimiento {
   margen_inferior: number;
   margen_izquierdo: number;
   margen_derecho: number;
+  tamano_papel?: 'carta' | 'legal' | 'a4';
 }
 
 export interface EtiquetaReemplazable {

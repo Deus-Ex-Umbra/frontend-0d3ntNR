@@ -379,6 +379,23 @@ export const catalogoApi = {
     const respuesta = await api.delete(`/catalogo/etiquetas-plantilla/${id}`);
     return respuesta.data;
   },
+  // Tamaños de hoja personalizados
+  obtenerTamanosHoja: async () => {
+    const respuesta = await api.get('/catalogo/tamanos-papel');
+    return respuesta.data;
+  },
+  crearTamanoHoja: async (datos: { nombre: string; ancho: number; alto: number; descripcion?: string }) => {
+    const respuesta = await api.post('/catalogo/tamanos-papel', datos);
+    return respuesta.data;
+  },
+  actualizarTamanoHoja: async (id: number, datos: { nombre?: string; ancho?: number; alto?: number; descripcion?: string }) => {
+    const respuesta = await api.put(`/catalogo/tamanos-papel/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminarTamanoHoja: async (id: number) => {
+    const respuesta = await api.delete(`/catalogo/tamanos-papel/${id}`);
+    return respuesta.data;
+  },
 };
 
 export const archivosApi = {
@@ -458,6 +475,7 @@ export const plantillasConsentimientoApi = {
   crear: async (datos: { 
     nombre: string; 
     contenido: string;
+    tamano_papel?: 'carta' | 'legal' | 'a4';
     margen_superior?: number;
     margen_inferior?: number;
     margen_izquierdo?: number;
@@ -477,6 +495,7 @@ export const plantillasConsentimientoApi = {
   actualizar: async (id: number, datos: { 
     nombre?: string; 
     contenido?: string;
+    tamano_papel?: 'carta' | 'legal' | 'a4';
     margen_superior?: number;
     margen_inferior?: number;
     margen_izquierdo?: number;
