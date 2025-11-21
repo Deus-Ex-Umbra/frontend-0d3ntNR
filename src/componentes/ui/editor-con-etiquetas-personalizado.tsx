@@ -8,7 +8,7 @@ import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { FontSize } from '@/lib/tiptap-font-size';
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node, mergeAttributes, InputRule, wrappingInputRule } from '@tiptap/core';
 import { useEffect, useState, forwardRef, useImperativeHandle, useRef } from 'react';
 import { Button } from '@/componentes/ui/button';
 import { Toggle } from '@/componentes/ui/toggle';
@@ -142,6 +142,39 @@ const tamanos_fuente = [
   { label: '48px', value: '48px' },
 ];
 
+const CustomOrderedList = OrderedList.extend({
+  addInputRules() {
+    return [
+      wrappingInputRule({
+        find: /^\s*(\d+)\.\s$/,
+        type: this.type,
+        getAttributes: (match) => {
+          const attributes = this.editor.state.selection.$from.parent.attrs
+          return {
+            start: +match[1],
+            ...(attributes.textAlign ? { textAlign: attributes.textAlign } : {})
+          }
+        },
+      }),
+    ]
+  },
+})
+
+const CustomBulletList = BulletList.extend({
+  addInputRules() {
+    return [
+      wrappingInputRule({
+        find: /^\s*([-+*])\s$/,
+        type: this.type,
+        getAttributes: (match) => {
+          const attributes = this.editor.state.selection.$from.parent.attrs
+          return attributes.textAlign ? { textAlign: attributes.textAlign } : {}
+        },
+      }),
+    ]
+  },
+})
+
 export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorConEtiquetasPersonalizadoProps>(({ 
   contenido, 
   onChange, 
@@ -182,6 +215,14 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
 
   const contentWidthPx = Math.max(0, pageWidthPx - marginLeftPx - marginRightPx);
   const contentHeightPx = Math.max(0, pageHeightPx - marginTopPx - marginBottomPx);
+  
+  // Altura efectiva de avance de página (solapando márgenes)
+  // Esto hace que el inicio escribible de la página siguiente coincida con el final escribible de la actual
+  const effectivePageOffset = pageHeightPx - marginTopPx - marginBottomPx;
+
+  // Máscara para mostrar solo la página actual
+  // Se calcula dinámicamente en el render, pero aquí definimos el estado base
+  const [maskClipPath, setMaskClipPath] = useState<string>('none');
 
   const [colorActual, setColorActual] = useState('#000000'); // color aplicado
   const [colorTemporal, setColorTemporal] = useState('#000000'); // color en previsualización dentro del popover
@@ -217,9 +258,24 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
       Color,
       FontSize,
       Underline,
-      BulletList,
-      OrderedList,
+      CustomBulletList,
+      CustomOrderedList,
       BaseListItem.extend({
+        addKeyboardShortcuts() {
+          return {
+            Enter: () => {
+              if (this.editor.isActive('listItem')) {
+                const { state } = this.editor
+                const { selection } = state
+                if (selection.empty && (selection.$from.parent.content.size === 0 || selection.$from.parent.textContent.trim().length === 0)) {
+                  return this.editor.commands.liftListItem('listItem')
+                }
+                return this.editor.commands.splitListItem('listItem')
+              }
+              return false
+            },
+          }
+        },
         addAttributes() {
           return {
             ...this.parent?.(),
@@ -244,7 +300,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     content: contenido,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none p-3',
+        class: 'prose prose-sm max-w-none focus:outline-none px-3 py-0', // Removed vertical padding to align with collapsed margins
       },
     },
     onUpdate: ({ editor }) => {
@@ -309,24 +365,91 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     }
   }, [editor]);
 
+  // Detectar página actual basado en la posición del cursor
+  useEffect(() => {
+    if (!editor) return;
+    
+    const updatePage = () => {
+      const { selection } = editor.state;
+      const { from } = selection;
+      const view = editor.view;
+      
+      // coordsAtPos devuelve coordenadas de viewport
+      const coords = view.coordsAtPos(from);
+      const dom = view.dom;
+      const domRect = dom.getBoundingClientRect();
+      
+      // Calcular Y relativa al inicio del contenido (texto)
+      // domRect.top es el inicio del área editable
+      // Usamos coords.bottom para detectar la página. Esto asegura que si el cursor
+      // está en una nueva línea, se detecte inmediatamente la nueva página.
+      // Añadimos un pequeño buffer (-2px) para tolerancias de renderizado.
+      const relativeYZoomed = (coords.bottom - 2) - domRect.top;
+      
+      // Deshacer zoom
+      const relativeY = relativeYZoomed / zoom;
+      
+      // En el modo "sin márgenes visuales", la posición relativa es la absoluta en el flujo
+      const absoluteY = relativeY;
+      
+      // Calcular índice de página basado en el offset efectivo
+      // Aseguramos que no sea negativo
+      const pageIndex = Math.max(0, Math.floor(absoluteY / effectivePageOffset));
+      
+      setCurrentPage(pageIndex + 1);
+    };
+
+    editor.on('selectionUpdate', updatePage);
+    editor.on('update', updatePage);
+    
+    return () => {
+      editor.off('selectionUpdate', updatePage);
+      editor.off('update', updatePage);
+    };
+  }, [editor, zoom, effectivePageOffset]);
+
   // Recalcular cantidad de páginas según altura de contenido
   useEffect(() => {
     const el = contentMeasureRef.current;
     if (!el) return;
     const update = () => {
       const h = el.scrollHeight;
-      if (contentHeightPx <= 0) {
+      if (effectivePageOffset <= 0) {
         setPageCount(1);
         return;
       }
-      const pages = Math.max(1, Math.ceil(h / contentHeightPx));
+      // La altura total de texto se divide en bloques de effectivePageOffset
+      const pages = Math.max(1, Math.ceil(h / effectivePageOffset));
       setPageCount(pages);
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [contentHeightPx, contenido]);
+  }, [effectivePageOffset, contenido]);
+
+  // Actualizar máscara de recorte cuando cambia la página o dimensiones
+  useEffect(() => {
+    if (pageCount <= 0) return;
+    
+    const pageIndex = currentPage - 1;
+    const top = pageIndex * effectivePageOffset;
+    const bottom = top + effectivePageOffset;
+    
+    // Altura total del contenedor de páginas apiladas (ahora todas tienen altura efectiva)
+    const totalContainerHeight = pageCount * effectivePageOffset;
+    
+    // Añadimos un buffer visual (padding) al clip-path para no cortar descenders (letras como g, j, p)
+    // ni cortar la línea superior de la siguiente página si hay un ligero desajuste.
+    // Esto permite ver un poco del contexto de la página anterior/siguiente (que estará gris).
+    const buffer = 20; 
+
+    const insetTop = Math.max(0, top - buffer);
+    const insetBottom = Math.max(0, totalContainerHeight - bottom - buffer);
+    
+    setMaskClipPath(`inset(${insetTop}px 0px ${insetBottom}px 0px)`);
+    
+  }, [currentPage, pageCount, effectivePageOffset]);
 
   useEffect(() => {
     setCurrentPage((p) => Math.max(1, Math.min(p, pageCount)));
@@ -534,30 +657,30 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
           <div className="w-px h-6 bg-border mx-1" />
           <Toggle
             size="sm"
-            pressed={editor.isActive({ textAlign: 'left' })}
+            pressed={editor.isActive('bulletList') ? (editor.getAttributes('bulletList').textAlign === 'left' || !editor.getAttributes('bulletList').textAlign) : (editor.isActive('orderedList') ? (editor.getAttributes('orderedList').textAlign === 'left' || !editor.getAttributes('orderedList').textAlign) : editor.isActive({ textAlign: 'left' }))}
             onPressedChange={() => editor.chain().focus().setTextAlign('left').run()}
             aria-label="Alinear a la izquierda"
-            data-state={editor.isActive({ textAlign: 'left' }) ? 'on' : 'off'}
+            data-state={(editor.isActive('bulletList') ? (editor.getAttributes('bulletList').textAlign === 'left' || !editor.getAttributes('bulletList').textAlign) : (editor.isActive('orderedList') ? (editor.getAttributes('orderedList').textAlign === 'left' || !editor.getAttributes('orderedList').textAlign) : editor.isActive({ textAlign: 'left' }))) ? 'on' : 'off'}
           >
             <AlignLeft className="h-4 w-4" />
           </Toggle>
 
           <Toggle
             size="sm"
-            pressed={editor.isActive({ textAlign: 'center' })}
+            pressed={editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'center' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'center' : editor.isActive({ textAlign: 'center' }))}
             onPressedChange={() => editor.chain().focus().setTextAlign('center').run()}
             aria-label="Centrar"
-            data-state={editor.isActive({ textAlign: 'center' }) ? 'on' : 'off'}
+            data-state={(editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'center' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'center' : editor.isActive({ textAlign: 'center' }))) ? 'on' : 'off'}
           >
             <AlignCenter className="h-4 w-4" />
           </Toggle>
 
           <Toggle
             size="sm"
-            pressed={editor.isActive({ textAlign: 'right' })}
+            pressed={editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'right' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'right' : editor.isActive({ textAlign: 'right' }))}
             onPressedChange={() => editor.chain().focus().setTextAlign('right').run()}
             aria-label="Alinear a la derecha"
-            data-state={editor.isActive({ textAlign: 'right' }) ? 'on' : 'off'}
+            data-state={(editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'right' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'right' : editor.isActive({ textAlign: 'right' }))) ? 'on' : 'off'}
           >
             <AlignRight className="h-4 w-4" />
           </Toggle>
@@ -771,50 +894,174 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             style={{
               width: `${Math.max(1, pageWidthPx * zoom)}px`,
               position: 'relative',
-              height: `${pageCount * pageHeightPx * zoom}px`,
+              // Altura total ajustada: todas las páginas tienen altura efectiva (sin márgenes visuales)
+              // Sumamos marginTopPx y marginBottomPx para dar espacio a los márgenes visuales desplegados
+              height: `${(pageCount * effectivePageOffset + marginTopPx + marginBottomPx) * zoom}px`,
               margin: '0 auto',
             }}
           >
-            {/* Fondo de páginas */}
-            <div className="absolute top-0 left-0" style={{ width: pageWidthPx, height: pageCount * pageHeightPx, transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
-              {Array.from({ length: pageCount }).map((_, i) => (
-                <div key={i} style={{ position: 'absolute', top: i * pageHeightPx, left: 0, width: pageWidthPx, height: pageHeightPx, background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid rgba(0,0,0,0.08)' }} />
-              ))}
+            {/* Fondo de páginas (Papel blanco continuo) */}
+            <div className="absolute top-0 left-0" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
+              {Array.from({ length: pageCount }).map((_, i) => {
+                const isCurrentPage = (i + 1) === currentPage;
+                // Desplazamos todo el contenido hacia abajo por marginTopPx para dejar espacio al margen superior de la primera página
+                const topPos = i * effectivePageOffset + marginTopPx;
+                return (
+                  <div 
+                    key={i} 
+                    style={{ 
+                      position: 'absolute', 
+                      top: topPos, 
+                      left: 0, 
+                      width: pageWidthPx, 
+                      height: effectivePageOffset, // Altura reducida para ocultar márgenes
+                      background: '#fff',
+                      zIndex: isCurrentPage ? 10 : 1,
+                      boxShadow: isCurrentPage ? '0 4px 20px rgba(0,0,0,0.15)' : 'none',
+                    }} 
+                  />
+                );
+              })}
             </div>
-            {/* Guías de márgenes */}
+            
+            {/* Guías de márgenes (Solo en página activa para no ensuciar) */}
             {mostrarGuiasMargen && (
-              <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: pageCount * pageHeightPx, transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
-                {Array.from({ length: pageCount }).map((_, i) => (
-                  <div key={i} style={{ position: 'absolute', top: i * pageHeightPx, left: 0, width: pageWidthPx, height: pageHeightPx }}>
-                    {/* Líneas horizontales */}
-                    <div style={{ position: 'absolute', top: marginTopPx, left: 0, width: pageWidthPx, borderTop: '1px dashed rgba(0,0,0,0.3)' }} />
-                    <div style={{ position: 'absolute', bottom: marginBottomPx, left: 0, width: pageWidthPx, borderBottom: '1px dashed rgba(0,0,0,0.3)' }} />
-                    {/* Líneas verticales */}
-                    <div style={{ position: 'absolute', top: 0, bottom: 0, left: marginLeftPx, borderLeft: '1px dashed rgba(0,0,0,0.3)' }} />
-                    <div style={{ position: 'absolute', top: 0, bottom: 0, right: marginRightPx, borderRight: '1px dashed rgba(0,0,0,0.3)' }} />
-                  </div>
-                ))}
+              <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 20 }}>
+                {Array.from({ length: pageCount }).map((_, i) => {
+                  if ((i + 1) !== currentPage) return null;
+                  const topPos = i * effectivePageOffset + marginTopPx;
+                  return (
+                    <div key={i} style={{ position: 'absolute', top: topPos, left: 0, width: pageWidthPx, height: effectivePageOffset }}>
+                      {/* Líneas horizontales (Bordes superior e inferior del área de contenido) */}
+                      <div style={{ position: 'absolute', top: 0, left: 0, width: pageWidthPx, borderTop: '1px dashed rgba(59, 130, 246, 0.5)' }} />
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, width: pageWidthPx, borderBottom: '1px dashed rgba(59, 130, 246, 0.5)' }} />
+                      {/* Líneas verticales - Ahora van de inicio a fin (top: 0, bottom: 0) para cubrir toda la altura visual */}
+                      <div style={{ position: 'absolute', top: 0, bottom: 0, left: marginLeftPx, borderLeft: '1px dashed rgba(59, 130, 246, 0.5)' }} />
+                      <div style={{ position: 'absolute', top: 0, bottom: 0, right: marginRightPx, borderRight: '1px dashed rgba(59, 130, 246, 0.5)' }} />
+                    </div>
+                  );
+                })}
               </div>
             )}
-            {/* Capa de contenido dentro de los márgenes */}
-            <div className="absolute top-0 left-0" style={{ width: pageWidthPx, height: pageCount * pageHeightPx, transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
+
+            {/* Capa de contenido con CLIP-PATH para mostrar solo la página actual */}
+            <div 
+              className="absolute top-0 left-0" 
+              style={{ 
+                width: pageWidthPx, 
+                height: '100%', 
+                transform: `scale(${zoom})`, 
+                transformOrigin: 'top left', 
+                zIndex: 30,
+                clipPath: maskClipPath,
+                transition: 'clip-path 0.2s ease-out'
+              }}
+            >
               <div style={{ position: 'absolute', top: marginTopPx, left: marginLeftPx, width: contentWidthPx }}>
                 <div ref={contentMeasureRef}>
                   <EditorContent editor={editor} />
                 </div>
               </div>
             </div>
-            {/* Máscaras de márgenes y separadores entre páginas */}
-            <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: pageCount * pageHeightPx, transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
-              {Array.from({ length: pageCount }).map((_, i) => (
-                <div key={`mask-${i}`} style={{ position: 'absolute', top: i * pageHeightPx, left: 0, width: pageWidthPx, height: pageHeightPx }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, width: pageWidthPx, height: marginTopPx, background: '#ffffff' }} />
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, width: pageWidthPx, height: marginBottomPx, background: '#ffffff' }} />
-                </div>
-              ))}
-              {Array.from({ length: Math.max(0, pageCount - 1) }).map((_, i) => (
-                <div key={`cut-${i}`} style={{ position: 'absolute', top: (i + 1) * pageHeightPx - 6, left: 8, width: pageWidthPx - 16, height: 12, background: 'rgba(0,0,0,0.03)', borderRadius: 6 }} />
-              ))}
+
+            {/* Overlay de Bloques (Tapas Grises) para páginas inactivas */}
+            <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 40 }}>
+              {Array.from({ length: pageCount }).map((_, i) => {
+                const isCurrentPage = (i + 1) === currentPage;
+                const topPos = i * effectivePageOffset + marginTopPx;
+                
+                return (
+                  <div 
+                    key={`dim-${i}`} 
+                    style={{ 
+                      position: 'absolute', 
+                      top: topPos, 
+                      left: 0, 
+                      width: pageWidthPx, 
+                      height: effectivePageOffset, // Altura reducida
+                      backgroundColor: isCurrentPage ? 'transparent' : '#e2e8f0', 
+                      opacity: isCurrentPage ? 0 : 1,
+                      borderBottom: i < pageCount - 1 ? '1px solid #94a3b8' : 'none',
+                      transition: 'opacity 0.2s ease, background-color 0.2s ease',
+                      // IMPORTANTE: pointerEvents 'none' si es activa para permitir escribir, 'auto' si es inactiva para capturar click
+                      pointerEvents: isCurrentPage ? 'none' : 'auto',
+                      cursor: isCurrentPage ? 'text' : 'pointer',
+                    }}
+                    onClick={(e) => {
+                      if (!isCurrentPage) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setCurrentPage(i + 1);
+                      }
+                    }}
+                  >
+                    {!isCurrentPage && (
+                        <div className="w-full h-full flex flex-col items-center justify-center opacity-50">
+                            <span className="text-slate-500 font-bold text-lg select-none">Página {i + 1}</span>
+                            <span className="text-slate-400 text-xs select-none">(Clic para editar)</span>
+                        </div>
+                    )}
+                    {isCurrentPage && (
+                      <div style={{ position: 'absolute', bottom: 4, right: 8, fontSize: '10px', color: '#94a3b8', pointerEvents: 'none' }}>
+                        Pág. {i + 1}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Márgenes visuales desplegables para la página activa (zIndex alto para cubrir overlays) */}
+            <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 50 }}>
+              {(() => {
+                const topPos = (currentPage - 1) * effectivePageOffset + marginTopPx;
+                return (
+                  <>
+                    {marginTopPx > 0 && (
+                      <div 
+                        className="margin-deploy-top"
+                        style={{
+                          position: 'absolute',
+                          top: topPos - marginTopPx,
+                          left: 0,
+                          width: pageWidthPx,
+                          height: marginTopPx,
+                          backgroundColor: '#fff',
+                          boxShadow: '0 -2px 5px rgba(0,0,0,0.05)',
+                        }}
+                      >
+                        {mostrarGuiasMargen && (
+                          <>
+                            <div style={{ position: 'absolute', top: 0, bottom: 0, left: marginLeftPx, borderLeft: '1px dashed rgba(59, 130, 246, 0.5)' }} />
+                            <div style={{ position: 'absolute', top: 0, bottom: 0, right: marginRightPx, borderRight: '1px dashed rgba(59, 130, 246, 0.5)' }} />
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {marginBottomPx > 0 && (
+                      <div 
+                        className="margin-deploy-bottom"
+                        style={{
+                          position: 'absolute',
+                          top: topPos + effectivePageOffset,
+                          left: 0,
+                          width: pageWidthPx,
+                          height: marginBottomPx,
+                          backgroundColor: '#fff',
+                          boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+                        }}
+                      >
+                        {mostrarGuiasMargen && (
+                          <>
+                            <div style={{ position: 'absolute', top: 0, bottom: 0, left: marginLeftPx, borderLeft: '1px dashed rgba(59, 130, 246, 0.5)' }} />
+                            <div style={{ position: 'absolute', top: 0, bottom: 0, right: marginRightPx, borderRight: '1px dashed rgba(59, 130, 246, 0.5)' }} />
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -933,6 +1180,19 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
           .etiqueta-eliminada {
             background-color: #fee2e2;
             border: 1px solid #fca5a5;
+          }
+
+          @keyframes deploy-vertical {
+            from { transform: scaleY(0); }
+            to { transform: scaleY(1); }
+          }
+          .margin-deploy-top {
+            transform-origin: bottom;
+            animation: deploy-vertical 0.3s ease-out forwards;
+          }
+          .margin-deploy-bottom {
+            transform-origin: top;
+            animation: deploy-vertical 0.3s ease-out forwards;
           }
         `}</style>
       </div>

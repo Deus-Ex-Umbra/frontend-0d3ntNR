@@ -7,6 +7,7 @@ import { ListItem as BaseListItem } from '@tiptap/extension-list-item';
 import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
 import { TextAlign } from '@tiptap/extension-text-align';
+import { InputRule, wrappingInputRule } from '@tiptap/core';
 import { FontSize } from '@/lib/tiptap-font-size';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/componentes/ui/button';
@@ -56,6 +57,39 @@ const tamanos_fuente = [
   { label: '48px', value: '48px' },
 ];
 
+const CustomOrderedList = OrderedList.extend({
+  addInputRules() {
+    return [
+      wrappingInputRule({
+        find: /^\s*(\d+)\.\s$/,
+        type: this.type,
+        getAttributes: (match) => {
+          const attributes = this.editor.state.selection.$from.parent.attrs
+          return {
+            start: +match[1],
+            ...(attributes.textAlign ? { textAlign: attributes.textAlign } : {})
+          }
+        },
+      }),
+    ]
+  },
+})
+
+const CustomBulletList = BulletList.extend({
+  addInputRules() {
+    return [
+      wrappingInputRule({
+        find: /^\s*([-+*])\s$/,
+        type: this.type,
+        getAttributes: (match) => {
+          const attributes = this.editor.state.selection.$from.parent.attrs
+          return attributes.textAlign ? { textAlign: attributes.textAlign } : {}
+        },
+      }),
+    ]
+  },
+})
+
 export function EditorHtmlRico({ 
   contenido, 
   onChange, 
@@ -86,9 +120,24 @@ export function EditorHtmlRico({
       Color,
       FontSize,
       Underline,
-      BulletList,
-      OrderedList,
+      CustomBulletList,
+      CustomOrderedList,
       BaseListItem.extend({
+        addKeyboardShortcuts() {
+          return {
+            Enter: () => {
+              if (this.editor.isActive('listItem')) {
+                const { state } = this.editor
+                const { selection } = state
+                if (selection.empty && (selection.$from.parent.content.size === 0 || selection.$from.parent.textContent.trim().length === 0)) {
+                  return this.editor.commands.liftListItem('listItem')
+                }
+                return this.editor.commands.splitListItem('listItem')
+              }
+              return false
+            },
+          }
+        },
         addAttributes() {
           return {
             ...this.parent?.(),
@@ -339,30 +388,30 @@ export function EditorHtmlRico({
         <div className="w-px h-6 bg-border mx-1" />
         <Toggle
           size="sm"
-          pressed={editor.isActive({ textAlign: 'left' })}
+          pressed={editor.isActive('bulletList') ? (editor.getAttributes('bulletList').textAlign === 'left' || !editor.getAttributes('bulletList').textAlign) : (editor.isActive('orderedList') ? (editor.getAttributes('orderedList').textAlign === 'left' || !editor.getAttributes('orderedList').textAlign) : editor.isActive({ textAlign: 'left' }))}
           onPressedChange={() => editor.chain().focus().setTextAlign('left').run()}
           aria-label="Alinear a la izquierda"
-          data-state={editor.isActive({ textAlign: 'left' }) ? 'on' : 'off'}
+          data-state={(editor.isActive('bulletList') ? (editor.getAttributes('bulletList').textAlign === 'left' || !editor.getAttributes('bulletList').textAlign) : (editor.isActive('orderedList') ? (editor.getAttributes('orderedList').textAlign === 'left' || !editor.getAttributes('orderedList').textAlign) : editor.isActive({ textAlign: 'left' }))) ? 'on' : 'off'}
         >
           <AlignLeft className="h-4 w-4" />
         </Toggle>
 
         <Toggle
           size="sm"
-          pressed={editor.isActive({ textAlign: 'center' })}
+          pressed={editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'center' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'center' : editor.isActive({ textAlign: 'center' }))}
           onPressedChange={() => editor.chain().focus().setTextAlign('center').run()}
           aria-label="Centrar"
-          data-state={editor.isActive({ textAlign: 'center' }) ? 'on' : 'off'}
+          data-state={(editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'center' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'center' : editor.isActive({ textAlign: 'center' }))) ? 'on' : 'off'}
         >
           <AlignCenter className="h-4 w-4" />
         </Toggle>
 
         <Toggle
           size="sm"
-          pressed={editor.isActive({ textAlign: 'right' })}
+          pressed={editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'right' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'right' : editor.isActive({ textAlign: 'right' }))}
           onPressedChange={() => editor.chain().focus().setTextAlign('right').run()}
           aria-label="Alinear a la derecha"
-          data-state={editor.isActive({ textAlign: 'right' }) ? 'on' : 'off'}
+          data-state={(editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'right' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'right' : editor.isActive({ textAlign: 'right' }))) ? 'on' : 'off'}
         >
           <AlignRight className="h-4 w-4" />
         </Toggle>
