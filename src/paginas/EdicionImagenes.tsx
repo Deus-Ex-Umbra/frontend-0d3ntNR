@@ -64,7 +64,8 @@ interface ArchivoAdjunto {
   nombre_archivo: string;
   tipo_mime: string;
   descripcion?: string;
-  contenido_base64: string;
+  contenido_base64?: string;
+  url?: string;
   fecha_subida: string;
 }
 
@@ -260,10 +261,26 @@ export default function EdicionImagenes() {
     archivo: ArchivoAdjunto,
     version?: EdicionVersion
   ) => {
-    setArchivoSeleccionado(archivo);
-    setVersionEditar(version || null);
-    await cargarVersiones(archivo.id);
-    setEditorAbierto(true);
+    try {
+      let archivo_completo = archivo;
+      if (!archivo.contenido_base64) {
+        const contenido = await archivosApi.obtenerContenido(archivo.id);
+        archivo_completo = { ...archivo, contenido_base64: contenido };
+        setArchivos(prev => prev.map(a => a.id === archivo.id ? archivo_completo : a));
+      }
+
+      setArchivoSeleccionado(archivo_completo);
+      setVersionEditar(version || null);
+      await cargarVersiones(archivo.id);
+      setEditorAbierto(true);
+    } catch (error) {
+      console.error("Error al cargar contenido del archivo:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar la imagen para editar",
+        variant: "destructive",
+      });
+    }
   };
 
   const abrirVisualizador = (archivo: ArchivoAdjunto) => {
@@ -594,7 +611,7 @@ export default function EdicionImagenes() {
                         >
                           <div className="aspect-video bg-secondary/20 relative overflow-hidden">
                             <img
-                              src={`data:${archivo.tipo_mime};base64,${archivo.contenido_base64}`}
+                              src={archivo.url || `data:${archivo.tipo_mime};base64,${archivo.contenido_base64}`}
                               alt={archivo.nombre_archivo}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                             />
@@ -704,7 +721,7 @@ export default function EdicionImagenes() {
           <EditorImagenes
             archivo_id={archivo_seleccionado.id}
             archivo_nombre={archivo_seleccionado.nombre_archivo}
-            archivo_base64={archivo_seleccionado.contenido_base64}
+            archivo_base64={archivo_seleccionado.contenido_base64 || ""}
             tipo_mime={archivo_seleccionado.tipo_mime}
             abierto={editor_abierto}
             onCerrar={() => {
