@@ -29,7 +29,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token_acceso');
-      
+
       if (window.location.pathname !== '/inicio-sesion' && window.location.pathname !== '/registro') {
         window.location.href = '/inicio-sesion';
       }
@@ -142,8 +142,8 @@ export const tratamientosApi = {
 
 export const planesTratamientoApi = {
   asignar: async (datos: { paciente_id: number; tratamiento_id: number; fecha_inicio: string; hora_inicio: string }) => {
-  const respuesta = await api.post('/planes-tratamiento', datos);
-  return respuesta.data;
+    const respuesta = await api.post('/planes-tratamiento', datos);
+    return respuesta.data;
   },
   obtenerTodos: async () => {
     const respuesta = await api.get('/planes-tratamiento');
@@ -261,7 +261,7 @@ export const finanzasApi = {
     const params = new URLSearchParams();
     if (fecha_inicio) params.append('fecha_inicio', fecha_inicio);
     if (fecha_fin) params.append('fecha_fin', fecha_fin);
-    
+
     const respuesta = await api.get(`/finanzas/reporte?${params.toString()}`);
     return respuesta.data;
   },
@@ -269,7 +269,7 @@ export const finanzasApi = {
     const params = new URLSearchParams();
     params.append('tipo', tipo);
     if (fecha_referencia) params.append('fecha_referencia', fecha_referencia);
-    
+
     const respuesta = await api.get(`/finanzas/grafico?${params.toString()}`);
     return respuesta.data;
   },
@@ -468,11 +468,43 @@ export const edicionesImagenesApi = {
     const respuesta = await api.post(`/ediciones-imagenes/${id}/duplicar`);
     return respuesta.data;
   },
+  crearComentario: async (edicion_id: number, datos: {
+    x: number;
+    y: number;
+    titulo: string;
+    contenido: string;
+    color?: string;
+  }) => {
+    const respuesta = await api.post(`/ediciones-imagenes/${edicion_id}/comentarios`, datos);
+    return respuesta.data;
+  },
+  obtenerComentarios: async (edicion_id: number) => {
+    const respuesta = await api.get(`/ediciones-imagenes/${edicion_id}/comentarios`);
+    return respuesta.data;
+  },
+  obtenerComentario: async (comentario_id: number) => {
+    const respuesta = await api.get(`/ediciones-imagenes/comentarios/${comentario_id}`);
+    return respuesta.data;
+  },
+  actualizarComentario: async (comentario_id: number, datos: {
+    x?: number;
+    y?: number;
+    titulo?: string;
+    contenido?: string;
+    color?: string;
+  }) => {
+    const respuesta = await api.put(`/ediciones-imagenes/comentarios/${comentario_id}`, datos);
+    return respuesta.data;
+  },
+  eliminarComentario: async (comentario_id: number) => {
+    const respuesta = await api.delete(`/ediciones-imagenes/comentarios/${comentario_id}`);
+    return respuesta.data;
+  },
 };
 
 export const plantillasConsentimientoApi = {
-  crear: async (datos: { 
-    nombre: string; 
+  crear: async (datos: {
+    nombre: string;
     contenido: string;
     tamano_papel?: 'carta' | 'legal' | 'a4';
     margen_superior?: number;
@@ -491,8 +523,8 @@ export const plantillasConsentimientoApi = {
     const respuesta = await api.get(`/plantillas-consentimiento/${id}`);
     return respuesta.data;
   },
-  actualizar: async (id: number, datos: { 
-    nombre?: string; 
+  actualizar: async (id: number, datos: {
+    nombre?: string;
     contenido?: string;
     tamano_papel?: 'carta' | 'legal' | 'a4';
     margen_superior?: number;
@@ -645,31 +677,31 @@ export const inventarioApi = {
     }
   ) => {
     const params = new URLSearchParams();
-    
+
     if (filtros?.producto_id) {
       params.append('producto_id', filtros.producto_id.toString());
     }
-    
+
     if (filtros?.tipos && filtros.tipos.length > 0) {
       params.append('tipos', filtros.tipos.join(','));
     }
-    
+
     if (filtros?.fecha_inicio) {
       params.append('fecha_inicio', filtros.fecha_inicio.toISOString());
     }
-    
+
     if (filtros?.fecha_fin) {
       params.append('fecha_fin', filtros.fecha_fin.toISOString());
     }
-    
+
     if (filtros?.usuario_id) {
       params.append('usuario_id', filtros.usuario_id.toString());
     }
-    
+
     if (filtros?.limit) {
       params.append('limit', filtros.limit.toString());
     }
-    
+
     const query = params.toString() ? `?${params.toString()}` : '';
     const respuesta = await api.get(`/inventario/${inventario_id}/historial-movimientos${query}`);
     return respuesta.data;

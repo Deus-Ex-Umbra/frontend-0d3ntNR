@@ -5,7 +5,7 @@ export interface ComentarioImagen {
     titulo: string;
     contenido: string;
     color: string;
-    fecha_creacion: Date;
+    fecha_creacion: string;
     usuario?: {
         id: number;
         nombre: string;
