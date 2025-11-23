@@ -76,7 +76,6 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
   }
 
   const onCrearTamano = async (datos: { nombre: string; anchoCm: number; altoCm: number; descripcion?: string }) => {
-    // Interpretamos anchoCm/altoCm como mm (compatibilidad con componente existente)
     const creado = await (catalogoApi as any).crearTamanoHoja?.({ nombre: datos.nombre, ancho: datos.anchoCm, alto: datos.altoCm, descripcion: datos.descripcion })
     await cargarTamanos()
     if (creado?.id) {

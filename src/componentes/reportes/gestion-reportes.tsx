@@ -344,7 +344,6 @@ export function GestionReportes() {
           {cargando_lista ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
         </Button>
       </div>
-      {/* Filtros de lista */}
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-1">
           <Label className="text-sm">Buscar por nombre</Label>

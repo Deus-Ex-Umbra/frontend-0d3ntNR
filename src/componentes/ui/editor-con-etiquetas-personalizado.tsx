@@ -112,7 +112,7 @@ interface EditorConEtiquetasPersonalizadoProps {
   className?: string;
   minHeight?: string;
   tamanoPapel?: 'carta' | 'legal' | 'a4';
-  margenes?: { top: number; right: number; bottom: number; left: number }; // mm
+  margenes?: { top: number; right: number; bottom: number; left: number };
   tamanoPersonalizado?: { widthMm: number; heightMm: number } | null;
   habilitarEtiquetas?: boolean;
 }
@@ -185,7 +185,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   tamanoPersonalizado = null,
   habilitarEtiquetas = true,
 }, ref) => {
-  // Configuración de página con defensas ante tamaños inválidos
   const mmToPx = (mm: number) => (mm / 25.4) * 96;
   const defaultLetterMm = { widthMm: 216, heightMm: 279 };
   const baseMm = tamanoPersonalizado
@@ -195,8 +194,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
       : tamanoPapel === 'legal'
         ? { widthMm: 216, heightMm: 356 }
         : { widthMm: 210, heightMm: 297 };
-
-  // Calcular dimensiones en px y aplicar fallbacks si no son finitas o positivas
   const rawPageWidthPx = Math.round(mmToPx(baseMm.widthMm));
   const rawPageHeightPx = Math.round(mmToPx(baseMm.heightMm));
   const fallbackWidthPx = Math.round(mmToPx(defaultLetterMm.widthMm));
@@ -215,21 +212,15 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
 
   const contentWidthPx = Math.max(0, pageWidthPx - marginLeftPx - marginRightPx);
   const contentHeightPx = Math.max(0, pageHeightPx - marginTopPx - marginBottomPx);
-  
-  // Altura efectiva de avance de página (solapando márgenes)
-  // Esto hace que el inicio escribible de la página siguiente coincida con el final escribible de la actual
   const effectivePageOffset = pageHeightPx - marginTopPx - marginBottomPx;
-
-  // Máscara para mostrar solo la página actual
-  // Se calcula dinámicamente en el render, pero aquí definimos el estado base
   const [maskClipPath, setMaskClipPath] = useState<string>('none');
 
-  const [colorActual, setColorActual] = useState('#000000'); // color aplicado
-  const [colorTemporal, setColorTemporal] = useState('#000000'); // color en previsualización dentro del popover
+  const [colorActual, setColorActual] = useState('#000000');
+  const [colorTemporal, setColorTemporal] = useState('#000000');
   const [popoverColorAbierto, setPopoverColorAbierto] = useState(false);
   const [tamanoActual, setTamanoActual] = useState('16px');
   const [mostrarGuiasMargen, setMostrarGuiasMargen] = useState(false);
-  const [zoom, setZoom] = useState(1); // 1 = 100%
+  const [zoom, setZoom] = useState(1);
   const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 1.75, 2];
   const [formatosActivos, setFormatosActivos] = useState({
     bold: false,
@@ -242,10 +233,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   const [currentPage, setCurrentPage] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const [pageInputValue, setPageInputValue] = useState('1');
-
-  // Debounce de onChange para mejorar rendimiento mientras se escribe
   const debounceRef = useRef<number | null>(null);
-
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -300,11 +288,10 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     content: contenido,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none px-3 py-0', // Removed vertical padding to align with collapsed margins
+        class: 'prose prose-sm max-w-none focus:outline-none px-3 py-0',
       },
     },
     onUpdate: ({ editor }) => {
-      // Debounce para no bloquear la UI en cada keystroke
       if (debounceRef.current) {
         window.clearTimeout(debounceRef.current);
       }
@@ -319,7 +306,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     },
     onSelectionUpdate: ({ editor }) => {
       const color = editor.getAttributes('textStyle').color;
-      // Si no hay atributo de color, forzamos negro para evitar quedar en gris anterior
       setColorActual(color || '#000000');
       if (!color) {
         setColorTemporal('#000000');
@@ -364,8 +350,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
       setTamanoActual(tamano);
     }
   }, [editor]);
-
-  // Detectar página actual basado en la posición del cursor
   useEffect(() => {
     if (!editor) return;
     
@@ -373,29 +357,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
       const { selection } = editor.state;
       const { from } = selection;
       const view = editor.view;
-      
-      // coordsAtPos devuelve coordenadas de viewport
       const coords = view.coordsAtPos(from);
       const dom = view.dom;
       const domRect = dom.getBoundingClientRect();
-      
-      // Calcular Y relativa al inicio del contenido (texto)
-      // domRect.top es el inicio del área editable
-      // Usamos coords.bottom para detectar la página. Esto asegura que si el cursor
-      // está en una nueva línea, se detecte inmediatamente la nueva página.
-      // Añadimos un pequeño buffer (-2px) para tolerancias de renderizado.
       const relativeYZoomed = (coords.bottom - 2) - domRect.top;
-      
-      // Deshacer zoom
       const relativeY = relativeYZoomed / zoom;
-      
-      // En el modo "sin márgenes visuales", la posición relativa es la absoluta en el flujo
       const absoluteY = relativeY;
-      
-      // Calcular índice de página basado en el offset efectivo
-      // Aseguramos que no sea negativo
       const pageIndex = Math.max(0, Math.floor(absoluteY / effectivePageOffset));
-      
       setCurrentPage(pageIndex + 1);
     };
 
@@ -407,8 +375,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
       editor.off('update', updatePage);
     };
   }, [editor, zoom, effectivePageOffset]);
-
-  // Recalcular cantidad de páginas según altura de contenido
   useEffect(() => {
     const el = contentMeasureRef.current;
     if (!el) return;
@@ -418,7 +384,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
         setPageCount(1);
         return;
       }
-      // La altura total de texto se divide en bloques de effectivePageOffset
       const pages = Math.max(1, Math.ceil(h / effectivePageOffset));
       setPageCount(pages);
     };
@@ -427,38 +392,23 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     ro.observe(el);
     return () => ro.disconnect();
   }, [effectivePageOffset, contenido]);
-
-  // Actualizar máscara de recorte cuando cambia la página o dimensiones
   useEffect(() => {
     if (pageCount <= 0) return;
-    
     const pageIndex = currentPage - 1;
     const top = pageIndex * effectivePageOffset;
     const bottom = top + effectivePageOffset;
-    
-    // Altura total del contenedor de páginas apiladas (ahora todas tienen altura efectiva)
     const totalContainerHeight = pageCount * effectivePageOffset;
-    
-    // Añadimos un buffer visual (padding) al clip-path para no cortar descenders (letras como g, j, p)
-    // ni cortar la línea superior de la siguiente página si hay un ligero desajuste.
-    // Esto permite ver un poco del contexto de la página anterior/siguiente (que estará gris).
     const buffer = 20; 
-
     const insetTop = Math.max(0, top - buffer);
     const insetBottom = Math.max(0, totalContainerHeight - bottom - buffer);
-    
     setMaskClipPath(`inset(${insetTop}px 0px ${insetBottom}px 0px)`);
-    
   }, [currentPage, pageCount, effectivePageOffset]);
-
   useEffect(() => {
     setCurrentPage((p) => Math.max(1, Math.min(p, pageCount)));
   }, [pageCount]);
-
   useEffect(() => {
     setPageInputValue(String(currentPage));
   }, [currentPage]);
-
   useEffect(() => {
     const cont = containerRef.current;
     if (!cont) return;
@@ -471,7 +421,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     cont.addEventListener('scroll', onScroll, { passive: true } as any);
     return () => cont.removeEventListener('scroll', onScroll);
   }, [pageHeightPx, zoom, pageCount]);
-
   const irAPagina = (p: number) => {
     const cont = containerRef.current;
     if (!cont) return;
@@ -480,21 +429,17 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     cont.scrollTo({ top, behavior: 'smooth' });
     setCurrentPage(page);
   };
-
   if (!editor) {
     return null;
   }
-
   const [selectionGuardada, setSelectionGuardada] = useState<{from:number;to:number}|null>(null);
-
   useEffect(() => {
     if (popoverColorAbierto && editor) {
       const { from, to } = editor.state.selection;
       setSelectionGuardada({ from, to });
-      setColorTemporal(colorActual); // al abrir popover inicializamos color temporal
+      setColorTemporal(colorActual);
     }
   }, [popoverColorAbierto, editor, colorActual]);
-
   const aplicarColor = (color: string) => {
     if (!editor) return;
     const { from, to } = selectionGuardada || editor.state.selection;
@@ -512,26 +457,22 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     setColorActual(color);
     setColorTemporal(color);
   };
-
   const aplicarTamano = (tamano: string) => {
     editor.chain().focus().setFontSize(tamano).run();
     setTamanoActual(tamano);
   };
-
   const aumentarTamano = () => {
     const tamanoActualIndex = tamanos_fuente.findIndex(t => t.value === tamanoActual);
     if (tamanoActualIndex < tamanos_fuente.length - 1) {
       aplicarTamano(tamanos_fuente[tamanoActualIndex + 1].value);
     }
   };
-
   const disminuirTamano = () => {
     const tamanoActualIndex = tamanos_fuente.findIndex(t => t.value === tamanoActual);
     if (tamanoActualIndex > 0) {
       aplicarTamano(tamanos_fuente[tamanoActualIndex - 1].value);
     }
   };
-
   const aumentarZoom = () => {
     const idx = ZOOM_STEPS.findIndex(z => z === zoom);
     if (idx < ZOOM_STEPS.length - 1) setZoom(ZOOM_STEPS[idx + 1]);
@@ -541,11 +482,9 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     if (idx > 0) setZoom(ZOOM_STEPS[idx - 1]);
   };
   const resetZoom = () => setZoom(1);
-
   return (
     <div className="space-y-2">
       <div className={cn('border rounded-lg overflow-hidden', className)}>
-        {/* Botones para editar contenido */}
         <div className="flex flex-wrap items-center gap-2 p-2 border-b bg-muted/30">
           <div className="flex items-center gap-1">
             <Button
@@ -717,7 +656,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               }}
             >
               <div className="space-y-3">
-                    {/* Picker ahora solo previsualiza sin aplicar inmediatamente */}
                     <HexColorPicker 
                       color={colorTemporal} 
                       onChange={(color) => setColorTemporal(color)}
@@ -774,7 +712,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                     size="sm"
                     className="w-full"
                     onClick={() => {
-                      setColorTemporal(colorActual); // revertimos
+                      setColorTemporal(colorActual);
                       setPopoverColorAbierto(false);
                     }}
                   >
@@ -785,7 +723,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             </PopoverContent>
           </Popover>
         </div>
-        {/* Botones para visualización de contenido */}
         <div className="flex flex-wrap items-center justify-between gap-2 p-2 border-b bg-muted/30">
           <div className="flex items-center gap-1">
             <Button
@@ -876,8 +813,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
           </div>
         </div>
         </div>
-
-        {/* Área de documento con hojas reales de fondo (stack) y contenido dentro del área de márgenes */}
         <div
           className="editor-doc-container"
           style={{
@@ -894,17 +829,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             style={{
               width: `${Math.max(1, pageWidthPx * zoom)}px`,
               position: 'relative',
-              // Altura total ajustada: todas las páginas tienen altura efectiva (sin márgenes visuales)
-              // Sumamos marginTopPx y marginBottomPx para dar espacio a los márgenes visuales desplegados
               height: `${(pageCount * effectivePageOffset + marginTopPx + marginBottomPx) * zoom}px`,
               margin: '0 auto',
             }}
           >
-            {/* Fondo de páginas (Papel blanco continuo) */}
             <div className="absolute top-0 left-0" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
               {Array.from({ length: pageCount }).map((_, i) => {
                 const isCurrentPage = (i + 1) === currentPage;
-                // Desplazamos todo el contenido hacia abajo por marginTopPx para dejar espacio al margen superior de la primera página
                 const topPos = i * effectivePageOffset + marginTopPx;
                 return (
                   <div 
@@ -914,7 +845,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                       top: topPos, 
                       left: 0, 
                       width: pageWidthPx, 
-                      height: effectivePageOffset, // Altura reducida para ocultar márgenes
+                      height: effectivePageOffset,
                       background: '#fff',
                       zIndex: isCurrentPage ? 10 : 1,
                       boxShadow: isCurrentPage ? '0 4px 20px rgba(0,0,0,0.15)' : 'none',
@@ -923,8 +854,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 );
               })}
             </div>
-            
-            {/* Guías de márgenes (Solo en página activa para no ensuciar) */}
             {mostrarGuiasMargen && (
               <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 20 }}>
                 {Array.from({ length: pageCount }).map((_, i) => {
@@ -932,10 +861,8 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                   const topPos = i * effectivePageOffset + marginTopPx;
                   return (
                     <div key={i} style={{ position: 'absolute', top: topPos, left: 0, width: pageWidthPx, height: effectivePageOffset }}>
-                      {/* Líneas horizontales (Bordes superior e inferior del área de contenido) */}
                       <div style={{ position: 'absolute', top: 0, left: 0, width: pageWidthPx, borderTop: '1px dashed rgba(59, 130, 246, 0.5)' }} />
                       <div style={{ position: 'absolute', bottom: 0, left: 0, width: pageWidthPx, borderBottom: '1px dashed rgba(59, 130, 246, 0.5)' }} />
-                      {/* Líneas verticales - Ahora van de inicio a fin (top: 0, bottom: 0) para cubrir toda la altura visual */}
                       <div style={{ position: 'absolute', top: 0, bottom: 0, left: marginLeftPx, borderLeft: '1px dashed rgba(59, 130, 246, 0.5)' }} />
                       <div style={{ position: 'absolute', top: 0, bottom: 0, right: marginRightPx, borderRight: '1px dashed rgba(59, 130, 246, 0.5)' }} />
                     </div>
@@ -943,8 +870,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 })}
               </div>
             )}
-
-            {/* Capa de contenido con CLIP-PATH para mostrar solo la página actual */}
             <div 
               className="absolute top-0 left-0" 
               style={{ 
@@ -963,13 +888,10 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 </div>
               </div>
             </div>
-
-            {/* Overlay de Bloques (Tapas Grises) para páginas inactivas */}
             <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 40 }}>
               {Array.from({ length: pageCount }).map((_, i) => {
                 const isCurrentPage = (i + 1) === currentPage;
                 const topPos = i * effectivePageOffset + marginTopPx;
-                
                 return (
                   <div 
                     key={`dim-${i}`} 
@@ -978,12 +900,11 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                       top: topPos, 
                       left: 0, 
                       width: pageWidthPx, 
-                      height: effectivePageOffset, // Altura reducida
+                      height: effectivePageOffset,
                       backgroundColor: isCurrentPage ? 'transparent' : '#e2e8f0', 
                       opacity: isCurrentPage ? 0 : 1,
                       borderBottom: i < pageCount - 1 ? '1px solid #94a3b8' : 'none',
                       transition: 'opacity 0.2s ease, background-color 0.2s ease',
-                      // IMPORTANTE: pointerEvents 'none' si es activa para permitir escribir, 'auto' si es inactiva para capturar click
                       pointerEvents: isCurrentPage ? 'none' : 'auto',
                       cursor: isCurrentPage ? 'text' : 'pointer',
                     }}
@@ -1010,8 +931,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 );
               })}
             </div>
-
-            {/* Márgenes visuales desplegables para la página activa (zIndex alto para cubrir overlays) */}
             <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 50 }}>
               {(() => {
                 const topPos = (currentPage - 1) * effectivePageOffset + marginTopPx;
@@ -1074,7 +993,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             padding: 0;
             color: #000000;
             box-sizing: content-box;
-            /* Respeto de márgenes y ajuste de texto */
             overflow-wrap: break-word;
             word-break: break-word;
             hyphens: auto;
@@ -1117,7 +1035,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             list-style-type: decimal;
             display: block;
           }
-          /* Garantizar que elementos no excedan el ancho disponible */
           .ProseMirror table,
           .ProseMirror img,
           .ProseMirror pre,

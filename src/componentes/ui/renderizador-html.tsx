@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 interface RenderizadorHtmlProps {
   contenido: string;
   className?: string;
-  modoDocumento?: boolean; // Respeta colores del documento (fondo blanco, texto negro por defecto)
+  modoDocumento?: boolean;
   tamanoPapel?: 'carta' | 'legal' | 'a4';
-  margenes?: { top: number; right: number; bottom: number; left: number }; // mm
+  margenes?: { top: number; right: number; bottom: number; left: number };
   tamanoPersonalizado?: { widthMm: number; heightMm: number } | null;
 }
 
@@ -18,8 +18,6 @@ export function RenderizadorHtml({ contenido, className, modoDocumento = false, 
       </div>
     );
   }
-
-  // Configuración por defecto: tamaño Carta (Letter)
   const mmToPx = (mm: number) => (mm / 25.4) * 96;
   const PAGE = useMemo(() => {
     const base = tamanoPersonalizado
@@ -56,7 +54,7 @@ export function RenderizadorHtml({ contenido, className, modoDocumento = false, 
     const el = contentRef.current;
     if (!el) return;
     const update = () => {
-      const h = el.scrollHeight; // altura total del contenido
+      const h = el.scrollHeight;
       const base = contentHeightPx > 0 ? contentHeightPx : 1;
       const pages = Math.max(1, Math.ceil(h / base));
       setPageCount(pages);
@@ -112,13 +110,10 @@ export function RenderizadorHtml({ contenido, className, modoDocumento = false, 
                 dangerouslySetInnerHTML={{ __html: contenido }}
               />
             </div>
-            {/* Máscaras de márgenes y separadores entre páginas */}
             <div className="masks-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
               {Array.from({ length: pageCount }).map((_, i) => (
                 <div key={`mask-${i}`} style={{ position: 'absolute', top: i * pageHeightPx, left: 0, width: pageWidthPx, height: pageHeightPx }}>
-                  {/* Máscara superior */}
                   <div style={{ position: 'absolute', top: 0, left: 0, width: pageWidthPx, height: marginTopPx, background: '#ffffff' }} />
-                  {/* Máscara inferior */}
                   <div style={{ position: 'absolute', bottom: 0, left: 0, width: pageWidthPx, height: marginBottomPx, background: '#ffffff' }} />
                 </div>
               ))}
@@ -139,46 +134,38 @@ export function RenderizadorHtml({ contenido, className, modoDocumento = false, 
         />
       )}
       <style>{`
-        /* Modo documento: fondo blanco y texto negro por defecto;
-           NO invalida colores inline definidos en el contenido. */
         .renderizador-documento {
           background-color: #ffffff;
-          color: #000000; /* color base cuando no hay estilos inline */
-          color-scheme: light; /* fuerza esquema claro para UA y componentes */
-          /* Reestablecer variables de Tailwind Typography a modo claro */
-          --tw-prose-body: #111827; /* gris-900 */
+          color: #000000;
+          color-scheme: light;
+          --tw-prose-body: #111827;
           --tw-prose-headings: #111827;
           --tw-prose-links: #111827;
           --tw-prose-bold: #111827;
-          --tw-prose-counters: #6b7280; /* gris-500 */
+          --tw-prose-counters: #6b7280;
           --tw-prose-bullets: currentColor;
-          --tw-prose-hr: #e5e7eb; /* gris-200 */
+          --tw-prose-hr: #e5e7eb;
           --tw-prose-quotes: #111827;
           --tw-prose-quote-borders: #e5e7eb;
           --tw-prose-captions: #6b7280;
           --tw-prose-code: #111827;
           --tw-prose-pre-code: #e5e7eb;
           --tw-prose-pre-bg: #111827;
-          --tw-prose-th-borders: #d1d5db; /* gris-300 */
+          --tw-prose-th-borders: #d1d5db;
           --tw-prose-td-borders: #e5e7eb;
         }
-        /* Para cualquier nodo sin color inline explícito, forzamos negro.
-           Aumentamos especificidad combinando ambas clases del contenedor. */
         .renderizador-documento.renderizador-html *:not([style*="color"]) {
           color: #000000;
         }
-        /* Asegurar que marcadores usan el color del item */
         .renderizador-documento :where(ul > li)::marker,
         .renderizador-documento :where(ol > li)::marker {
           color: currentColor;
         }
-        /* Resets de color para evitar que .prose fuerce gris sobre listas */
         .renderizador-html ul,
         .renderizador-html ol,
         .renderizador-html li {
           color: inherit;
         }
-        /* Asegurar que el marcador (• y números) use el color del texto */
         .renderizador-html :where(ul > li)::marker,
         .renderizador-html :where(ol > li)::marker {
           color: currentColor !important;
@@ -187,13 +174,10 @@ export function RenderizadorHtml({ contenido, className, modoDocumento = false, 
         .renderizador-html ol[style*="color"] li * {
           color: inherit;
         }
-        /* Caso general: evitar que la clase prose fuerce gris en listas sin color inline en <li> pero sí en ancestros */
         .renderizador-html ul li,
         .renderizador-html ol li {
-          /* No fijamos ningún color explícito para permitir herencia del autor (si la hay) */
           color: inherit;
         }
-        /* Reglas generales de colapso/ajuste de texto para evitar desbordes horizontales */
         .renderizador-html {
           overflow-wrap: break-word;
           word-break: break-word;
@@ -242,11 +226,10 @@ export function RenderizadorHtml({ contenido, className, modoDocumento = false, 
           margin: 0.5rem 0;
           line-height: 1.6;
         }
-        /* Replicar lógica de centrado de listas del editor sin modificar el componente original */
         .renderizador-html ul[style*="text-align: center"],
         .renderizador-html ol[style*="text-align: center"] {
           display: table;
-          text-align: left; /* Mantener items alineados internos */
+          text-align: left;
           list-style-position: outside;
           padding-left: 2rem;
           margin-left: auto;
@@ -311,7 +294,6 @@ export function RenderizadorHtml({ contenido, className, modoDocumento = false, 
         .renderizador-html [style*="text-align: right"] {
           text-align: right;
         }
-        /* Garantizar que elementos de bloque no se salgan horizontalmente */
         .renderizador-html table,
         .renderizador-html img,
         .renderizador-html pre,

@@ -97,8 +97,8 @@ export function EditorHtmlRico({
   className,
   minHeight = '150px'
 }: EditorHtmlRicoProps) {
-  const [colorActual, setColorActual] = useState('#000000'); // color aplicado actualmente
-  const [colorTemporal, setColorTemporal] = useState('#000000'); // color que se "juega" en el picker sin aplicar todavía
+  const [colorActual, setColorActual] = useState('#000000');
+  const [colorTemporal, setColorTemporal] = useState('#000000');
   const [popoverAbierto, setPopoverAbierto] = useState(false);
   const [tamanoActual, setTamanoActual] = useState('16px');
   const [formatosActivos, setFormatosActivos] = useState({
@@ -165,7 +165,6 @@ export function EditorHtmlRico({
       },
     },
     onUpdate: ({ editor }) => {
-      // Debounce para evitar lag al escribir
       if (debounceRef.current) {
         window.clearTimeout(debounceRef.current);
       }
@@ -180,7 +179,6 @@ export function EditorHtmlRico({
     },
     onSelectionUpdate: ({ editor }) => {
       const color = editor.getAttributes('textStyle').color;
-      // Si no hay atributo de color, asumimos negro real (#000000) para evitar quedarse con el último color seleccionado
       setColorActual(color || '#000000');
       if (!color) {
         setColorTemporal('#000000');
@@ -200,8 +198,6 @@ export function EditorHtmlRico({
       });
     },
   });
-
-  // Ref para debounce
   const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -232,7 +228,6 @@ export function EditorHtmlRico({
     if (popoverAbierto && editor) {
       const { from, to } = editor.state.selection;
       setSelectionGuardada({ from, to });
-      // Cuando se abre el popover iniciamos el color temporal con el color aplicado actual
       setColorTemporal(colorActual);
     }
   }, [popoverAbierto, editor, colorActual]);
@@ -448,7 +443,6 @@ export function EditorHtmlRico({
             }}
           >
             <div className="space-y-3">
-              {/* Picker ahora solo modifica colorTemporal (previsualización) */}
               <HexColorPicker 
                 color={colorTemporal}
                 onChange={(color) => {
@@ -507,7 +501,7 @@ export function EditorHtmlRico({
                   size="sm"
                   className="w-full"
                   onClick={() => {
-                    setColorTemporal(colorActual); // revertimos cambios
+                    setColorTemporal(colorActual);
                     setPopoverAbierto(false);
                   }}
                 >
@@ -574,7 +568,6 @@ export function EditorHtmlRico({
         .ProseMirror ol {
           list-style-type: decimal;
         }
-        /* Garantizar que elementos no excedan el ancho disponible */
         .ProseMirror table,
         .ProseMirror img,
         .ProseMirror pre,

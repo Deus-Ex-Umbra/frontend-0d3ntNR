@@ -66,12 +66,8 @@ export function SelectConAgregar({
   const [modal_abierto, setModalAbierto] = React.useState(false)
   const [nuevo_valor, setNuevoValor] = React.useState("")
   const [guardando, setGuardando] = React.useState(false)
-  // Unidad fija: mm
   const [formTamano, setFormTamano] = React.useState({ nombre: '', ancho: '', alto: '', descripcion: '' })
-  // Sin preferencia de unidad; siempre mm
-
   const opcion_seleccionada = opciones.find((opcion) => opcion.valor === valor)
-
   const manejarAgregar = async () => {
     if (tamanoConfig) {
       if (!formTamano.nombre.trim()) return
@@ -192,7 +188,6 @@ export function SelectConAgregar({
                 <Label>Descripción (opcional)</Label>
                 <Input value={formTamano.descripcion} onChange={(e)=>setFormTamano({...formTamano, descripcion:e.target.value})} placeholder="Se autogenera si se deja vacío" />
               </div>
-              {/* Unidad fija en mm, sin toggle */}
             </div>
           ) : (
             <div className="grid gap-4 py-4">

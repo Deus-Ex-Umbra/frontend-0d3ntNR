@@ -900,11 +900,8 @@ export default function Configuracion() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-8">
-                  {/* Tamaños de Papel primero */}
                   <GestionTamanosPapel />
-
                   <div className="border-t border-border" />
-
                   <GestionCatalogo
                     titulo="Alergias"
                     items={alergias}

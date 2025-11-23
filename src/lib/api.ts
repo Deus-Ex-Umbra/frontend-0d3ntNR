@@ -379,7 +379,6 @@ export const catalogoApi = {
     const respuesta = await api.delete(`/catalogo/etiquetas-plantilla/${id}`);
     return respuesta.data;
   },
-  // Tamaños de hoja personalizados
   obtenerTamanosHoja: async () => {
     const respuesta = await api.get('/catalogo/tamanos-papel');
     return respuesta.data;

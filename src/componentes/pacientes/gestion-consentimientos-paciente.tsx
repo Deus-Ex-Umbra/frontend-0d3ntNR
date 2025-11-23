@@ -72,10 +72,8 @@ export function GestionConsentimientosPaciente({
   }, [paciente_id]);
 
   useEffect(() => {
-    // Derivar etiquetas usadas en las plantillas y mapear a nombres amigables
     const prepararEtiquetas = async () => {
       try {
-        // Obtener catálogo de etiquetas para mapear código -> nombre
         const catalogo = await catalogoApi.obtenerEtiquetasPlantilla();
         const mapCodigoNombre = new Map<string, string>(
           catalogo.map((e: { codigo: string; nombre: string }) => [e.codigo, e.nombre])
@@ -90,11 +88,9 @@ export function GestionConsentimientosPaciente({
           valor: codigo,
           etiqueta: mapCodigoNombre.get(codigo) || codigo,
         }));
-        // Orden alfabético por etiqueta
         opciones.sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'es'));
         setEtiquetasDisponibles(opciones);
       } catch (e) {
-        // En caso de error, al menos generar desde el contenido
         const codigosUsados = new Set<string>();
         plantillas.forEach((p) => {
           extraerEtiquetasDelContenido(p.contenido).forEach((cod) => codigosUsados.add(cod));
@@ -354,7 +350,7 @@ export function GestionConsentimientosPaciente({
                 {(() => {
                   const termino = filtro_plantillas.trim().toLowerCase();
                   const filtrarPorEtiquetas = (p: Plantilla) => {
-                    if (etiquetas_seleccionadas.length === 0) return true; // sin filtro => todas incluso sin etiquetas
+                    if (etiquetas_seleccionadas.length === 0) return true;
                     const codigos = extraerEtiquetasDelContenido(p.contenido);
                     return etiquetas_seleccionadas.every((sel) => codigos.includes(sel));
                   };
@@ -386,9 +382,8 @@ export function GestionConsentimientosPaciente({
                     </div>
                   </div>
                   <style>{`
-                    /* Indicadores de salto de página para vista previa (tamaño carta) */
                     .preview-paginas {
-                      --page-height: 1056px; /* 11in * 96px/in */
+                      --page-height: 1056px;
                       background-image: repeating-linear-gradient(
                         to bottom,
                         transparent 0,

@@ -7,15 +7,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Edit, Plus, Trash2, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { catalogoApi } from '@/lib/api'
-// Unidades fijas en mm; se elimina la gestión de cm
 
 interface TamanoPapelItem { id:number; nombre:string; ancho:number; alto:number; descripcion?:string; protegido:boolean }
 
 export function GestionTamanosPapel() {
   const [items, setItems] = useState<TamanoPapelItem[]>([])
   const [cargando, setCargando] = useState(false)
-  // Unidad fija: mm
-
   const cargar = async () => {
     setCargando(true)
     try {

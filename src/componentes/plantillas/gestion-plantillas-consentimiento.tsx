@@ -15,7 +15,6 @@ import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/componentes/ui/command';
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
 import { SelectConAgregar, OpcionSelectConAgregar } from '@/componentes/ui/select-with-add';
 import { cn } from '@/lib/utilidades';
 
@@ -43,7 +42,6 @@ export function GestionPlantillasConsentimiento() {
     izquierdo: 20,
     derecho: 20,
   });
-  // Dimensiones de hoja según tamaño (mm)
   const pageMm = tamano_papel === 'carta'
     ? { width: 216, height: 279 }
     : tamano_papel === 'legal'
@@ -60,8 +58,6 @@ export function GestionPlantillasConsentimiento() {
     if (Number.isNaN(v)) return min;
     return Math.min(Math.max(v, min), max);
   };
-
-  // handleCambioTamanoPapel eliminado: reemplazado por seleccionarTamanoHoja con catálogo
   const [etiquetas_personalizadas, setEtiquetasPersonalizadas] = useState<EtiquetaPersonalizada[]>([]);
   const [botones_etiquetas, setBotonesEtiquetas] = useState<{ codigo: string; nombre: string; descripcion: string }[]>([]);
   const [dialogo_nueva_etiqueta, setDialogoNuevaEtiqueta] = useState(false);
@@ -113,7 +109,6 @@ export function GestionPlantillasConsentimiento() {
     const item = tamanos_hoja.find(t => t.id === id);
     if (item) {
       setTamanoHojaId(item.id);
-      // Ajustar márgenes a límites del nuevo tamaño (mm)
       const dims = { width: Math.round(item.ancho), height: Math.round(item.alto) };
       const maxL = Math.max(0, dims.width - margenes_plantilla.derecho);
       const maxR = Math.max(0, dims.width - margenes_plantilla.izquierdo);
@@ -128,14 +123,12 @@ export function GestionPlantillasConsentimiento() {
     }
   };
   const crearTamanoHoja = async (datos: { nombre: string; anchoCm: number; altoCm: number; descripcion?: string }) => {
-    // Interpretamos anchoCm/altoCm como mm para el backend
     const creado = await (catalogoApi as any).crearTamanoHoja?.({ nombre: datos.nombre, ancho: datos.anchoCm, alto: datos.altoCm, descripcion: datos.descripcion });
     await cargarTamanosHoja();
     if (creado?.id) setTamanoHojaId(creado.id);
   };
 
   useEffect(() => {
-    // Derivar las etiquetas usadas en las plantillas visibles
     const mapCodigoNombre = new Map<string, string>(
       etiquetas_personalizadas.map((e) => [e.codigo, e.nombre])
     );
@@ -739,8 +732,6 @@ export function GestionPlantillasConsentimiento() {
           Nueva Plantilla
         </Button>
       </div>
-
-      {/* Filtros */}
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-1">
           <Label className="text-sm">Buscar por nombre</Label>
