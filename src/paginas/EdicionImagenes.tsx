@@ -1,15 +1,21 @@
-import { useState, useEffect } from 'react';
-import { MenuLateral } from '@/componentes/MenuLateral';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/componentes/ui/card';
-import { Button } from '@/componentes/ui/button';
-import { Input } from '@/componentes/ui/input';
-import { Badge } from '@/componentes/ui/badge';
-import { 
-  ImageIcon, 
-  Search, 
-  User, 
-  FileImage, 
-  Edit, 
+import { useState, useEffect } from "react";
+import { MenuLateral } from "@/componentes/MenuLateral";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/componentes/ui/card";
+import { Button } from "@/componentes/ui/button";
+import { Input } from "@/componentes/ui/input";
+import { Badge } from "@/componentes/ui/badge";
+import {
+  ImageIcon,
+  Search,
+  User,
+  FileImage,
+  Edit,
   Eye,
   Loader2,
   AlertCircle,
@@ -18,17 +24,31 @@ import {
   Trash2,
   Download,
   Pencil,
-  ChevronRight
-} from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { Toaster } from '@/componentes/ui/toaster';
-import { pacientesApi, archivosApi, edicionesImagenesApi } from '@/lib/api';
-import { EditorImagenes } from '@/componentes/editor-imagenes/editor-imagenes';
-import { VisualizadorArchivos } from '@/componentes/archivos/visualizador-archivos';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
-import { ScrollArea } from '@/componentes/ui/scroll-area';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
-import { useEdicionImagenes } from '@/contextos/edicion-imagenes-contexto';
+  ChevronRight,
+} from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { Toaster } from "@/componentes/ui/toaster";
+import { pacientesApi, archivosApi, edicionesImagenesApi } from "@/lib/api";
+import { EditorImagenes } from "@/componentes/editor-imagenes/editor-imagenes";
+import { VisualizadorArchivos } from "@/componentes/archivos/visualizador-archivos";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/componentes/ui/dialog";
+import { ScrollArea } from "@/componentes/ui/scroll-area";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/componentes/ui/table";
+import { useEdicionImagenes } from "@/contextos/edicion-imagenes-contexto";
 
 interface PacienteEdicion {
   id: number;
@@ -62,28 +82,41 @@ interface EdicionVersion {
 }
 
 export default function EdicionImagenes() {
-  const [busqueda, setBusqueda] = useState('');
+  const [busqueda, setBusqueda] = useState("");
   const [todos_pacientes, setTodosPacientes] = useState<PacienteEdicion[]>([]);
-  const [pacientes_filtrados, setPacientesFiltrados] = useState<PacienteEdicion[]>([]);
-  const [paciente_seleccionado, setPacienteSeleccionadoState] = useState<PacienteEdicion | null>(null);
+  const [pacientes_filtrados, setPacientesFiltrados] = useState<
+    PacienteEdicion[]
+  >([]);
+  const [paciente_seleccionado, setPacienteSeleccionadoState] =
+    useState<PacienteEdicion | null>(null);
   const [archivos, setArchivos] = useState<ArchivoAdjunto[]>([]);
-  const [archivo_seleccionado, setArchivoSeleccionadoState] = useState<ArchivoAdjunto | null>(null);
+  const [archivo_seleccionado, setArchivoSeleccionadoState] =
+    useState<ArchivoAdjunto | null>(null);
   const [versiones, setVersiones] = useState<EdicionVersion[]>([]);
-  const [version_editar, setVersionEditar] = useState<EdicionVersion | null>(null);
-  
+  const [version_editar, setVersionEditar] = useState<EdicionVersion | null>(
+    null
+  );
+
   const [cargando_inicial, setCargandoInicial] = useState(true);
   const [cargando_archivos, setCargandoArchivos] = useState(false);
   const [cargando_versiones, setCargandoVersiones] = useState(false);
-  
+
   const [editor_abierto, setEditorAbierto] = useState(false);
   const [visualizador_abierto, setVisualizadorAbierto] = useState(false);
-  const [dialogo_versiones_abierto, setDialogoVersionesAbierto] = useState(false);
-  const [version_visualizar, setVersionVisualizar] = useState<EdicionVersion | null>(null);
+  const [dialogo_versiones_abierto, setDialogoVersionesAbierto] =
+    useState(false);
+  const [version_visualizar, setVersionVisualizar] =
+    useState<EdicionVersion | null>(null);
 
-  const [dialogo_confirmar_eliminar_version_abierto, setDialogoConfirmarEliminarVersionAbierto] = useState(false);
-  const [version_a_eliminar, setVersionAEliminar] = useState<EdicionVersion | null>(null);
+  const [
+    dialogo_confirmar_eliminar_version_abierto,
+    setDialogoConfirmarEliminarVersionAbierto,
+  ] = useState(false);
+  const [version_a_eliminar, setVersionAEliminar] =
+    useState<EdicionVersion | null>(null);
 
-  const { paciente_id, setPacienteId, archivo_id, setArchivoId } = useEdicionImagenes();
+  const { paciente_id, setPacienteId, archivo_id, setArchivoId } =
+    useEdicionImagenes();
 
   const setPacienteSeleccionado = (paciente: PacienteEdicion | null) => {
     setPacienteSeleccionadoState(paciente);
@@ -107,7 +140,7 @@ export default function EdicionImagenes() {
   useEffect(() => {
     const cargarEstadoGuardado = async () => {
       if (paciente_id && todos_pacientes.length > 0) {
-        const paciente = todos_pacientes.find(p => p.id === paciente_id);
+        const paciente = todos_pacientes.find((p) => p.id === paciente_id);
         if (paciente) {
           setPacienteSeleccionadoState(paciente);
         }
@@ -119,7 +152,7 @@ export default function EdicionImagenes() {
   useEffect(() => {
     const cargarArchivoGuardado = async () => {
       if (archivo_id && archivos.length > 0) {
-        const archivo = archivos.find(a => a.id === archivo_id);
+        const archivo = archivos.find((a) => a.id === archivo_id);
         if (archivo) {
           setArchivoSeleccionadoState(archivo);
         }
@@ -148,11 +181,11 @@ export default function EdicionImagenes() {
       setTodosPacientes(datos);
       setPacientesFiltrados(datos);
     } catch (error) {
-      console.error('Error al cargar pacientes:', error);
+      console.error("Error al cargar pacientes:", error);
       toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los pacientes',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudieron cargar los pacientes",
+        variant: "destructive",
       });
     } finally {
       setCargandoInicial(false);
@@ -166,31 +199,34 @@ export default function EdicionImagenes() {
     }
 
     const termino = busqueda.toLowerCase();
-    const filtrados = todos_pacientes.filter(paciente => 
-      paciente.nombre.toLowerCase().includes(termino) ||
-      paciente.apellidos.toLowerCase().includes(termino) ||
-      paciente.id.toString().includes(termino) ||
-      (paciente.telefono && paciente.telefono.includes(termino))
+    const filtrados = todos_pacientes.filter(
+      (paciente) =>
+        paciente.nombre.toLowerCase().includes(termino) ||
+        paciente.apellidos.toLowerCase().includes(termino) ||
+        paciente.id.toString().includes(termino) ||
+        (paciente.telefono && paciente.telefono.includes(termino))
     );
     setPacientesFiltrados(filtrados);
   };
 
   const cargarArchivos = async () => {
     if (!paciente_seleccionado) return;
-    
+
     setCargandoArchivos(true);
     try {
-      const datos = await archivosApi.obtenerPorPaciente(paciente_seleccionado.id);
-      const imagenes = datos.filter((archivo: ArchivoAdjunto) => 
-        archivo.tipo_mime.startsWith('image/')
+      const datos = await archivosApi.obtenerPorPaciente(
+        paciente_seleccionado.id
+      );
+      const imagenes = datos.filter((archivo: ArchivoAdjunto) =>
+        archivo.tipo_mime.startsWith("image/")
       );
       setArchivos(imagenes);
     } catch (error) {
-      console.error('Error al cargar archivos:', error);
+      console.error("Error al cargar archivos:", error);
       toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los archivos del paciente',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudieron cargar los archivos del paciente",
+        variant: "destructive",
       });
     } finally {
       setCargandoArchivos(false);
@@ -203,11 +239,11 @@ export default function EdicionImagenes() {
       const datos = await edicionesImagenesApi.obtenerPorArchivo(archivo_id);
       setVersiones(datos);
     } catch (error) {
-      console.error('Error al cargar versiones:', error);
+      console.error("Error al cargar versiones:", error);
       toast({
-        title: 'Error',
-        description: 'No se pudieron cargar las versiones',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudieron cargar las versiones",
+        variant: "destructive",
       });
     } finally {
       setCargandoVersiones(false);
@@ -220,7 +256,10 @@ export default function EdicionImagenes() {
     setVersiones([]);
   };
 
-  const abrirEditor = async (archivo: ArchivoAdjunto, version?: EdicionVersion) => {
+  const abrirEditor = async (
+    archivo: ArchivoAdjunto,
+    version?: EdicionVersion
+  ) => {
     setArchivoSeleccionado(archivo);
     setVersionEditar(version || null);
     await cargarVersiones(archivo.id);
@@ -245,29 +284,31 @@ export default function EdicionImagenes() {
 
   const editarVersion = async (version: EdicionVersion) => {
     if (!archivo_seleccionado) return;
-    
+
     try {
-      const datos_completos = await edicionesImagenesApi.obtenerPorId(version.id);
+      const datos_completos = await edicionesImagenesApi.obtenerPorId(
+        version.id
+      );
       setVersionEditar(datos_completos);
       setDialogoVersionesAbierto(false);
       setEditorAbierto(true);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'No se pudo cargar la versión para editar',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudo cargar la versión para editar",
+        variant: "destructive",
       });
     }
   };
 
   const descargarVersion = (version: EdicionVersion) => {
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = `data:image/png;base64,${version.imagen_resultado_base64}`;
     link.download = `${version.nombre || `version_${version.version}`}.png`;
     link.click();
     toast({
-      title: 'Versión descargada',
-      description: 'La imagen se descargó correctamente',
+      title: "Versión descargada",
+      description: "La imagen se descargó correctamente",
     });
   };
 
@@ -275,17 +316,17 @@ export default function EdicionImagenes() {
     try {
       await edicionesImagenesApi.duplicar(version.id);
       toast({
-        title: 'Versión duplicada',
-        description: 'Se creó una copia de la versión',
+        title: "Versión duplicada",
+        description: "Se creó una copia de la versión",
       });
       if (archivo_seleccionado) {
         await cargarVersiones(archivo_seleccionado.id);
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'No se pudo duplicar la versión',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudo duplicar la versión",
+        variant: "destructive",
       });
     }
   };
@@ -296,8 +337,8 @@ export default function EdicionImagenes() {
     try {
       await edicionesImagenesApi.eliminar(version_a_eliminar.id);
       toast({
-        title: 'Versión eliminada',
-        description: 'La versión se eliminó correctamente',
+        title: "Versión eliminada",
+        description: "La versión se eliminó correctamente",
       });
       setDialogoConfirmarEliminarVersionAbierto(false);
       setVersionAEliminar(null);
@@ -306,20 +347,20 @@ export default function EdicionImagenes() {
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'No se pudo eliminar la versión',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudo eliminar la versión",
+        variant: "destructive",
       });
     }
   };
 
   const formatearFecha = (fecha: string): string => {
-    return new Date(fecha).toLocaleDateString('es-BO', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Date(fecha).toLocaleDateString("es-BO", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -340,7 +381,7 @@ export default function EdicionImagenes() {
   return (
     <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
       <MenuLateral />
-      
+
       <div className="flex-1 overflow-y-auto">
         <div className="p-8 space-y-8">
           <div className="space-y-2">
@@ -348,7 +389,8 @@ export default function EdicionImagenes() {
               Visor de Estudios
             </h1>
             <p className="text-lg text-muted-foreground">
-              Realiza anotaciones y marcas visuales sobre las imágenes para explicar diagnósticos y tratamientos.
+              Realiza anotaciones y marcas visuales sobre las imágenes para
+              explicar diagnósticos y tratamientos.
             </p>
           </div>
 
@@ -363,7 +405,8 @@ export default function EdicionImagenes() {
                     <div className="flex-1">
                       <CardTitle className="text-xl">Buscar Paciente</CardTitle>
                       <CardDescription>
-                        {pacientes_filtrados.length} de {todos_pacientes.length} paciente{todos_pacientes.length !== 1 ? 's' : ''}
+                        {pacientes_filtrados.length} de {todos_pacientes.length}{" "}
+                        paciente{todos_pacientes.length !== 1 ? "s" : ""}
                       </CardDescription>
                     </div>
                   </div>
@@ -385,8 +428,12 @@ export default function EdicionImagenes() {
                       <User className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-xl">Lista de Pacientes</CardTitle>
-                      <CardDescription>Selecciona un paciente para ver sus imágenes</CardDescription>
+                      <CardTitle className="text-xl">
+                        Lista de Pacientes
+                      </CardTitle>
+                      <CardDescription>
+                        Selecciona un paciente para ver sus imágenes
+                      </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -398,12 +445,14 @@ export default function EdicionImagenes() {
                       </div>
                       <div className="space-y-2">
                         <h3 className="text-lg font-semibold text-foreground">
-                          {busqueda ? 'No se encontraron pacientes' : 'No hay pacientes registrados'}
+                          {busqueda
+                            ? "No se encontraron pacientes"
+                            : "No hay pacientes registrados"}
                         </h3>
                         <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                          {busqueda 
-                            ? 'Intenta con otros términos de búsqueda' 
-                            : 'Registra pacientes desde la sección de Pacientes'}
+                          {busqueda
+                            ? "Intenta con otros términos de búsqueda"
+                            : "Registra pacientes desde la sección de Pacientes"}
                         </p>
                       </div>
                     </div>
@@ -421,8 +470,8 @@ export default function EdicionImagenes() {
                         </TableHeader>
                         <TableBody>
                           {pacientes_filtrados.map((paciente) => (
-                            <TableRow 
-                              key={paciente.id} 
+                            <TableRow
+                              key={paciente.id}
                               className="hover:bg-secondary/50 transition-colors duration-200 cursor-pointer"
                               onClick={() => seleccionarPaciente(paciente)}
                             >
@@ -430,15 +479,17 @@ export default function EdicionImagenes() {
                                 {paciente.color_categoria && (
                                   <div
                                     className="w-4 h-4 rounded-full hover:scale-125 transition-transform duration-200"
-                                    style={{ backgroundColor: paciente.color_categoria }}
+                                    style={{
+                                      backgroundColor: paciente.color_categoria,
+                                    }}
                                   />
                                 )}
                               </TableCell>
                               <TableCell className="font-medium">
                                 {paciente.nombre} {paciente.apellidos}
                               </TableCell>
-                              <TableCell>{paciente.telefono || '-'}</TableCell>
-                              <TableCell>{paciente.correo || '-'}</TableCell>
+                              <TableCell>{paciente.telefono || "-"}</TableCell>
+                              <TableCell>{paciente.correo || "-"}</TableCell>
                               <TableCell className="text-right">
                                 <Button
                                   variant="ghost"
@@ -471,9 +522,12 @@ export default function EdicionImagenes() {
                       <User className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <CardTitle className="text-xl">Paciente Seleccionado</CardTitle>
+                      <CardTitle className="text-xl">
+                        Paciente Seleccionado
+                      </CardTitle>
                       <CardDescription>
-                        {paciente_seleccionado.nombre} {paciente_seleccionado.apellidos}
+                        {paciente_seleccionado.nombre}{" "}
+                        {paciente_seleccionado.apellidos}
                       </CardDescription>
                     </div>
                     <Button
@@ -499,9 +553,13 @@ export default function EdicionImagenes() {
                       <FileImage className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-xl">Imágenes Disponibles</CardTitle>
+                      <CardTitle className="text-xl">
+                        Imágenes Disponibles
+                      </CardTitle>
                       <CardDescription>
-                        {archivos.length} imagen{archivos.length !== 1 ? 'es' : ''} encontrada{archivos.length !== 1 ? 's' : ''}
+                        {archivos.length} imagen
+                        {archivos.length !== 1 ? "es" : ""} encontrada
+                        {archivos.length !== 1 ? "s" : ""}
                       </CardDescription>
                     </div>
                   </div>
@@ -521,14 +579,19 @@ export default function EdicionImagenes() {
                           No hay imágenes disponibles
                         </h3>
                         <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                          Este paciente no tiene imágenes cargadas. Sube una imagen desde la sección de Pacientes para comenzar a editarla.
+                          Este paciente no tiene imágenes cargadas. Sube una
+                          imagen desde la sección de Pacientes para comenzar a
+                          editarla.
                         </p>
                       </div>
                     </div>
                   ) : (
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {archivos.map((archivo) => (
-                        <Card key={archivo.id} className="hover:shadow-md transition-all duration-200 overflow-hidden group">
+                        <Card
+                          key={archivo.id}
+                          className="hover:shadow-md transition-all duration-200 overflow-hidden group"
+                        >
                           <div className="aspect-video bg-secondary/20 relative overflow-hidden">
                             <img
                               src={`data:${archivo.tipo_mime};base64,${archivo.contenido_base64}`}
@@ -539,11 +602,17 @@ export default function EdicionImagenes() {
                           </div>
                           <CardContent className="p-4 space-y-3">
                             <div>
-                              <p className="font-semibold text-foreground truncate" title={archivo.nombre_archivo}>
+                              <p
+                                className="font-semibold text-foreground truncate"
+                                title={archivo.nombre_archivo}
+                              >
                                 {archivo.nombre_archivo}
                               </p>
                               {archivo.descripcion && (
-                                <p className="text-sm text-muted-foreground truncate" title={archivo.descripcion}>
+                                <p
+                                  className="text-sm text-muted-foreground truncate"
+                                  title={archivo.descripcion}
+                                >
                                   {archivo.descripcion}
                                 </p>
                               )}
@@ -604,7 +673,8 @@ export default function EdicionImagenes() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    Dibuja líneas, formas y anotaciones con diferentes colores y grosores sobre tus imágenes.
+                    Dibuja líneas, formas y anotaciones con diferentes colores y
+                    grosores sobre tus imágenes.
                   </p>
                 </CardContent>
               </Card>
@@ -619,7 +689,8 @@ export default function EdicionImagenes() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    Guarda múltiples versiones de tus ediciones y compara la evolución del caso clínico.
+                    Guarda múltiples versiones de tus ediciones y compara la
+                    evolución del caso clínico.
                   </p>
                 </CardContent>
               </Card>
@@ -655,17 +726,21 @@ export default function EdicionImagenes() {
               onCerrar={() => setVisualizadorAbierto(false)}
             />
           ) : (
-            <Dialog open={visualizador_abierto} onOpenChange={(abierto) => {
-              setVisualizadorAbierto(abierto);
-              if (!abierto) {
-                setVersionVisualizar(null);
-              }
-            }}>
+            <Dialog
+              open={visualizador_abierto}
+              onOpenChange={(abierto) => {
+                setVisualizadorAbierto(abierto);
+                if (!abierto) {
+                  setVersionVisualizar(null);
+                }
+              }}
+            >
               <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                   <div className="flex items-center justify-between pr-8">
                     <DialogTitle className="truncate pr-4">
-                      {version_visualizar.nombre || `Versión ${version_visualizar.version}`}
+                      {version_visualizar.nombre ||
+                        `Versión ${version_visualizar.version}`}
                     </DialogTitle>
                     <div className="flex gap-2 flex-shrink-0">
                       <Button
@@ -684,11 +759,15 @@ export default function EdicionImagenes() {
                     </p>
                   )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                    <Badge variant="outline">v{version_visualizar.version}</Badge>
+                    <Badge variant="outline">
+                      v{version_visualizar.version}
+                    </Badge>
                     <span>•</span>
                     <span>Por {version_visualizar.usuario.nombre}</span>
                     <span>•</span>
-                    <span>{formatearFecha(version_visualizar.fecha_creacion)}</span>
+                    <span>
+                      {formatearFecha(version_visualizar.fecha_creacion)}
+                    </span>
                   </div>
                 </DialogHeader>
 
@@ -696,7 +775,10 @@ export default function EdicionImagenes() {
                   <div className="flex items-center justify-center h-full">
                     <img
                       src={`data:image/png;base64,${version_visualizar.imagen_resultado_base64}`}
-                      alt={version_visualizar.nombre || `Versión ${version_visualizar.version}`}
+                      alt={
+                        version_visualizar.nombre ||
+                        `Versión ${version_visualizar.version}`
+                      }
                       className="max-w-full h-auto object-contain"
                     />
                   </div>
@@ -707,7 +789,10 @@ export default function EdicionImagenes() {
         </>
       )}
 
-      <Dialog open={dialogo_versiones_abierto} onOpenChange={setDialogoVersionesAbierto}>
+      <Dialog
+        open={dialogo_versiones_abierto}
+        onOpenChange={setDialogoVersionesAbierto}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Versiones de Edición</DialogTitle>
@@ -738,7 +823,10 @@ export default function EdicionImagenes() {
             ) : (
               <div className="space-y-3 pr-4">
                 {versiones.map((version) => (
-                  <Card key={version.id} className="hover:bg-secondary/20 transition-colors">
+                  <Card
+                    key={version.id}
+                    className="hover:bg-secondary/20 transition-colors"
+                  >
                     <CardContent className="p-4">
                       <div className="flex gap-4">
                         <div className="w-24 h-24 bg-secondary/30 rounded-lg overflow-hidden flex-shrink-0">
@@ -762,7 +850,8 @@ export default function EdicionImagenes() {
                             </p>
                           )}
                           <p className="text-xs text-muted-foreground">
-                            Por {version.usuario.nombre} • {formatearFecha(version.fecha_creacion)}
+                            Por {version.usuario.nombre} •{" "}
+                            {formatearFecha(version.fecha_creacion)}
                           </p>
                         </div>
                         <div className="flex flex-col gap-2">
@@ -805,69 +894,82 @@ export default function EdicionImagenes() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => abrirDialogoConfirmarEliminarVersion(version)}
+                            onClick={() =>
+                              abrirDialogoConfirmarEliminarVersion(version)
+                            }
                             className="hover:bg-destructive/20 hover:text-destructive"
                             title="Eliminar versión"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
 
-                          <Dialog open={dialogo_confirmar_eliminar_version_abierto} onOpenChange={setDialogoConfirmarEliminarVersionAbierto}>
-  <DialogContent className="sm:max-w-[425px]">
-    <DialogHeader>
-      <DialogTitle>Confirmar Eliminación de Versión</DialogTitle>
-      <DialogDescription>
-        ¿Estás seguro de que deseas eliminar esta versión de edición?
-      </DialogDescription>
-    </DialogHeader>
-    
-    {version_a_eliminar && (
-      <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">v{version_a_eliminar.version}</Badge>
-          <p className="font-semibold text-foreground">
-            {version_a_eliminar.nombre || `Versión ${version_a_eliminar.version}`}
-          </p>
-        </div>
-        {version_a_eliminar.descripcion && (
-          <p className="text-sm text-muted-foreground">
-            {version_a_eliminar.descripcion}
-          </p>
-        )}
-      </div>
-    )}
+                          <Dialog
+                            open={dialogo_confirmar_eliminar_version_abierto}
+                            onOpenChange={
+                              setDialogoConfirmarEliminarVersionAbierto
+                            }
+                          >
+                            <DialogContent className="sm:max-w-[425px]">
+                              <DialogHeader>
+                                <DialogTitle>
+                                  Confirmar Eliminación de Versión
+                                </DialogTitle>
+                                <DialogDescription>
+                                  ¿Estás seguro de que deseas eliminar esta
+                                  versión de edición?
+                                </DialogDescription>
+                              </DialogHeader>
 
-    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-      <p className="text-sm text-destructive">
-        Esta acción no se puede deshacer.
-      </p>
-    </div>
+                              {version_a_eliminar && (
+                                <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline">
+                                      v{version_a_eliminar.version}
+                                    </Badge>
+                                    <p className="font-semibold text-foreground">
+                                      {version_a_eliminar.nombre ||
+                                        `Versión ${version_a_eliminar.version}`}
+                                    </p>
+                                  </div>
+                                  {version_a_eliminar.descripcion && (
+                                    <p className="text-sm text-muted-foreground">
+                                      {version_a_eliminar.descripcion}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
 
-    <DialogFooter>
-      <Button
-        variant="outline"
-        onClick={() => {
-          setDialogoConfirmarEliminarVersionAbierto(false);
-          setVersionAEliminar(null);
-        }}
-        className="hover:scale-105 transition-all duration-200"
-      >
-        Cancelar
-      </Button>
-      <Button
-        variant="destructive"
-        onClick={eliminarVersion}
-        className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
-      >
-        Eliminar Versión
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
-                          
+                              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                                <p className="text-sm text-destructive">
+                                  Esta acción no se puede deshacer.
+                                </p>
+                              </div>
+
+                              <DialogFooter>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setDialogoConfirmarEliminarVersionAbierto(
+                                      false
+                                    );
+                                    setVersionAEliminar(null);
+                                  }}
+                                  className="hover:scale-105 transition-all duration-200"
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={eliminarVersion}
+                                  className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+                                >
+                                  Eliminar Versión
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </div>
-
                     </CardContent>
                   </Card>
                 ))}
