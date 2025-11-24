@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Stage, Layer, Line, Image as KonvaImage } from "react-konva";
+import { Stage, Layer, Line, Circle, Image as KonvaImage, Group } from "react-konva";
 import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
@@ -22,7 +22,6 @@ import {
 import { Badge } from "@/componentes/ui/badge";
 import {
   Pencil,
-  Circle as Eraser,
   Download,
   Save,
   Undo,
@@ -35,9 +34,14 @@ import {
   Copy,
   History,
   X,
+  Plus,
+  Sparkles,
+  Eraser
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { edicionesImagenesApi, catalogoApi } from "@/lib/api";
+import { HexColorPicker } from "react-colorful";
+import "@/componentes/ui/color-picker.css";
 
 interface Herramienta {
   tipo:
@@ -46,7 +50,8 @@ interface Herramienta {
     | "rect"
     | "circle"
     | "text"
-    | "eraser"
+    | "eraser-magic"
+    | "eraser-normal"
     | "move"
     | "symbol";
   color: string;
@@ -118,7 +123,7 @@ export function EditorImagenes({
   const [herramienta_actual, setHerramientaActual] = useState<Herramienta>({
     tipo: "pencil",
     color: "#FF0000",
-    grosor: 2,
+    grosor: 5,
     opacidad: 1,
   });
 
@@ -168,6 +173,11 @@ export function EditorImagenes({
   const [version_a_eliminar, setVersionAEliminar] =
     useState<EdicionVersion | null>(null);
 
+  const [tiene_cambios, setTieneCambios] = useState(false);
+  const [dialogo_cambios_sin_guardar_abierto, setDialogoCambiosSinGuardarAbierto] = useState(false);
+  const [cursor_pos, setCursorPos] = useState({ x: -100, y: -100 });
+  const [mostrar_cursor, setMostrarCursor] = useState(false);
+
   const abrirDialogoConfirmarLimpiar = () => {
     if (objetos.length === 0) return;
     setDialogoConfirmarLimpiarAbierto(true);
@@ -181,7 +191,6 @@ export function EditorImagenes({
   useEffect(() => {
     if (abierto) {
       cargarImagen();
-      // cargarSimbologias(); // Comentado por error de API faltante
       cargarVersiones();
 
       if (version_editar) {
@@ -206,6 +215,7 @@ export function EditorImagenes({
       }
       setRotacion(0);
       setZoom(1);
+      setTieneCambios(false);
     }
   }, [abierto, archivo_base64, version_editar]);
 
@@ -216,18 +226,6 @@ export function EditorImagenes({
       setImagenCargada(img);
       setDimensionesImagen({ ancho: img.width, alto: img.height });
     };
-  };
-
-  const cargarSimbologias = async () => {
-    setCargandoSimbologias(true);
-    try {
-      const datos = await catalogoApi.obtenerSimbologias();
-      setSimbologias(datos);
-    } catch (error) {
-      console.error("Error al cargar simbologías:", error);
-    } finally {
-      setCargandoSimbologias(false);
-    }
   };
 
   const cargarVersiones = async () => {
@@ -245,6 +243,7 @@ export function EditorImagenes({
   const guardarEstadoHistorial = () => {
     setHistorialDeshacer([...historial_deshacer, [...objetos]]);
     setHistorialRehacer([]);
+    setTieneCambios(true);
   };
 
   const deshacer = () => {
@@ -278,12 +277,12 @@ export function EditorImagenes({
       y: (pos.y - offset.y) / zoom,
     };
 
-    if (herramienta_actual.tipo === "eraser") {
+    if (herramienta_actual.tipo === "eraser-magic") {
       guardarEstadoHistorial();
       setDibujando(true);
 
       const objetos_filtrados = objetos.filter((obj) => {
-        if (obj.tipo === "pencil" || obj.tipo === "eraser") {
+        if (obj.tipo === "pencil" || obj.tipo === "eraser-normal") {
           if (!obj.puntos) return true;
 
           for (let i = 0; i < obj.puntos.length; i += 2) {
@@ -303,13 +302,13 @@ export function EditorImagenes({
       });
 
       setObjetos(objetos_filtrados);
-    } else if (herramienta_actual.tipo === "pencil") {
+    } else if (herramienta_actual.tipo === "pencil" || herramienta_actual.tipo === "eraser-normal") {
       guardarEstadoHistorial();
       setDibujando(true);
 
       const nuevo_objeto: ObjetoCanvas = {
         tipo: herramienta_actual.tipo,
-        puntos: [punto_ajustado.x, punto_ajustado.y],
+        puntos: [punto_ajustado.x, punto_ajustado.y, punto_ajustado.x, punto_ajustado.y],
         color: herramienta_actual.color,
         grosor: herramienta_actual.grosor,
         opacidad: herramienta_actual.opacidad,
@@ -319,18 +318,26 @@ export function EditorImagenes({
   };
 
   const handleMouseMove = (e: any) => {
+    const stage = e.target.getStage();
+    const pointerPos = stage.getPointerPosition();
+    if (pointerPos) {
+        const punto_ajustado = {
+             x: (pointerPos.x - offset.x) / zoom,
+             y: (pointerPos.y - offset.y) / zoom,
+        };
+        setCursorPos(punto_ajustado);
+    }
+
     if (!dibujando) return;
 
-    const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
     const punto_ajustado = {
-      x: (pos.x - offset.x) / zoom,
-      y: (pos.y - offset.y) / zoom,
+      x: (pointerPos.x - offset.x) / zoom,
+      y: (pointerPos.y - offset.y) / zoom,
     };
 
-    if (herramienta_actual.tipo === "eraser") {
+    if (herramienta_actual.tipo === "eraser-magic") {
       const objetos_filtrados = objetos.filter((obj) => {
-        if (obj.tipo === "pencil" || obj.tipo === "eraser") {
+        if (obj.tipo === "pencil" || obj.tipo === "eraser-normal") {
           if (!obj.puntos) return true;
 
           for (let i = 0; i < obj.puntos.length; i += 2) {
@@ -350,9 +357,9 @@ export function EditorImagenes({
       });
 
       setObjetos(objetos_filtrados);
-    } else if (herramienta_actual.tipo === "pencil") {
+    } else if (herramienta_actual.tipo === "pencil" || herramienta_actual.tipo === "eraser-normal") {
       const ultimo_objeto = objetos[objetos.length - 1];
-      if (ultimo_objeto && ultimo_objeto.tipo === "pencil") {
+      if (ultimo_objeto && (ultimo_objeto.tipo === "pencil" || ultimo_objeto.tipo === "eraser-normal")) {
         const nuevos_puntos = ultimo_objeto.puntos!.concat([
           punto_ajustado.x,
           punto_ajustado.y,
@@ -405,17 +412,20 @@ export function EditorImagenes({
 
   const exportarImagen = () => {
     if (!stage_ref.current) return;
+    setMostrarCursor(false);
+    setTimeout(() => {
+        const uri = stage_ref.current.toDataURL();
+        const link = document.createElement("a");
+        link.download = `${archivo_nombre}_editado.png`;
+        link.href = uri;
+        link.click();
 
-    const uri = stage_ref.current.toDataURL();
-    const link = document.createElement("a");
-    link.download = `${archivo_nombre}_editado.png`;
-    link.href = uri;
-    link.click();
-
-    toast({
-      title: "Imagen exportada",
-      description: "La imagen se descargó correctamente",
-    });
+        toast({
+        title: "Imagen exportada",
+        description: "La imagen se descargó correctamente",
+        });
+        setMostrarCursor(true);
+    }, 50);
   };
 
   const abrirDialogoGuardar = () => {
@@ -428,52 +438,57 @@ export function EditorImagenes({
 
   const guardarVersion = async () => {
     if (!stage_ref.current) return;
-
     setGuardando(true);
-    try {
-      const uri = stage_ref.current.toDataURL();
-      const imagen_resultado = uri.split(",")[1];
+    setMostrarCursor(false);
 
-      if (version_editar) {
-        await edicionesImagenesApi.actualizar(version_editar.id, {
-          nombre: nombre_version.trim() || undefined,
-          descripcion: descripcion_version.trim() || undefined,
-          datos_canvas: { objetos },
-          imagen_resultado_base64: imagen_resultado,
-        });
-
-        toast({
-          title: "Versión actualizada",
-          description: "Los cambios se guardaron correctamente",
-        });
-      } else {
-        await edicionesImagenesApi.crear({
-          archivo_original_id: archivo_id,
-          nombre: nombre_version.trim() || undefined,
-          descripcion: descripcion_version.trim() || undefined,
-          datos_canvas: { objetos },
-          imagen_resultado_base64: imagen_resultado,
-        });
-
-        toast({
-          title: "Versión guardada",
-          description: "La edición se guardó correctamente",
-        });
-      }
-
-      setDialogoGuardarAbierto(false);
-      await cargarVersiones();
-      onGuardar?.();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description:
-          error.response?.data?.message || "No se pudo guardar la versión",
-        variant: "destructive",
-      });
-    } finally {
-      setGuardando(false);
-    }
+    setTimeout(async () => {
+        try {
+            const uri = stage_ref.current.toDataURL();
+            const imagen_resultado = uri.split(",")[1];
+      
+            if (version_editar) {
+              await edicionesImagenesApi.actualizar(version_editar.id, {
+                nombre: nombre_version.trim() || undefined,
+                descripcion: descripcion_version.trim() || undefined,
+                datos_canvas: { objetos },
+                imagen_resultado_base64: imagen_resultado,
+              });
+      
+              toast({
+                title: "Versión actualizada",
+                description: "Los cambios se guardaron correctamente",
+              });
+            } else {
+              await edicionesImagenesApi.crear({
+                archivo_original_id: archivo_id,
+                nombre: nombre_version.trim() || undefined,
+                descripcion: descripcion_version.trim() || undefined,
+                datos_canvas: { objetos },
+                imagen_resultado_base64: imagen_resultado,
+              });
+      
+              toast({
+                title: "Versión guardada",
+                description: "La edición se guardó correctamente",
+              });
+            }
+      
+            setDialogoGuardarAbierto(false);
+            setTieneCambios(false);
+            await cargarVersiones();
+            onGuardar?.();
+          } catch (error: any) {
+            toast({
+              title: "Error",
+              description:
+                error.response?.data?.message || "No se pudo guardar la versión",
+              variant: "destructive",
+            });
+          } finally {
+            setGuardando(false);
+            setMostrarCursor(true);
+          }
+    }, 50);
   };
 
   const cargarVersion = async (version: EdicionVersion) => {
@@ -535,6 +550,14 @@ export function EditorImagenes({
     }
   };
 
+  const handleCerrar = () => {
+      if (tiene_cambios) {
+          setDialogoCambiosSinGuardarAbierto(true);
+      } else {
+          onCerrar();
+      }
+  };
+
   const renderizarObjeto = (obj: ObjetoCanvas, index: number) => {
     if (obj.tipo === "pencil") {
       return (
@@ -550,6 +573,20 @@ export function EditorImagenes({
         />
       );
     }
+    if (obj.tipo === "eraser-normal") {
+        return (
+          <Line
+            key={index}
+            points={obj.puntos}
+            stroke={obj.color}
+            strokeWidth={obj.grosor}
+            tension={0.5}
+            lineCap="round"
+            lineJoin="round"
+            globalCompositeOperation="destination-out"
+          />
+        );
+      }
 
     return null;
   };
@@ -559,8 +596,14 @@ export function EditorImagenes({
   };
 
   return (
-    <Dialog open={abierto} onOpenChange={onCerrar}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] h-[90vh] w-[95vw] overflow-hidden flex flex-col p-0 [&>button]:hidden">
+    <Dialog open={abierto} onOpenChange={(open) => !open && handleCerrar()}>
+      <DialogContent 
+        className="max-w-[95vw] max-h-[95vh] h-[90vh] w-[95vw] overflow-hidden flex flex-col p-0 [&>button]:hidden"
+        aria-describedby="editor-descripcion"
+      >
+        <DialogDescription id="editor-descripcion" className="sr-only">
+          Editor de imágenes médicas para realizar anotaciones y medidas.
+        </DialogDescription>
         <DialogHeader className="p-6 pb-4 border-b bg-background z-10 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex-1 pr-12">
@@ -572,12 +615,15 @@ export function EditorImagenes({
                 {version_editar && (
                   <Badge variant="outline">v{version_editar.version}</Badge>
                 )}
+                {tiene_cambios && (
+                    <Badge variant="secondary" className="text-xs">Sin guardar</Badge>
+                )}
               </div>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              onClick={onCerrar}
+              onClick={handleCerrar}
               className="hover:bg-destructive/20 hover:text-destructive flex-shrink-0"
             >
               <X className="h-5 w-5" />
@@ -586,120 +632,148 @@ export function EditorImagenes({
         </DialogHeader>
 
         <div className="flex-1 flex overflow-hidden">
-          <div className="w-64 border-r p-4 overflow-y-auto flex-shrink-0 bg-background z-10">
+          <div className="w-80 border-r p-4 overflow-y-auto flex-shrink-0 bg-background z-10">
             <Tabs defaultValue="herramientas" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="herramientas">Herramientas</TabsTrigger>
                 <TabsTrigger value="simbolos">Símbolos</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="herramientas" className="space-y-4">
+              <TabsContent value="herramientas" className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-xs">Herramientas de Dibujo</Label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Herramientas de Dibujo</Label>
+                  <div className="grid grid-cols-2 gap-3">
                     <Button
                       variant={
                         herramienta_actual.tipo === "pencil"
                           ? "default"
                           : "outline"
                       }
-                      size="sm"
+                      className="h-14 flex flex-col gap-1"
                       onClick={() =>
                         setHerramientaActual({
                           ...herramienta_actual,
                           tipo: "pencil",
                         })
                       }
-                      className="w-full"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-5 w-5" />
+                      <span className="text-[10px]">Pincel</span>
                     </Button>
                     <Button
-                      variant={
-                        herramienta_actual.tipo === "eraser"
+                      variant="outline"
+                      className="h-14 flex flex-col gap-1"
+                      disabled
+                      title="Próximamente"
+                    >
+                      <Plus className="h-5 w-5" />
+                      <span className="text-[10px]">Comentarios</span>
+                    </Button>
+                    <Button
+                       variant={
+                        herramienta_actual.tipo === "eraser-normal"
                           ? "default"
                           : "outline"
                       }
-                      size="sm"
+                      className="h-14 flex flex-col gap-1"
                       onClick={() =>
                         setHerramientaActual({
                           ...herramienta_actual,
-                          tipo: "eraser",
+                          tipo: "eraser-normal",
                         })
                       }
-                      className="w-full"
                     >
-                      <Eraser className="h-4 w-4" />
+                      <Eraser className="h-5 w-5" />
+                      <span className="text-[10px]">Borrador</span>
+                    </Button>
+                    <Button
+                       variant={
+                        herramienta_actual.tipo === "eraser-magic"
+                          ? "default"
+                          : "outline"
+                      }
+                      className="h-14 flex flex-col gap-1 relative overflow-visible"
+                      onClick={() =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          tipo: "eraser-magic",
+                        })
+                      }
+                    >
+                      <div className="relative">
+                        <Eraser className="h-5 w-5" />
+                        <Sparkles className="h-3 w-3 absolute -top-1 -right-2 text-yellow-500 fill-yellow-500 animate-pulse" />
+                      </div>
+                      <span className="text-[10px]">Mágico</span>
                     </Button>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="color">Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="color"
-                      type="color"
-                      value={herramienta_actual.color}
-                      onChange={(e) =>
-                        setHerramientaActual({
-                          ...herramienta_actual,
-                          color: e.target.value,
-                        })
-                      }
-                      className="h-10 w-20 cursor-pointer"
+                <div className="space-y-3">
+                  <Label htmlFor="color">Color del Pincel</Label>
+                  <div className="w-full flex justify-center">
+                    <HexColorPicker 
+                        color={herramienta_actual.color} 
+                        onChange={(newColor) =>
+                            setHerramientaActual({
+                              ...herramienta_actual,
+                              color: newColor,
+                            })
+                          }
+                        style={{ width: '100%', height: '150px' }}
                     />
-                    <Input
-                      type="text"
-                      value={herramienta_actual.color}
-                      onChange={(e) =>
-                        setHerramientaActual({
-                          ...herramienta_actual,
-                          color: e.target.value,
-                        })
-                      }
-                      className="flex-1"
-                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                     <div className="w-8 h-8 rounded-full border border-border" style={{ backgroundColor: herramienta_actual.color }} />
+                     <Input 
+                        value={herramienta_actual.color}
+                        onChange={(e) => setHerramientaActual({...herramienta_actual, color: e.target.value})}
+                        className="font-mono text-xs"
+                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="grosor">
-                    Grosor: {herramienta_actual.grosor}px
-                  </Label>
-                  <Input
-                    id="grosor"
-                    type="range"
-                    min="1"
-                    max="50"
-                    value={herramienta_actual.grosor}
-                    onChange={(e) =>
-                      setHerramientaActual({
-                        ...herramienta_actual,
-                        grosor: Number(e.target.value),
-                      })
-                    }
-                  />
-                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                        <Label htmlFor="grosor">Grosor</Label>
+                        <span className="text-xs text-muted-foreground">{herramienta_actual.grosor}px</span>
+                    </div>
+                    <Input
+                      id="grosor"
+                      type="range"
+                      min="1"
+                      max="50"
+                      value={herramienta_actual.grosor}
+                      onChange={(e) =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          grosor: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="opacidad">
-                    Opacidad: {Math.round(herramienta_actual.opacidad * 100)}%
-                  </Label>
-                  <Input
-                    id="opacidad"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={herramienta_actual.opacidad}
-                    onChange={(e) =>
-                      setHerramientaActual({
-                        ...herramienta_actual,
-                        opacidad: Number(e.target.value),
-                      })
-                    }
-                  />
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                        <Label htmlFor="opacidad">Opacidad</Label>
+                        <span className="text-xs text-muted-foreground">{Math.round(herramienta_actual.opacidad * 100)}%</span>
+                    </div>
+                    <Input
+                      id="opacidad"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={herramienta_actual.opacidad}
+                      onChange={(e) =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          opacidad: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
                 </div>
               </TabsContent>
 
@@ -766,6 +840,7 @@ export function EditorImagenes({
                   size="sm"
                   onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
                   title="Alejar"
+                  disabled={zoom <= 0.1}
                 >
                   <ZoomOut className="h-4 w-4" />
                 </Button>
@@ -777,6 +852,7 @@ export function EditorImagenes({
                   size="sm"
                   onClick={() => setZoom(Math.min(3, zoom + 0.1))}
                   title="Acercar"
+                  disabled={zoom >= 3}
                 >
                   <ZoomIn className="h-4 w-4" />
                 </Button>
@@ -814,7 +890,7 @@ export function EditorImagenes({
                   title={version_editar ? "Guardar cambios" : "Guardar versión"}
                 >
                   <Save className="h-4 w-4 mr-2" />
-                  {version_editar ? "Guardar Cambios" : "Guardar Versión"}
+                  Guardar
                 </Button>
               </div>
             </div>
@@ -836,8 +912,11 @@ export function EditorImagenes({
                   onMouseDown={handleMouseDown}
                   onMousemove={handleMouseMove}
                   onMouseup={handleMouseUp}
+                  onMouseEnter={() => setMostrarCursor(true)}
+                  onMouseLeave={() => setMostrarCursor(false)}
                   scaleX={zoom}
                   scaleY={zoom}
+                  style={{ cursor: 'none' }} 
                   className="border-2 border-border shadow-lg bg-white"
                 >
                   <Layer>
@@ -871,6 +950,23 @@ export function EditorImagenes({
                   <Layer ref={layer_dibujo_ref}>
                     {objetos.map((obj, i) => renderizarObjeto(obj, i))}
                   </Layer>
+                  {mostrar_cursor && (
+                      <Layer>
+                          <Circle 
+                             x={cursor_pos.x}
+                             y={cursor_pos.y}
+                             radius={herramienta_actual.grosor / 2}
+                             stroke="black"
+                             strokeWidth={1}
+                             fill="rgba(255, 255, 255, 0.3)"
+                             listening={false}
+                          />
+                           <Group x={cursor_pos.x} y={cursor_pos.y}>
+                                <Line points={[-5, 0, 5, 0]} stroke="black" strokeWidth={1} />
+                                <Line points={[0, -5, 0, 5]} stroke="black" strokeWidth={1} />
+                           </Group>
+                      </Layer>
+                  )}
                 </Stage>
               </div>
             </div>
@@ -977,6 +1073,24 @@ export function EditorImagenes({
               {version_editar ? "Actualizar" : "Guardar"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={dialogo_cambios_sin_guardar_abierto} onOpenChange={setDialogoCambiosSinGuardarAbierto}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>¿Salir sin guardar?</DialogTitle>
+                <DialogDescription>
+                    Tienes cambios pendientes que no se han guardado. Si sales ahora, perderás el progreso realizado desde el último guardado.
+                </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogoCambiosSinGuardarAbierto(false)}>Cancelar</Button>
+                <Button variant="destructive" onClick={() => {
+                    setDialogoCambiosSinGuardarAbierto(false);
+                    onCerrar();
+                }}>Salir sin guardar</Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -239,6 +239,7 @@ export default function EdicionImagenes() {
     try {
       const datos = await edicionesImagenesApi.obtenerPorArchivo(archivo_id);
       setVersiones(datos);
+      return datos;
     } catch (error) {
       console.error("Error al cargar versiones:", error);
       toast({
@@ -246,6 +247,7 @@ export default function EdicionImagenes() {
         description: "No se pudieron cargar las versiones",
         variant: "destructive",
       });
+      return [];
     } finally {
       setCargandoVersiones(false);
     }
@@ -259,7 +261,7 @@ export default function EdicionImagenes() {
 
   const abrirEditor = async (
     archivo: ArchivoAdjunto,
-    version?: EdicionVersion
+    version_existente?: EdicionVersion
   ) => {
     try {
       let archivo_completo = archivo;
@@ -270,14 +272,42 @@ export default function EdicionImagenes() {
       }
 
       setArchivoSeleccionado(archivo_completo);
-      setVersionEditar(version || null);
-      await cargarVersiones(archivo.id);
+      const versiones_actuales = await cargarVersiones(archivo.id);
+      
+      let version_para_editar = version_existente;
+      if (!version_existente) {
+         try {
+           const nuevaVersionData = {
+             archivo_original_id: archivo.id,
+             nombre: `Edición ${versiones_actuales.length + 1}`,
+             imagen_resultado_base64: archivo_completo.contenido_base64 || "",
+             datos_canvas: { objetos: [] } 
+           };
+           const nuevaVersion = await edicionesImagenesApi.crear(nuevaVersionData);
+           version_para_editar = nuevaVersion;
+           toast({
+             title: "Nueva edición iniciada",
+             description: `Se ha creado la Edición ${nuevaVersion.version}`,
+           });
+           await cargarVersiones(archivo.id);
+         } catch (e) {
+            console.error(e);
+            toast({
+              title: "Error",
+              description: "No se pudo iniciar una nueva versión",
+              variant: "destructive"
+            });
+            return;
+         }
+      }
+
+      setVersionEditar(version_para_editar || null);
       setEditorAbierto(true);
     } catch (error) {
-      console.error("Error al cargar contenido del archivo:", error);
+      console.error("Error al cargar contenido del archivo o crear versión:", error);
       toast({
         title: "Error",
-        description: "No se pudo cargar la imagen para editar",
+        description: "No se pudo preparar el editor",
         variant: "destructive",
       });
     }
