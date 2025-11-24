@@ -16,7 +16,6 @@ import {
   User,
   FileImage,
   Edit,
-  Eye,
   Loader2,
   AlertCircle,
   History,
@@ -25,6 +24,7 @@ import {
   Download,
   Pencil,
   ChevronRight,
+  Eye,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/componentes/ui/toaster";
@@ -99,6 +99,7 @@ export default function EdicionImagenes() {
   );
 
   const [archivo_visualizar, setArchivoVisualizar] = useState<ArchivoAdjunto | null>(null);
+  const [es_version_visualizando, setEsVersionVisualizando] = useState(false);
 
   const [cargando_inicial, setCargandoInicial] = useState(true);
   const [cargando_archivos, setCargandoArchivos] = useState(false);
@@ -315,6 +316,7 @@ export default function EdicionImagenes() {
 
   const abrirVisualizador = (archivo: ArchivoAdjunto) => {
     setArchivoVisualizar(archivo);
+    setEsVersionVisualizando(false);
     setVisualizadorAbierto(true);
   };
 
@@ -352,6 +354,7 @@ export default function EdicionImagenes() {
       fecha_subida: version.fecha_creacion,
     };
     setArchivoVisualizar(versionParaVisualizar);
+    setEsVersionVisualizando(true);
     setVisualizadorAbierto(true);
   };
 
@@ -800,6 +803,7 @@ export default function EdicionImagenes() {
             setVisualizadorAbierto(false);
             setArchivoVisualizar(null);
           }}
+          es_version={es_version_visualizando}
         />
       )}
 
