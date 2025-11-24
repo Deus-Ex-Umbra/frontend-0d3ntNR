@@ -1101,6 +1101,7 @@ export function EditorImagenes({
                   <Layer ref={layer_dibujo_ref}>
                     {objetos.map((obj, i) => renderizarObjeto(obj, i))}
                   </Layer>
+                  
                   {(modo_comentario || modo_reubicacion || comentarios.length > 0) && (
                       <Layer>
                         {(modo_comentario || modo_reubicacion) && (
@@ -1170,6 +1171,7 @@ export function EditorImagenes({
                         ))}
                       </Layer>
                   )}
+
                   {mostrar_cursor && (
                       <Layer>
                           {(modo_comentario || modo_reubicacion) ? (
@@ -1208,12 +1210,15 @@ export function EditorImagenes({
                   )}
                 </Stage>
               </div>
+              
               {hover_info.visible && hover_info.comentario && (
                   <div 
                     style={{ 
                         position: 'fixed', 
-                        top: hover_info.y + 20,
-                        left: hover_info.x - 100,
+                        top: (window.innerHeight - hover_info.y < 200) ? undefined : hover_info.y + 20,
+                        bottom: (window.innerHeight - hover_info.y < 200) ? window.innerHeight - hover_info.y + 20 : undefined,
+                        left: hover_info.x - 100, 
+                        zIndex: 1000,
                         pointerEvents: 'none'
                     }}
                   >
@@ -1234,6 +1239,7 @@ export function EditorImagenes({
           </div>
         </div>
       </DialogContent>
+
       <Dialog
         open={dialogo_confirmar_limpiar_abierto}
         onOpenChange={setDialogoConfirmarLimpiarAbierto}
@@ -1416,6 +1422,7 @@ export function EditorImagenes({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <Dialog
         open={dialogo_confirmar_eliminar_comentario}
         onOpenChange={setDialogoConfirmarEliminarComentario}
@@ -1521,6 +1528,7 @@ export function EditorImagenes({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+      
       <Dialog open={dialogo_comentario_abierto} onOpenChange={setDialogoComentarioAbierto}>
           <DialogContent>
               <DialogHeader>
@@ -1592,6 +1600,7 @@ export function EditorImagenes({
               </DialogFooter>
           </DialogContent>
       </Dialog>
+
       {comentario_seleccionado && (
           <Dialog open={!!comentario_seleccionado} onOpenChange={(open) => !open && setComentarioSeleccionado(null)}>
               <DialogContent className="max-w-md">
