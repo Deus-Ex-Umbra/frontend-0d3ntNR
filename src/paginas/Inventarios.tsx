@@ -140,7 +140,7 @@ export default function Inventarios() {
     costo_total: '',
     fecha_vencimiento: undefined as Date | undefined,
     fecha_compra: new Date(),
-    registrar_egreso: false,
+    registrar_egreso: true,
   });
 
   const [formulario_activo, setFormularioActivo] = useState({
@@ -150,7 +150,7 @@ export default function Inventarios() {
     fecha_compra: new Date(),
     estado: 'disponible',
     ubicacion: '',
-    registrar_egreso: false,
+    registrar_egreso: true,
   });
 
   const [formulario_ajuste_lote, setFormularioAjusteLote] = useState({
@@ -767,7 +767,7 @@ export default function Inventarios() {
       costo_total: '',
       fecha_vencimiento: undefined,
       fecha_compra: new Date(),
-      registrar_egreso: false,
+      registrar_egreso: true,
     });
     setDialogoLoteAbierto(true);
   };
@@ -933,7 +933,7 @@ export default function Inventarios() {
       fecha_compra: new Date(),
       estado: 'disponible',
       ubicacion: '',
-      registrar_egreso: false,
+      registrar_egreso: true,
     });
     setModoEdicionActivo(false);
     setDialogoActivoAbierto(true);
@@ -1307,7 +1307,7 @@ export default function Inventarios() {
                               {inventario.propietario && (
                                 <CardDescription className="flex items-center gap-1 mt-1">
                                   <Users className="h-3 w-3" />
-                                  Propietario: {inventario.propietario.nombre}
+                                  Propietario: {inventario.propietario?.nombre || 'Desconocido'}
                                 </CardDescription>
                               )}
                             </div>
@@ -2033,7 +2033,7 @@ export default function Inventarios() {
                                 </details>
                               )}
                             </TableCell>
-                            <TableCell>{movimiento.usuario.nombre}</TableCell>
+                            <TableCell>{movimiento.usuario?.nombre || 'Usuario desconocido'}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -2063,8 +2063,8 @@ export default function Inventarios() {
                         <CardContent>
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-medium">{inventario_seleccionado.propietario.nombre}</p>
-                              <p className="text-sm text-muted-foreground">{inventario_seleccionado.propietario.correo}</p>
+                              <p className="font-medium">{inventario_seleccionado.propietario?.nombre || 'Desconocido'}</p>
+                              <p className="text-sm text-muted-foreground">{inventario_seleccionado.propietario?.correo}</p>
                             </div>
                             <Badge>Propietario</Badge>
                           </div>
@@ -2080,8 +2080,8 @@ export default function Inventarios() {
                             <CardContent className="py-4">
                               <div className="flex items-center justify-between">
                                 <div>
-                                  <p className="font-medium">{permiso.usuario_invitado.nombre}</p>
-                                  <p className="text-sm text-muted-foreground">{permiso.usuario_invitado.correo}</p>
+                                  <p className="font-medium">{permiso.usuario_invitado?.nombre || 'Desconocido'}</p>
+                                  <p className="text-sm text-muted-foreground">{permiso.usuario_invitado?.correo}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Badge>{permiso.rol.charAt(0).toUpperCase() + permiso.rol.slice(1)}</Badge>
@@ -2426,16 +2426,18 @@ export default function Inventarios() {
               />
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="notificar_stock_bajo"
-                checked={formulario_producto.notificar_stock_bajo}
-                onCheckedChange={(checked) => setFormularioProducto({ ...formulario_producto, notificar_stock_bajo: checked })}
-              />
-              <Label htmlFor="notificar_stock_bajo" className="cursor-pointer">
-                Notificar cuando el stock esté por debajo del mínimo
-              </Label>
-            </div>
+            {formulario_producto.tipo_gestion === 'consumible' && (
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="notificar_stock_bajo"
+                  checked={formulario_producto.notificar_stock_bajo}
+                  onCheckedChange={(checked) => setFormularioProducto({ ...formulario_producto, notificar_stock_bajo: checked })}
+                />
+                <Label htmlFor="notificar_stock_bajo" className="cursor-pointer">
+                  Notificar cuando el stock esté por debajo del mínimo
+                </Label>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -2477,7 +2479,7 @@ export default function Inventarios() {
       </Dialog>
 
       <Dialog open={dialogo_lote_abierto} onOpenChange={setDialogoLoteAbierto}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
             <DialogTitle>Registrar Nuevo Lote</DialogTitle>
             <DialogDescription>
