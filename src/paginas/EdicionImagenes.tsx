@@ -289,9 +289,25 @@ export default function EdicionImagenes() {
   };
 
   const abrirDialogoVersiones = async (archivo: ArchivoAdjunto) => {
-    setArchivoSeleccionado(archivo);
-    await cargarVersiones(archivo.id);
-    setDialogoVersionesAbierto(true);
+    try {
+      let archivo_completo = archivo;
+      if (!archivo.contenido_base64) {
+        const contenido = await archivosApi.obtenerContenido(archivo.id);
+        archivo_completo = { ...archivo, contenido_base64: contenido };
+        setArchivos(prev => prev.map(a => a.id === archivo.id ? archivo_completo : a));
+      }
+      
+      setArchivoSeleccionado(archivo_completo);
+      await cargarVersiones(archivo.id);
+      setDialogoVersionesAbierto(true);
+    } catch (error) {
+      console.error("Error al cargar contenido para versiones:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el contenido de la imagen",
+        variant: "destructive",
+      });
+    }
   };
 
   const verVersion = (version: EdicionVersion) => {

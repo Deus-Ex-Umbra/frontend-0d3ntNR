@@ -1,23 +1,54 @@
-import { useState, useRef, useEffect } from 'react';
-import { Stage, Layer, Line, Image as KonvaImage} from 'react-konva';
-import { Button } from '@/componentes/ui/button';
-import { Input } from '@/componentes/ui/input';
-import { Label } from '@/componentes/ui/label';
-import { Textarea } from '@/componentes/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
-import { ScrollArea } from '@/componentes/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { Badge } from '@/componentes/ui/badge';
-import { 
-  Pencil, Circle as Eraser, Download, 
-  Save, Undo, Redo, ZoomIn, ZoomOut, RotateCw,Image as
-  Loader2, Trash2, Copy, History, X
-} from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { edicionesImagenesApi, catalogoApi } from '@/lib/api';
+import { useState, useRef, useEffect } from "react";
+import { Stage, Layer, Line, Image as KonvaImage } from "react-konva";
+import { Button } from "@/componentes/ui/button";
+import { Input } from "@/componentes/ui/input";
+import { Label } from "@/componentes/ui/label";
+import { Textarea } from "@/componentes/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/componentes/ui/dialog";
+import { ScrollArea } from "@/componentes/ui/scroll-area";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/componentes/ui/tabs";
+import { Badge } from "@/componentes/ui/badge";
+import {
+  Pencil,
+  Circle as Eraser,
+  Download,
+  Save,
+  Undo,
+  Redo,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Image as Loader2,
+  Trash2,
+  Copy,
+  History,
+  X,
+} from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { edicionesImagenesApi, catalogoApi } from "@/lib/api";
 
 interface Herramienta {
-  tipo: 'pencil' | 'line' | 'rect' | 'circle' | 'text' | 'eraser' | 'move' | 'symbol';
+  tipo:
+    | "pencil"
+    | "line"
+    | "rect"
+    | "circle"
+    | "text"
+    | "eraser"
+    | "move"
+    | "symbol";
   color: string;
   grosor: number;
   opacidad: number;
@@ -74,52 +105,68 @@ interface EdicionVersion {
   };
 }
 
-export function EditorImagenes({ 
-  archivo_id, 
-  archivo_nombre, 
-  archivo_base64, 
+export function EditorImagenes({
+  archivo_id,
+  archivo_nombre,
+  archivo_base64,
   tipo_mime,
-  abierto, 
+  abierto,
   onCerrar,
   onGuardar,
-  version_editar
+  version_editar,
 }: EditorImagenesProps) {
   const [herramienta_actual, setHerramientaActual] = useState<Herramienta>({
-    tipo: 'pencil',
-    color: '#FF0000',
+    tipo: "pencil",
+    color: "#FF0000",
     grosor: 2,
     opacidad: 1,
   });
 
   const [objetos, setObjetos] = useState<ObjetoCanvas[]>([]);
-  const [historial_deshacer, setHistorialDeshacer] = useState<ObjetoCanvas[][]>([]);
-  const [historial_rehacer, setHistorialRehacer] = useState<ObjetoCanvas[][]>([]);
+  const [historial_deshacer, setHistorialDeshacer] = useState<ObjetoCanvas[][]>(
+    []
+  );
+  const [historial_rehacer, setHistorialRehacer] = useState<ObjetoCanvas[][]>(
+    []
+  );
   const [dibujando, setDibujando] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-  
-  const [imagen_cargada, setImagenCargada] = useState<HTMLImageElement | null>(null);
-  const [dimensiones_imagen, setDimensionesImagen] = useState({ ancho: 800, alto: 600 });
-  
+  const [rotacion, setRotacion] = useState(0);
+
+  const [imagen_cargada, setImagenCargada] = useState<HTMLImageElement | null>(
+    null
+  );
+  const [dimensiones_imagen, setDimensionesImagen] = useState({
+    ancho: 800,
+    alto: 600,
+  });
+
   const [simbologias, setSimbologias] = useState<Simbologia[]>([]);
   const [cargando_simbologias, setCargandoSimbologias] = useState(false);
-  
+
   const [guardando, setGuardando] = useState(false);
   const [dialogo_guardar_abierto, setDialogoGuardarAbierto] = useState(false);
-  const [nombre_version, setNombreVersion] = useState('');
-  const [descripcion_version, setDescripcionVersion] = useState('');
-  
+  const [nombre_version, setNombreVersion] = useState("");
+  const [descripcion_version, setDescripcionVersion] = useState("");
+
   const [versiones, setVersiones] = useState<EdicionVersion[]>([]);
   const [cargando_versiones, setCargandoVersiones] = useState(false);
-  const [dialogo_versiones_abierto, setDialogoVersionesAbierto] = useState(false);
-  
+  const [dialogo_versiones_abierto, setDialogoVersionesAbierto] =
+    useState(false);
+
   const stage_ref = useRef<any>(null);
   const layer_dibujo_ref = useRef<any>(null);
 
-  const [dialogo_confirmar_limpiar_abierto, setDialogoConfirmarLimpiarAbierto] = useState(false);
+  const [dialogo_confirmar_limpiar_abierto, setDialogoConfirmarLimpiarAbierto] =
+    useState(false);
 
-  const [dialogo_confirmar_eliminar_version_abierto, setDialogoConfirmarEliminarVersionAbierto] = useState(false);
-  const [version_a_eliminar, setVersionAEliminar] = useState<EdicionVersion | null>(null);
+  const [
+    dialogo_confirmar_eliminar_version_abierto,
+    setDialogoConfirmarEliminarVersionAbierto,
+  ] = useState(false);
+  const [version_a_eliminar, setVersionAEliminar] =
+    useState<EdicionVersion | null>(null);
 
   const abrirDialogoConfirmarLimpiar = () => {
     if (objetos.length === 0) return;
@@ -134,24 +181,31 @@ export function EditorImagenes({
   useEffect(() => {
     if (abierto) {
       cargarImagen();
-      cargarSimbologias();
+      // cargarSimbologias(); // Comentado por error de API faltante
       cargarVersiones();
-      
+
       if (version_editar) {
-        if (version_editar.datos_canvas && (version_editar.datos_canvas as any).objetos) {
+        if (
+          version_editar.datos_canvas &&
+          (version_editar.datos_canvas as any).objetos
+        ) {
           setObjetos((version_editar.datos_canvas as any).objetos);
           setHistorialDeshacer([]);
           setHistorialRehacer([]);
         }
-        setNombreVersion(version_editar.nombre || `Versión ${version_editar.version}`);
-        setDescripcionVersion(version_editar.descripcion || '');
+        setNombreVersion(
+          version_editar.nombre || `Versión ${version_editar.version}`
+        );
+        setDescripcionVersion(version_editar.descripcion || "");
       } else {
         setObjetos([]);
         setHistorialDeshacer([]);
         setHistorialRehacer([]);
-        setNombreVersion('');
-        setDescripcionVersion('');
+        setNombreVersion("");
+        setDescripcionVersion("");
       }
+      setRotacion(0);
+      setZoom(1);
     }
   }, [abierto, archivo_base64, version_editar]);
 
@@ -170,7 +224,7 @@ export function EditorImagenes({
       const datos = await catalogoApi.obtenerSimbologias();
       setSimbologias(datos);
     } catch (error) {
-      console.error('Error al cargar simbologías:', error);
+      console.error("Error al cargar simbologías:", error);
     } finally {
       setCargandoSimbologias(false);
     }
@@ -182,7 +236,7 @@ export function EditorImagenes({
       const datos = await edicionesImagenesApi.obtenerPorArchivo(archivo_id);
       setVersiones(datos);
     } catch (error) {
-      console.error('Error al cargar versiones:', error);
+      console.error("Error al cargar versiones:", error);
     } finally {
       setCargandoVersiones(false);
     }
@@ -195,10 +249,10 @@ export function EditorImagenes({
 
   const deshacer = () => {
     if (historial_deshacer.length === 0) return;
-    
+
     const nuevo_historial_deshacer = [...historial_deshacer];
     const estado_anterior = nuevo_historial_deshacer.pop()!;
-    
+
     setHistorialRehacer([...historial_rehacer, [...objetos]]);
     setHistorialDeshacer(nuevo_historial_deshacer);
     setObjetos(estado_anterior);
@@ -206,40 +260,40 @@ export function EditorImagenes({
 
   const rehacer = () => {
     if (historial_rehacer.length === 0) return;
-    
+
     const nuevo_historial_rehacer = [...historial_rehacer];
     const estado_siguiente = nuevo_historial_rehacer.pop()!;
-    
+
     setHistorialDeshacer([...historial_deshacer, [...objetos]]);
     setHistorialRehacer(nuevo_historial_rehacer);
     setObjetos(estado_siguiente);
   };
 
   const handleMouseDown = (e: any) => {
-    if (herramienta_actual.tipo === 'move') return;
-    
+    if (herramienta_actual.tipo === "move") return;
+
     const pos = e.target.getStage().getPointerPosition();
     const punto_ajustado = {
       x: (pos.x - offset.x) / zoom,
       y: (pos.y - offset.y) / zoom,
     };
 
-    if (herramienta_actual.tipo === 'eraser') {
+    if (herramienta_actual.tipo === "eraser") {
       guardarEstadoHistorial();
       setDibujando(true);
-      
-      const objetos_filtrados = objetos.filter(obj => {
-        if (obj.tipo === 'pencil' || obj.tipo === 'eraser') {
+
+      const objetos_filtrados = objetos.filter((obj) => {
+        if (obj.tipo === "pencil" || obj.tipo === "eraser") {
           if (!obj.puntos) return true;
-          
+
           for (let i = 0; i < obj.puntos.length; i += 2) {
             const px = obj.puntos[i];
             const py = obj.puntos[i + 1];
             const distancia = Math.sqrt(
-              Math.pow(px - punto_ajustado.x, 2) + 
-              Math.pow(py - punto_ajustado.y, 2)
+              Math.pow(px - punto_ajustado.x, 2) +
+                Math.pow(py - punto_ajustado.y, 2)
             );
-            
+
             if (distancia < herramienta_actual.grosor * 2) {
               return false;
             }
@@ -247,12 +301,12 @@ export function EditorImagenes({
         }
         return true;
       });
-      
+
       setObjetos(objetos_filtrados);
-    } else if (herramienta_actual.tipo === 'pencil') {
+    } else if (herramienta_actual.tipo === "pencil") {
       guardarEstadoHistorial();
       setDibujando(true);
-      
+
       const nuevo_objeto: ObjetoCanvas = {
         tipo: herramienta_actual.tipo,
         puntos: [punto_ajustado.x, punto_ajustado.y],
@@ -266,7 +320,7 @@ export function EditorImagenes({
 
   const handleMouseMove = (e: any) => {
     if (!dibujando) return;
-    
+
     const stage = e.target.getStage();
     const pos = stage.getPointerPosition();
     const punto_ajustado = {
@@ -274,19 +328,19 @@ export function EditorImagenes({
       y: (pos.y - offset.y) / zoom,
     };
 
-    if (herramienta_actual.tipo === 'eraser') {
-      const objetos_filtrados = objetos.filter(obj => {
-        if (obj.tipo === 'pencil' || obj.tipo === 'eraser') {
+    if (herramienta_actual.tipo === "eraser") {
+      const objetos_filtrados = objetos.filter((obj) => {
+        if (obj.tipo === "pencil" || obj.tipo === "eraser") {
           if (!obj.puntos) return true;
-          
+
           for (let i = 0; i < obj.puntos.length; i += 2) {
             const px = obj.puntos[i];
             const py = obj.puntos[i + 1];
             const distancia = Math.sqrt(
-              Math.pow(px - punto_ajustado.x, 2) + 
-              Math.pow(py - punto_ajustado.y, 2)
+              Math.pow(px - punto_ajustado.x, 2) +
+                Math.pow(py - punto_ajustado.y, 2)
             );
-            
+
             if (distancia < herramienta_actual.grosor * 2) {
               return false;
             }
@@ -294,14 +348,20 @@ export function EditorImagenes({
         }
         return true;
       });
-      
+
       setObjetos(objetos_filtrados);
-    } else if (herramienta_actual.tipo === 'pencil') {
+    } else if (herramienta_actual.tipo === "pencil") {
       const ultimo_objeto = objetos[objetos.length - 1];
-      if (ultimo_objeto && ultimo_objeto.tipo === 'pencil') {
-        const nuevos_puntos = ultimo_objeto.puntos!.concat([punto_ajustado.x, punto_ajustado.y]);
+      if (ultimo_objeto && ultimo_objeto.tipo === "pencil") {
+        const nuevos_puntos = ultimo_objeto.puntos!.concat([
+          punto_ajustado.x,
+          punto_ajustado.y,
+        ]);
         const objetos_actualizados = objetos.slice(0, -1);
-        setObjetos([...objetos_actualizados, { ...ultimo_objeto, puntos: nuevos_puntos }]);
+        setObjetos([
+          ...objetos_actualizados,
+          { ...ultimo_objeto, puntos: nuevos_puntos },
+        ]);
       }
     }
   };
@@ -312,9 +372,9 @@ export function EditorImagenes({
 
   const agregarSimbolo = (simbologia: Simbologia) => {
     guardarEstadoHistorial();
-    
+
     const nuevo_simbolo: ObjetoCanvas = {
-      tipo: 'symbol',
+      tipo: "symbol",
       x: dimensiones_imagen.ancho / 2,
       y: dimensiones_imagen.alto / 2,
       ancho: 50,
@@ -325,10 +385,10 @@ export function EditorImagenes({
       grosor: 1,
       opacidad: herramienta_actual.opacidad,
     };
-    
+
     setObjetos([...objetos, nuevo_simbolo]);
     toast({
-      title: 'Símbolo agregado',
+      title: "Símbolo agregado",
       description: `${simbologia.nombre} añadido al canvas`,
     });
   };
@@ -338,42 +398,42 @@ export function EditorImagenes({
     setObjetos([]);
     setDialogoConfirmarLimpiarAbierto(false);
     toast({
-      title: 'Canvas limpiado',
-      description: 'Todos los objetos fueron eliminados',
+      title: "Canvas limpiado",
+      description: "Todos los objetos fueron eliminados",
     });
   };
 
   const exportarImagen = () => {
     if (!stage_ref.current) return;
-    
+
     const uri = stage_ref.current.toDataURL();
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.download = `${archivo_nombre}_editado.png`;
     link.href = uri;
     link.click();
-    
+
     toast({
-      title: 'Imagen exportada',
-      description: 'La imagen se descargó correctamente',
+      title: "Imagen exportada",
+      description: "La imagen se descargó correctamente",
     });
   };
 
   const abrirDialogoGuardar = () => {
     if (!version_editar) {
       setNombreVersion(`Edición ${versiones.length + 1}`);
-      setDescripcionVersion('');
+      setDescripcionVersion("");
     }
     setDialogoGuardarAbierto(true);
   };
 
   const guardarVersion = async () => {
     if (!stage_ref.current) return;
-    
+
     setGuardando(true);
     try {
       const uri = stage_ref.current.toDataURL();
-      const imagen_resultado = uri.split(',')[1];
-      
+      const imagen_resultado = uri.split(",")[1];
+
       if (version_editar) {
         await edicionesImagenesApi.actualizar(version_editar.id, {
           nombre: nombre_version.trim() || undefined,
@@ -381,10 +441,10 @@ export function EditorImagenes({
           datos_canvas: { objetos },
           imagen_resultado_base64: imagen_resultado,
         });
-        
+
         toast({
-          title: 'Versión actualizada',
-          description: 'Los cambios se guardaron correctamente',
+          title: "Versión actualizada",
+          description: "Los cambios se guardaron correctamente",
         });
       } else {
         await edicionesImagenesApi.crear({
@@ -394,21 +454,22 @@ export function EditorImagenes({
           datos_canvas: { objetos },
           imagen_resultado_base64: imagen_resultado,
         });
-        
+
         toast({
-          title: 'Versión guardada',
-          description: 'La edición se guardó correctamente',
+          title: "Versión guardada",
+          description: "La edición se guardó correctamente",
         });
       }
-      
+
       setDialogoGuardarAbierto(false);
       await cargarVersiones();
       onGuardar?.();
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'No se pudo guardar la versión',
-        variant: 'destructive',
+        title: "Error",
+        description:
+          error.response?.data?.message || "No se pudo guardar la versión",
+        variant: "destructive",
       });
     } finally {
       setGuardando(false);
@@ -418,20 +479,20 @@ export function EditorImagenes({
   const cargarVersion = async (version: EdicionVersion) => {
     try {
       const datos = await edicionesImagenesApi.obtenerPorId(version.id);
-      
+
       if (datos.datos_canvas && (datos.datos_canvas as any).objetos) {
         setObjetos((datos.datos_canvas as any).objetos);
         toast({
-          title: 'Versión cargada',
+          title: "Versión cargada",
           description: `Se cargó la versión ${version.version}`,
         });
         setDialogoVersionesAbierto(false);
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'No se pudo cargar la versión',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudo cargar la versión",
+        variant: "destructive",
       });
     }
   };
@@ -440,42 +501,42 @@ export function EditorImagenes({
     try {
       await edicionesImagenesApi.duplicar(version.id);
       toast({
-        title: 'Versión duplicada',
-        description: 'Se creó una copia de la versión',
+        title: "Versión duplicada",
+        description: "Se creó una copia de la versión",
       });
       await cargarVersiones();
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'No se pudo duplicar la versión',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudo duplicar la versión",
+        variant: "destructive",
       });
     }
   };
 
   const eliminarVersion = async () => {
     if (!version_a_eliminar) return;
-    
+
     try {
       await edicionesImagenesApi.eliminar(version_a_eliminar.id);
       toast({
-        title: 'Versión eliminada',
-        description: 'La versión se eliminó correctamente',
+        title: "Versión eliminada",
+        description: "La versión se eliminó correctamente",
       });
       setDialogoConfirmarEliminarVersionAbierto(false);
       setVersionAEliminar(null);
       await cargarVersiones();
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'No se pudo eliminar la versión',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudo eliminar la versión",
+        variant: "destructive",
       });
     }
   };
 
   const renderizarObjeto = (obj: ObjetoCanvas, index: number) => {
-    if (obj.tipo === 'pencil') {
+    if (obj.tipo === "pencil") {
       return (
         <Line
           key={index}
@@ -489,27 +550,29 @@ export function EditorImagenes({
         />
       );
     }
-    
+
     return null;
+  };
+
+  const toggleRotacion = () => {
+    setRotacion((prev) => (prev + 90) % 360);
   };
 
   return (
     <Dialog open={abierto} onOpenChange={onCerrar}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0 [&>button]:hidden">
-        <DialogHeader className="p-6 pb-4 border-b">
+      <DialogContent className="max-w-[95vw] max-h-[95vh] h-[90vh] w-[95vw] overflow-hidden flex flex-col p-0 [&>button]:hidden">
+        <DialogHeader className="p-6 pb-4 border-b bg-background z-10 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex-1 pr-12">
               <DialogTitle className="text-xl">
-                {version_editar ? 'Editar Versión' : 'Editor de Imágenes'}
+                {version_editar ? "Editar Versión" : "Editor de Imágenes"}
               </DialogTitle>
-              <DialogDescription className="mt-1">
+              <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
                 {archivo_nombre}
                 {version_editar && (
-                  <Badge variant="outline" className="ml-2">
-                    v{version_editar.version}
-                  </Badge>
+                  <Badge variant="outline">v{version_editar.version}</Badge>
                 )}
-              </DialogDescription>
+              </div>
             </div>
             <Button
               variant="ghost"
@@ -523,7 +586,7 @@ export function EditorImagenes({
         </DialogHeader>
 
         <div className="flex-1 flex overflow-hidden">
-          <div className="w-64 border-r p-4 overflow-y-auto">
+          <div className="w-64 border-r p-4 overflow-y-auto flex-shrink-0 bg-background z-10">
             <Tabs defaultValue="herramientas" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="herramientas">Herramientas</TabsTrigger>
@@ -535,17 +598,35 @@ export function EditorImagenes({
                   <Label className="text-xs">Herramientas de Dibujo</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Button
-                      variant={herramienta_actual.tipo === 'pencil' ? 'default' : 'outline'}
+                      variant={
+                        herramienta_actual.tipo === "pencil"
+                          ? "default"
+                          : "outline"
+                      }
                       size="sm"
-                      onClick={() => setHerramientaActual({ ...herramienta_actual, tipo: 'pencil' })}
+                      onClick={() =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          tipo: "pencil",
+                        })
+                      }
                       className="w-full"
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant={herramienta_actual.tipo === 'eraser' ? 'default' : 'outline'}
+                      variant={
+                        herramienta_actual.tipo === "eraser"
+                          ? "default"
+                          : "outline"
+                      }
                       size="sm"
-                      onClick={() => setHerramientaActual({ ...herramienta_actual, tipo: 'eraser' })}
+                      onClick={() =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          tipo: "eraser",
+                        })
+                      }
                       className="w-full"
                     >
                       <Eraser className="h-4 w-4" />
@@ -560,32 +641,51 @@ export function EditorImagenes({
                       id="color"
                       type="color"
                       value={herramienta_actual.color}
-                      onChange={(e) => setHerramientaActual({ ...herramienta_actual, color: e.target.value })}
+                      onChange={(e) =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          color: e.target.value,
+                        })
+                      }
                       className="h-10 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
                       value={herramienta_actual.color}
-                      onChange={(e) => setHerramientaActual({ ...herramienta_actual, color: e.target.value })}
+                      onChange={(e) =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          color: e.target.value,
+                        })
+                      }
                       className="flex-1"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="grosor">Grosor: {herramienta_actual.grosor}px</Label>
+                  <Label htmlFor="grosor">
+                    Grosor: {herramienta_actual.grosor}px
+                  </Label>
                   <Input
                     id="grosor"
                     type="range"
                     min="1"
                     max="50"
                     value={herramienta_actual.grosor}
-                    onChange={(e) => setHerramientaActual({ ...herramienta_actual, grosor: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setHerramientaActual({
+                        ...herramienta_actual,
+                        grosor: Number(e.target.value),
+                      })
+                    }
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="opacidad">Opacidad: {Math.round(herramienta_actual.opacidad * 100)}%</Label>
+                  <Label htmlFor="opacidad">
+                    Opacidad: {Math.round(herramienta_actual.opacidad * 100)}%
+                  </Label>
                   <Input
                     id="opacidad"
                     type="range"
@@ -593,7 +693,12 @@ export function EditorImagenes({
                     max="1"
                     step="0.1"
                     value={herramienta_actual.opacidad}
-                    onChange={(e) => setHerramientaActual({ ...herramienta_actual, opacidad: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setHerramientaActual({
+                        ...herramienta_actual,
+                        opacidad: Number(e.target.value),
+                      })
+                    }
                   />
                 </div>
               </TabsContent>
@@ -622,7 +727,9 @@ export function EditorImagenes({
                             alt={simbologia.nombre}
                             className="w-full h-16 object-contain"
                           />
-                          <p className="text-xs text-center mt-1 truncate">{simbologia.nombre}</p>
+                          <p className="text-xs text-center mt-1 truncate">
+                            {simbologia.nombre}
+                          </p>
                         </button>
                       ))}
                     </div>
@@ -632,8 +739,8 @@ export function EditorImagenes({
             </Tabs>
           </div>
 
-          <div className="flex-1 flex flex-col">
-            <div className="p-4 border-b flex items-center justify-between gap-2">
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between gap-2 bg-background z-10 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -676,42 +783,23 @@ export function EditorImagenes({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setZoom(1);
-                    setOffset({ x: 0, y: 0 });
-                  }}
-                  title="Resetear vista"
+                  onClick={toggleRotacion}
+                  title="Rotar 90°"
                 >
                   <RotateCw className="h-4 w-4" />
                 </Button>
               </div>
 
               <div className="flex items-center gap-2">
-                {!version_editar && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDialogoVersionesAbierto(true)}
-                    title="Ver versiones"
-                  >
-                    <History className="h-4 w-4 mr-2" />
-                    Versiones
-                    {versiones.length > 0 && (
-                      <Badge variant="secondary" className="ml-2">
-                        {versiones.length}
-                      </Badge>
-                    )}
-                  </Button>
-                )}
                 <Button
-  variant="outline"
-  size="sm"
-  onClick={abrirDialogoConfirmarLimpiar}
-  disabled={objetos.length === 0}
-  title="Limpiar canvas"
->
-  <Trash2 className="h-4 w-4" />
-</Button>
+                  variant="outline"
+                  size="sm"
+                  onClick={abrirDialogoConfirmarLimpiar}
+                  disabled={objetos.length === 0}
+                  title="Limpiar canvas"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -726,91 +814,127 @@ export function EditorImagenes({
                   title={version_editar ? "Guardar cambios" : "Guardar versión"}
                 >
                   <Save className="h-4 w-4 mr-2" />
-                  {version_editar ? 'Guardar Cambios' : 'Guardar Versión'}
+                  {version_editar ? "Guardar Cambios" : "Guardar Versión"}
                 </Button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto bg-secondary/10 p-4 flex items-center justify-center">
-              <Stage
-                ref={stage_ref}
-                width={dimensiones_imagen.ancho * zoom}
-                height={dimensiones_imagen.alto * zoom}
-                onMouseDown={handleMouseDown}
-                onMousemove={handleMouseMove}
-                onMouseup={handleMouseUp}
-                scaleX={zoom}
-                scaleY={zoom}
-                className="border-2 border-border shadow-lg bg-white"
-              >
-                <Layer>
-                  {imagen_cargada && (
-                    <KonvaImage
-                      image={imagen_cargada}
-                      width={dimensiones_imagen.ancho}
-                      height={dimensiones_imagen.alto}
-                    />
-                  )}
-                </Layer>
-                <Layer ref={layer_dibujo_ref}>
-                  {objetos.map((obj, i) => renderizarObjeto(obj, i))}
-                </Layer>
-              </Stage>
+            <div className="flex-1 overflow-auto bg-secondary/10 p-4">
+              <div className="min-w-full min-h-full flex items-center justify-center">
+                <Stage
+                  ref={stage_ref}
+                  width={
+                    (rotacion % 180 === 0
+                      ? dimensiones_imagen.ancho
+                      : dimensiones_imagen.alto) * zoom
+                  }
+                  height={
+                    (rotacion % 180 === 0
+                      ? dimensiones_imagen.alto
+                      : dimensiones_imagen.ancho) * zoom
+                  }
+                  onMouseDown={handleMouseDown}
+                  onMousemove={handleMouseMove}
+                  onMouseup={handleMouseUp}
+                  scaleX={zoom}
+                  scaleY={zoom}
+                  className="border-2 border-border shadow-lg bg-white"
+                >
+                  <Layer>
+                    {imagen_cargada && (
+                      <KonvaImage
+                        image={imagen_cargada}
+                        width={dimensiones_imagen.ancho}
+                        height={dimensiones_imagen.alto}
+                        rotation={rotacion}
+                        x={
+                          rotacion === 90
+                            ? dimensiones_imagen.alto
+                            : rotacion === 180
+                              ? dimensiones_imagen.ancho
+                              : rotacion === 270
+                                ? 0
+                                : 0
+                        }
+                        y={
+                          rotacion === 90
+                            ? 0
+                            : rotacion === 180
+                              ? dimensiones_imagen.alto
+                              : rotacion === 270
+                                ? dimensiones_imagen.ancho
+                                : 0
+                        }
+                      />
+                    )}
+                  </Layer>
+                  <Layer ref={layer_dibujo_ref}>
+                    {objetos.map((obj, i) => renderizarObjeto(obj, i))}
+                  </Layer>
+                </Stage>
+              </div>
             </div>
           </div>
         </div>
       </DialogContent>
 
-      <Dialog open={dialogo_confirmar_limpiar_abierto} onOpenChange={setDialogoConfirmarLimpiarAbierto}>
-  <DialogContent className="sm:max-w-[425px]">
-    <DialogHeader>
-      <DialogTitle>Limpiar Canvas</DialogTitle>
-      <DialogDescription>
-        ¿Estás seguro de que deseas limpiar todo el canvas?
-      </DialogDescription>
-    </DialogHeader>
-    
-    <div className="p-4 rounded-lg bg-secondary/30 border border-border">
-      <p className="text-sm text-foreground">
-        Se eliminarán todos los objetos dibujados en el canvas. Esta acción se puede deshacer usando el botón de "Deshacer".
-      </p>
-    </div>
-
-    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-      <p className="text-sm text-destructive">
-        Todos los dibujos, líneas y símbolos serán eliminados.
-      </p>
-    </div>
-
-    <DialogFooter>
-      <Button
-        variant="outline"
-        onClick={() => setDialogoConfirmarLimpiarAbierto(false)}
-        className="hover:scale-105 transition-all duration-200"
+      <Dialog
+        open={dialogo_confirmar_limpiar_abierto}
+        onOpenChange={setDialogoConfirmarLimpiarAbierto}
       >
-        Cancelar
-      </Button>
-      <Button
-        variant="destructive"
-        onClick={limpiarCanvas}
-        className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
-      >
-        Limpiar Todo
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Limpiar Canvas</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas limpiar todo el canvas?
+            </DialogDescription>
+          </DialogHeader>
 
-      <Dialog open={dialogo_guardar_abierto} onOpenChange={setDialogoGuardarAbierto}>
+          <div className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <p className="text-sm text-foreground">
+              Se eliminarán todos los objetos dibujados en el canvas. Esta
+              acción se puede deshacer usando el botón de "Deshacer".
+            </p>
+          </div>
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Todos los dibujos, líneas y símbolos serán eliminados.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoConfirmarLimpiarAbierto(false)}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={limpiarCanvas}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Limpiar Todo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialogo_guardar_abierto}
+        onOpenChange={setDialogoGuardarAbierto}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {version_editar ? 'Actualizar Versión' : 'Guardar Nueva Versión'}
+              {version_editar ? "Actualizar Versión" : "Guardar Nueva Versión"}
             </DialogTitle>
             <DialogDescription>
-              {version_editar 
-                ? 'Actualiza los cambios realizados en esta versión'
-                : 'Guarda esta edición como una nueva versión'}
+              {version_editar
+                ? "Actualiza los cambios realizados en esta versión"
+                : "Guarda esta edición como una nueva versión"}
             </DialogDescription>
           </DialogHeader>
 
@@ -826,7 +950,9 @@ export function EditorImagenes({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="descripcion-version">Descripción (opcional)</Label>
+              <Label htmlFor="descripcion-version">
+                Descripción (opcional)
+              </Label>
               <Textarea
                 id="descripcion-version"
                 value={descripcion_version}
@@ -848,69 +974,79 @@ export function EditorImagenes({
             <Button onClick={guardarVersion} disabled={guardando}>
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Save className="mr-2 h-4 w-4" />
-              {version_editar ? 'Actualizar' : 'Guardar'}
+              {version_editar ? "Actualizar" : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogo_confirmar_eliminar_version_abierto} onOpenChange={setDialogoConfirmarEliminarVersionAbierto}>
-  <DialogContent className="sm:max-w-[425px]">
-    <DialogHeader>
-      <DialogTitle>Confirmar Eliminación de Versión</DialogTitle>
-      <DialogDescription>
-        ¿Estás seguro de que deseas eliminar esta versión de edición?
-      </DialogDescription>
-    </DialogHeader>
-    
-    {version_a_eliminar && (
-      <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">v{version_a_eliminar.version}</Badge>
-          <p className="font-semibold text-foreground">
-            {version_a_eliminar.nombre || `Versión ${version_a_eliminar.version}`}
-          </p>
-        </div>
-        {version_a_eliminar.descripcion && (
-          <p className="text-sm text-muted-foreground">
-            {version_a_eliminar.descripcion}
-          </p>
-        )}
-        <p className="text-xs text-muted-foreground">
-          Por {version_a_eliminar.usuario.nombre} • {new Date(version_a_eliminar.fecha_creacion).toLocaleString('es-BO')}
-        </p>
-      </div>
-    )}
-
-    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-      <p className="text-sm text-destructive">
-        Esta acción no se puede deshacer.
-      </p>
-    </div>
-
-    <DialogFooter>
-      <Button
-        variant="outline"
-        onClick={() => {
-          setDialogoConfirmarEliminarVersionAbierto(false);
-          setVersionAEliminar(null);
-        }}
-        className="hover:scale-105 transition-all duration-200"
+      <Dialog
+        open={dialogo_confirmar_eliminar_version_abierto}
+        onOpenChange={setDialogoConfirmarEliminarVersionAbierto}
       >
-        Cancelar
-      </Button>
-      <Button
-        variant="destructive"
-        onClick={eliminarVersion}
-        className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
-      >
-        Eliminar Versión
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación de Versión</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar esta versión de edición?
+            </DialogDescription>
+          </DialogHeader>
 
-      <Dialog open={dialogo_versiones_abierto} onOpenChange={setDialogoVersionesAbierto}>
+          {version_a_eliminar && (
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">v{version_a_eliminar.version}</Badge>
+                <p className="font-semibold text-foreground">
+                  {version_a_eliminar.nombre ||
+                    `Versión ${version_a_eliminar.version}`}
+                </p>
+              </div>
+              {version_a_eliminar.descripcion && (
+                <p className="text-sm text-muted-foreground">
+                  {version_a_eliminar.descripcion}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Por {version_a_eliminar.usuario.nombre} •{" "}
+                {new Date(version_a_eliminar.fecha_creacion).toLocaleString(
+                  "es-BO"
+                )}
+              </p>
+            </div>
+          )}
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarVersionAbierto(false);
+                setVersionAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={eliminarVersion}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar Versión
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialogo_versiones_abierto}
+        onOpenChange={setDialogoVersionesAbierto}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Versiones Guardadas</DialogTitle>
@@ -926,7 +1062,9 @@ export function EditorImagenes({
               </div>
             ) : versiones.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-muted-foreground">No hay versiones guardadas</p>
+                <p className="text-muted-foreground">
+                  No hay versiones guardadas
+                </p>
               </div>
             ) : (
               <div className="space-y-3 pr-4">
@@ -949,7 +1087,10 @@ export function EditorImagenes({
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground mt-2">
-                          Por {version.usuario.nombre} • {new Date(version.fecha_creacion).toLocaleString('es-BO')}
+                          Por {version.usuario.nombre} •{" "}
+                          {new Date(version.fecha_creacion).toLocaleString(
+                            "es-BO"
+                          )}
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -970,15 +1111,16 @@ export function EditorImagenes({
                           <Copy className="h-4 w-4" />
                         </Button>
                         <Button
-  variant="outline"
-  size="sm"
-  onClick={() => abrirDialogoConfirmarEliminarVersion(version)}
-  className="hover:bg-destructive/20 hover:text-destructive"
-  title="Eliminar versión"
->
-  <Trash2 className="h-4 w-4" />
-</Button>
-                        
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            abrirDialogoConfirmarEliminarVersion(version)
+                          }
+                          className="hover:bg-destructive/20 hover:text-destructive"
+                          title="Eliminar versión"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
