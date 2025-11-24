@@ -175,6 +175,8 @@ export function EditorImagenes({
 
   const [tiene_cambios, setTieneCambios] = useState(false);
   const [dialogo_cambios_sin_guardar_abierto, setDialogoCambiosSinGuardarAbierto] = useState(false);
+
+  // Estado para el cursor personalizado
   const [cursor_pos, setCursorPos] = useState({ x: -100, y: -100 });
   const [mostrar_cursor, setMostrarCursor] = useState(false);
 
@@ -191,6 +193,7 @@ export function EditorImagenes({
   useEffect(() => {
     if (abierto) {
       cargarImagen();
+      // cargarSimbologias(); 
       cargarVersiones();
 
       if (version_editar) {
@@ -308,7 +311,7 @@ export function EditorImagenes({
 
       const nuevo_objeto: ObjetoCanvas = {
         tipo: herramienta_actual.tipo,
-        puntos: [punto_ajustado.x, punto_ajustado.y, punto_ajustado.x, punto_ajustado.y],
+        puntos: [punto_ajustado.x, punto_ajustado.y, punto_ajustado.x, punto_ajustado.y], // Duplicamos punto para crear un "punto" visible al hacer click
         color: herramienta_actual.color,
         grosor: herramienta_actual.grosor,
         opacidad: herramienta_actual.opacidad,
@@ -318,9 +321,12 @@ export function EditorImagenes({
   };
 
   const handleMouseMove = (e: any) => {
+    // Actualizar posición del cursor
     const stage = e.target.getStage();
     const pointerPos = stage.getPointerPosition();
     if (pointerPos) {
+        // Calculamos posición relativa al stage para dibujar el cursor correctamente transformado si fuera necesario, 
+        // pero como el cursor es "visual" sobre el stage, usamos coordenadas relativas al contenedor
         const punto_ajustado = {
              x: (pointerPos.x - offset.x) / zoom,
              y: (pointerPos.y - offset.y) / zoom,
@@ -412,7 +418,9 @@ export function EditorImagenes({
 
   const exportarImagen = () => {
     if (!stage_ref.current) return;
-    setMostrarCursor(false);
+    setMostrarCursor(false); // Ocultar cursor
+    
+    // Pequeño timeout para asegurar que el renderizado oculte el cursor antes de exportar
     setTimeout(() => {
         const uri = stage_ref.current.toDataURL();
         const link = document.createElement("a");
@@ -424,7 +432,7 @@ export function EditorImagenes({
         title: "Imagen exportada",
         description: "La imagen se descargó correctamente",
         });
-        setMostrarCursor(true);
+        setMostrarCursor(true); // Mostrar cursor de nuevo
     }, 50);
   };
 
@@ -439,7 +447,7 @@ export function EditorImagenes({
   const guardarVersion = async () => {
     if (!stage_ref.current) return;
     setGuardando(true);
-    setMostrarCursor(false);
+    setMostrarCursor(false); // Ocultar cursor para la captura
 
     setTimeout(async () => {
         try {
@@ -459,6 +467,7 @@ export function EditorImagenes({
                 description: "Los cambios se guardaron correctamente",
               });
             } else {
+              // Fallback por si acaso (aunque ahora siempre deberíamos tener version_editar pre-creada)
               await edicionesImagenesApi.crear({
                 archivo_original_id: archivo_id,
                 nombre: nombre_version.trim() || undefined,
@@ -632,185 +641,187 @@ export function EditorImagenes({
         </DialogHeader>
 
         <div className="flex-1 flex overflow-hidden">
-          <div className="w-80 border-r p-4 overflow-y-auto flex-shrink-0 bg-background z-10">
-            <Tabs defaultValue="herramientas" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="herramientas">Herramientas</TabsTrigger>
-                <TabsTrigger value="simbolos">Símbolos</TabsTrigger>
-              </TabsList>
+          <div className="w-[420px] border-r flex flex-col bg-background z-10">
+            <div className="p-5 flex-1 flex flex-col overflow-hidden">
+                <Tabs defaultValue="herramientas" className="w-full h-full flex flex-col">
+                  <TabsList className="grid w-full grid-cols-2 mb-4 flex-shrink-0">
+                    <TabsTrigger value="herramientas">Herramientas</TabsTrigger>
+                    <TabsTrigger value="simbolos">Símbolos</TabsTrigger>
+                  </TabsList>
 
-              <TabsContent value="herramientas" className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Herramientas de Dibujo</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      variant={
-                        herramienta_actual.tipo === "pencil"
-                          ? "default"
-                          : "outline"
-                      }
-                      className="h-14 flex flex-col gap-1"
-                      onClick={() =>
-                        setHerramientaActual({
-                          ...herramienta_actual,
-                          tipo: "pencil",
-                        })
-                      }
-                    >
-                      <Pencil className="h-5 w-5" />
-                      <span className="text-[10px]">Pincel</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-14 flex flex-col gap-1"
-                      disabled
-                      title="Próximamente"
-                    >
-                      <Plus className="h-5 w-5" />
-                      <span className="text-[10px]">Comentarios</span>
-                    </Button>
-                    <Button
-                       variant={
-                        herramienta_actual.tipo === "eraser-normal"
-                          ? "default"
-                          : "outline"
-                      }
-                      className="h-14 flex flex-col gap-1"
-                      onClick={() =>
-                        setHerramientaActual({
-                          ...herramienta_actual,
-                          tipo: "eraser-normal",
-                        })
-                      }
-                    >
-                      <Eraser className="h-5 w-5" />
-                      <span className="text-[10px]">Borrador</span>
-                    </Button>
-                    <Button
-                       variant={
-                        herramienta_actual.tipo === "eraser-magic"
-                          ? "default"
-                          : "outline"
-                      }
-                      className="h-14 flex flex-col gap-1 relative overflow-visible"
-                      onClick={() =>
-                        setHerramientaActual({
-                          ...herramienta_actual,
-                          tipo: "eraser-magic",
-                        })
-                      }
-                    >
-                      <div className="relative">
-                        <Eraser className="h-5 w-5" />
-                        <Sparkles className="h-3 w-3 absolute -top-1 -right-2 text-yellow-500 fill-yellow-500 animate-pulse" />
-                      </div>
-                      <span className="text-[10px]">Mágico</span>
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="color">Color del Pincel</Label>
-                  <div className="w-full flex justify-center">
-                    <HexColorPicker 
-                        color={herramienta_actual.color} 
-                        onChange={(newColor) =>
-                            setHerramientaActual({
-                              ...herramienta_actual,
-                              color: newColor,
-                            })
-                          }
-                        style={{ width: '100%', height: '150px' }}
-                    />
-                  </div>
-                  <div className="flex gap-2 items-center">
-                     <div className="w-8 h-8 rounded-full border border-border" style={{ backgroundColor: herramienta_actual.color }} />
-                     <Input 
-                        value={herramienta_actual.color}
-                        onChange={(e) => setHerramientaActual({...herramienta_actual, color: e.target.value})}
-                        className="font-mono text-xs"
-                     />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                        <Label htmlFor="grosor">Grosor</Label>
-                        <span className="text-xs text-muted-foreground">{herramienta_actual.grosor}px</span>
+                  <TabsContent value="herramientas" className="flex-1 flex flex-col space-y-6 mt-0">
+                    <div className="space-y-3 flex-shrink-0">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Herramientas de Dibujo</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Button
+                              variant={
+                                herramienta_actual.tipo === "pencil"
+                                  ? "default"
+                                  : "outline"
+                              }
+                              className="h-14 flex flex-col gap-1"
+                              onClick={() =>
+                                setHerramientaActual({
+                                  ...herramienta_actual,
+                                  tipo: "pencil",
+                                })
+                              }
+                            >
+                              <Pencil className="h-5 w-5" />
+                              <span className="text-sm font-medium">Pincel</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="h-14 flex flex-col gap-1"
+                              disabled
+                              title="Próximamente"
+                            >
+                              <Plus className="h-5 w-5" />
+                              <span className="text-sm font-medium">Comentarios</span>
+                            </Button>
+                            <Button
+                               variant={
+                                herramienta_actual.tipo === "eraser-normal"
+                                  ? "default"
+                                  : "outline"
+                              }
+                              className="h-14 flex flex-col gap-1"
+                              onClick={() =>
+                                setHerramientaActual({
+                                  ...herramienta_actual,
+                                  tipo: "eraser-normal",
+                                })
+                              }
+                            >
+                              <Eraser className="h-5 w-5" />
+                              <span className="text-sm font-medium">Borrador</span>
+                            </Button>
+                            <Button
+                               variant={
+                                herramienta_actual.tipo === "eraser-magic"
+                                  ? "default"
+                                  : "outline"
+                              }
+                              className="h-14 flex flex-col gap-1 relative overflow-visible"
+                              onClick={() =>
+                                setHerramientaActual({
+                                  ...herramienta_actual,
+                                  tipo: "eraser-magic",
+                                })
+                              }
+                            >
+                              <div className="relative">
+                                <Eraser className="h-5 w-5" />
+                                <Sparkles className="h-3 w-3 absolute -top-1 -right-2 text-yellow-500 fill-yellow-500 animate-pulse" />
+                              </div>
+                              <span className="text-sm font-medium">Mágico</span>
+                            </Button>
+                        </div>
                     </div>
-                    <Input
-                      id="grosor"
-                      type="range"
-                      min="1"
-                      max="50"
-                      value={herramienta_actual.grosor}
-                      onChange={(e) =>
-                        setHerramientaActual({
-                          ...herramienta_actual,
-                          grosor: Number(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                        <Label htmlFor="opacidad">Opacidad</Label>
-                        <span className="text-xs text-muted-foreground">{Math.round(herramienta_actual.opacidad * 100)}%</span>
+                    <div className="space-y-3 flex-shrink-0">
+                        <Label htmlFor="color">Color del Pincel</Label>
+                        <div className="w-full flex justify-center">
+                            <HexColorPicker 
+                                color={herramienta_actual.color} 
+                                onChange={(newColor) =>
+                                    setHerramientaActual({
+                                      ...herramienta_actual,
+                                      color: newColor,
+                                    })
+                                  }
+                                style={{ width: '100%', height: '100px' }}
+                            />
+                        </div>
+                        <div className="flex gap-2 items-center">
+                             <div className="w-8 h-8 rounded-full border border-border" style={{ backgroundColor: herramienta_actual.color }} />
+                             <Input 
+                                value={herramienta_actual.color}
+                                onChange={(e) => setHerramientaActual({...herramienta_actual, color: e.target.value})}
+                                className="font-mono text-xs"
+                             />
+                        </div>
                     </div>
-                    <Input
-                      id="opacidad"
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={herramienta_actual.opacidad}
-                      onChange={(e) =>
-                        setHerramientaActual({
-                          ...herramienta_actual,
-                          opacidad: Number(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </TabsContent>
 
-              <TabsContent value="simbolos" className="space-y-2">
-                {cargando_simbologias ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>
-                ) : simbologias.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No hay símbolos disponibles
-                  </p>
-                ) : (
-                  <ScrollArea className="h-[400px]">
-                    <div className="grid grid-cols-2 gap-2 pr-4">
-                      {simbologias.map((simbologia) => (
-                        <button
-                          key={simbologia.id}
-                          onClick={() => agregarSimbolo(simbologia)}
-                          className="p-2 border rounded-lg hover:bg-secondary/50 transition-colors"
-                          title={simbologia.descripcion || simbologia.nombre}
-                        >
-                          <img
-                            src={`data:image/png;base64,${simbologia.imagen_base64}`}
-                            alt={simbologia.nombre}
-                            className="w-full h-16 object-contain"
-                          />
-                          <p className="text-xs text-center mt-1 truncate">
-                            {simbologia.nombre}
+                    <div className="grid grid-cols-2 gap-4 flex-shrink-0">
+                        <div className="space-y-2">
+                            <div className="flex justify-between">
+                                <Label htmlFor="grosor">Grosor</Label>
+                                <span className="text-xs text-muted-foreground">{herramienta_actual.grosor}px</span>
+                            </div>
+                            <Input
+                              id="grosor"
+                              type="range"
+                              min="1"
+                              max="50"
+                              value={herramienta_actual.grosor}
+                              onChange={(e) =>
+                                setHerramientaActual({
+                                  ...herramienta_actual,
+                                  grosor: Number(e.target.value),
+                                })
+                              }
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex justify-between">
+                                <Label htmlFor="opacidad">Opacidad</Label>
+                                <span className="text-xs text-muted-foreground">{Math.round(herramienta_actual.opacidad * 100)}%</span>
+                            </div>
+                            <Input
+                              id="opacidad"
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.1"
+                              value={herramienta_actual.opacidad}
+                              onChange={(e) =>
+                                setHerramientaActual({
+                                  ...herramienta_actual,
+                                  opacidad: Number(e.target.value),
+                                })
+                              }
+                            />
+                        </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="simbolos" className="flex-1 overflow-hidden mt-0">
+                     <ScrollArea className="h-full">
+                        {cargando_simbologias ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                          </div>
+                        ) : simbologias.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-8">
+                            No hay símbolos disponibles
                           </p>
-                        </button>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-              </TabsContent>
-            </Tabs>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2 pr-4 pb-4">
+                              {simbologias.map((simbologia) => (
+                                <button
+                                  key={simbologia.id}
+                                  onClick={() => agregarSimbolo(simbologia)}
+                                  className="p-2 border rounded-lg hover:bg-secondary/50 transition-colors"
+                                  title={simbologia.descripcion || simbologia.nombre}
+                                >
+                                  <img
+                                    src={`data:image/png;base64,${simbologia.imagen_base64}`}
+                                    alt={simbologia.nombre}
+                                    className="w-full h-16 object-contain"
+                                  />
+                                  <p className="text-xs text-center mt-1 truncate">
+                                    {simbologia.nombre}
+                                  </p>
+                                </button>
+                              ))}
+                            </div>
+                        )}
+                     </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+            </div>
           </div>
 
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -950,8 +961,11 @@ export function EditorImagenes({
                   <Layer ref={layer_dibujo_ref}>
                     {objetos.map((obj, i) => renderizarObjeto(obj, i))}
                   </Layer>
+                  
+                  {/* Capa de Cursor Personalizado */}
                   {mostrar_cursor && (
                       <Layer>
+                          {/* Círculo que representa el grosor del pincel */}
                           <Circle 
                              x={cursor_pos.x}
                              y={cursor_pos.y}
@@ -959,8 +973,9 @@ export function EditorImagenes({
                              stroke="black"
                              strokeWidth={1}
                              fill="rgba(255, 255, 255, 0.3)"
-                             listening={false}
+                             listening={false} // Para no interferir con eventos del mouse
                           />
+                          {/* Cruz "punta" del cursor */}
                            <Group x={cursor_pos.x} y={cursor_pos.y}>
                                 <Line points={[-5, 0, 5, 0]} stroke="black" strokeWidth={1} />
                                 <Line points={[0, -5, 0, 5]} stroke="black" strokeWidth={1} />
