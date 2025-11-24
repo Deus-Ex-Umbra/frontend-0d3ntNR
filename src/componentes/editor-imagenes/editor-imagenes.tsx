@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Stage, Layer, Line, Circle, Image as KonvaImage, Group } from "react-konva";
+import { Stage, Layer, Line, Circle, Image as KonvaImage, Group, Rect, Text } from "react-konva";
 import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
@@ -12,6 +12,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/componentes/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/componentes/ui/card";
 import { ScrollArea } from "@/componentes/ui/scroll-area";
 import {
   Tabs,
@@ -29,19 +35,22 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
-  Image as Loader2,
+  Loader2,
   Trash2,
   Copy,
-  History,
   X,
   Plus,
   Sparkles,
-  Eraser
+  Eraser,
+  Eye,
+  Check,
+  Move
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { edicionesImagenesApi, catalogoApi } from "@/lib/api";
+import { edicionesImagenesApi } from "@/lib/api";
 import { HexColorPicker } from "react-colorful";
 import "@/componentes/ui/color-picker.css";
+import { ComentarioImagen } from "@/tipos/comentario-imagen";
 
 interface Herramienta {
   tipo:
@@ -92,13 +101,6 @@ interface EditorImagenesProps {
   };
 }
 
-interface Simbologia {
-  id: number;
-  nombre: string;
-  descripcion?: string;
-  imagen_base64: string;
-}
-
 interface EdicionVersion {
   id: number;
   nombre?: string;
@@ -147,9 +149,6 @@ export function EditorImagenes({
     alto: 600,
   });
 
-  const [simbologias, setSimbologias] = useState<Simbologia[]>([]);
-  const [cargando_simbologias, setCargandoSimbologias] = useState(false);
-
   const [guardando, setGuardando] = useState(false);
   const [dialogo_guardar_abierto, setDialogoGuardarAbierto] = useState(false);
   const [nombre_version, setNombreVersion] = useState("");
@@ -175,10 +174,25 @@ export function EditorImagenes({
 
   const [tiene_cambios, setTieneCambios] = useState(false);
   const [dialogo_cambios_sin_guardar_abierto, setDialogoCambiosSinGuardarAbierto] = useState(false);
-
-  // Estado para el cursor personalizado
   const [cursor_pos, setCursorPos] = useState({ x: -100, y: -100 });
   const [mostrar_cursor, setMostrarCursor] = useState(false);
+  const [comentarios, setComentarios] = useState<ComentarioImagen[]>([]);
+  const [cargando_comentarios, setCargandoComentarios] = useState(false);
+  const [modo_comentario, setModoComentario] = useState(false);
+  const [modo_reubicacion, setModoReubicacion] = useState(false);
+  
+  const [dialogo_comentario_abierto, setDialogoComentarioAbierto] = useState(false);
+  const [posicion_nuevo_comentario, setPosicionNuevoComentario] = useState<{x: number, y: number} | null>(null);
+  const [comentario_editando, setComentarioEditando] = useState<ComentarioImagen | null>(null);
+  const [form_comentario, setFormComentario] = useState({ titulo: "", contenido: "", color: "#FF0000" });
+  
+  const [comentario_seleccionado, setComentarioSeleccionado] = useState<ComentarioImagen | null>(null);
+  const [hover_info, setHoverInfo] = useState<{ visible: boolean, x: number, y: number, comentario: ComentarioImagen | null }>({ 
+      visible: false, x: 0, y: 0, comentario: null 
+  });
+
+  const [dialogo_confirmar_eliminar_comentario, setDialogoConfirmarEliminarComentario] = useState(false);
+  const [comentario_a_eliminar, setComentarioAEliminar] = useState<number | null>(null);
 
   const abrirDialogoConfirmarLimpiar = () => {
     if (objetos.length === 0) return;
@@ -193,7 +207,6 @@ export function EditorImagenes({
   useEffect(() => {
     if (abierto) {
       cargarImagen();
-      // cargarSimbologias(); 
       cargarVersiones();
 
       if (version_editar) {
@@ -209,16 +222,20 @@ export function EditorImagenes({
           version_editar.nombre || `Versión ${version_editar.version}`
         );
         setDescripcionVersion(version_editar.descripcion || "");
+        cargarComentarios(version_editar.id);
       } else {
         setObjetos([]);
         setHistorialDeshacer([]);
         setHistorialRehacer([]);
         setNombreVersion("");
         setDescripcionVersion("");
+        setComentarios([]);
       }
       setRotacion(0);
       setZoom(1);
       setTieneCambios(false);
+      setModoComentario(false);
+      setModoReubicacion(false);
     }
   }, [abierto, archivo_base64, version_editar]);
 
@@ -240,6 +257,23 @@ export function EditorImagenes({
       console.error("Error al cargar versiones:", error);
     } finally {
       setCargandoVersiones(false);
+    }
+  };
+
+  const cargarComentarios = async (edicion_id: number) => {
+    setCargandoComentarios(true);
+    try {
+      const datos = await edicionesImagenesApi.obtenerComentarios(edicion_id);
+      setComentarios(datos);
+    } catch (error) {
+      console.error("Error al cargar comentarios:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los comentarios",
+        variant: "destructive",
+      });
+    } finally {
+      setCargandoComentarios(false);
     }
   };
 
@@ -280,6 +314,22 @@ export function EditorImagenes({
       y: (pos.y - offset.y) / zoom,
     };
 
+    if (modo_comentario) {
+        setPosicionNuevoComentario(punto_ajustado);
+        setComentarioEditando(null);
+        setFormComentario({ titulo: "", contenido: "", color: "#FF0000" });
+        setDialogoComentarioAbierto(true);
+        setModoComentario(false);
+        return;
+    }
+
+    if (modo_reubicacion) {
+        setPosicionNuevoComentario(punto_ajustado);
+        setModoReubicacion(false);
+        setDialogoComentarioAbierto(true); 
+        return;
+    }
+
     if (herramienta_actual.tipo === "eraser-magic") {
       guardarEstadoHistorial();
       setDibujando(true);
@@ -311,7 +361,7 @@ export function EditorImagenes({
 
       const nuevo_objeto: ObjetoCanvas = {
         tipo: herramienta_actual.tipo,
-        puntos: [punto_ajustado.x, punto_ajustado.y, punto_ajustado.x, punto_ajustado.y], // Duplicamos punto para crear un "punto" visible al hacer click
+        puntos: [punto_ajustado.x, punto_ajustado.y, punto_ajustado.x, punto_ajustado.y],
         color: herramienta_actual.color,
         grosor: herramienta_actual.grosor,
         opacidad: herramienta_actual.opacidad,
@@ -321,12 +371,9 @@ export function EditorImagenes({
   };
 
   const handleMouseMove = (e: any) => {
-    // Actualizar posición del cursor
     const stage = e.target.getStage();
     const pointerPos = stage.getPointerPosition();
     if (pointerPos) {
-        // Calculamos posición relativa al stage para dibujar el cursor correctamente transformado si fuera necesario, 
-        // pero como el cursor es "visual" sobre el stage, usamos coordenadas relativas al contenedor
         const punto_ajustado = {
              x: (pointerPos.x - offset.x) / zoom,
              y: (pointerPos.y - offset.y) / zoom,
@@ -383,29 +430,6 @@ export function EditorImagenes({
     setDibujando(false);
   };
 
-  const agregarSimbolo = (simbologia: Simbologia) => {
-    guardarEstadoHistorial();
-
-    const nuevo_simbolo: ObjetoCanvas = {
-      tipo: "symbol",
-      x: dimensiones_imagen.ancho / 2,
-      y: dimensiones_imagen.alto / 2,
-      ancho: 50,
-      alto: 50,
-      simbolo_id: simbologia.id,
-      imagen_base64: simbologia.imagen_base64,
-      color: herramienta_actual.color,
-      grosor: 1,
-      opacidad: herramienta_actual.opacidad,
-    };
-
-    setObjetos([...objetos, nuevo_simbolo]);
-    toast({
-      title: "Símbolo agregado",
-      description: `${simbologia.nombre} añadido al canvas`,
-    });
-  };
-
   const limpiarCanvas = () => {
     guardarEstadoHistorial();
     setObjetos([]);
@@ -418,9 +442,7 @@ export function EditorImagenes({
 
   const exportarImagen = () => {
     if (!stage_ref.current) return;
-    setMostrarCursor(false); // Ocultar cursor
-    
-    // Pequeño timeout para asegurar que el renderizado oculte el cursor antes de exportar
+    setMostrarCursor(false);
     setTimeout(() => {
         const uri = stage_ref.current.toDataURL();
         const link = document.createElement("a");
@@ -432,7 +454,7 @@ export function EditorImagenes({
         title: "Imagen exportada",
         description: "La imagen se descargó correctamente",
         });
-        setMostrarCursor(true); // Mostrar cursor de nuevo
+        setMostrarCursor(true);
     }, 50);
   };
 
@@ -447,7 +469,7 @@ export function EditorImagenes({
   const guardarVersion = async () => {
     if (!stage_ref.current) return;
     setGuardando(true);
-    setMostrarCursor(false); // Ocultar cursor para la captura
+    setMostrarCursor(false);
 
     setTimeout(async () => {
         try {
@@ -467,7 +489,6 @@ export function EditorImagenes({
                 description: "Los cambios se guardaron correctamente",
               });
             } else {
-              // Fallback por si acaso (aunque ahora siempre deberíamos tener version_editar pre-creada)
               await edicionesImagenesApi.crear({
                 archivo_original_id: archivo_id,
                 nombre: nombre_version.trim() || undefined,
@@ -507,10 +528,11 @@ export function EditorImagenes({
       if (datos.datos_canvas && (datos.datos_canvas as any).objetos) {
         setObjetos((datos.datos_canvas as any).objetos);
         toast({
-          title: "Versión cargada",
-          description: `Se cargó la versión ${version.version}`,
+            title: "Versión cargada",
+            description: `Se cargó la versión ${version.version}`,
         });
         setDialogoVersionesAbierto(false);
+        cargarComentarios(version.id);
       }
     } catch (error) {
       toast({
@@ -565,6 +587,75 @@ export function EditorImagenes({
       } else {
           onCerrar();
       }
+  };
+
+  const guardarComentario = async () => {
+    if (!version_editar) {
+        toast({ title: "Error", description: "Debes guardar una versión antes de comentar", variant: "destructive" });
+        return;
+    }
+    
+    try {
+        if (comentario_editando) {
+            const datosActualizar = { ...form_comentario };
+            if (posicion_nuevo_comentario) {
+                (datosActualizar as any).x = posicion_nuevo_comentario.x;
+                (datosActualizar as any).y = posicion_nuevo_comentario.y;
+            }
+
+            await edicionesImagenesApi.actualizarComentario(comentario_editando.id, datosActualizar);
+            toast({ title: "Comentario actualizado" });
+        } else if (posicion_nuevo_comentario) {
+            await edicionesImagenesApi.crearComentario(version_editar.id, {
+                ...form_comentario,
+                x: posicion_nuevo_comentario.x,
+                y: posicion_nuevo_comentario.y
+            });
+            toast({ title: "Comentario agregado" });
+        }
+        setDialogoComentarioAbierto(false);
+        setPosicionNuevoComentario(null);
+        setComentarioEditando(null);
+        cargarComentarios(version_editar.id);
+    } catch (error) {
+        toast({ title: "Error", description: "No se pudo guardar el comentario", variant: "destructive" });
+    }
+  };
+
+  const confirmarEliminarComentario = (id: number) => {
+      setComentarioAEliminar(id);
+      setDialogoConfirmarEliminarComentario(true);
+  }
+
+  const eliminarComentario = async () => {
+    if (!comentario_a_eliminar) return;
+    try {
+        await edicionesImagenesApi.eliminarComentario(comentario_a_eliminar);
+        toast({ title: "Comentario eliminado" });
+        if (version_editar) cargarComentarios(version_editar.id);
+        setComentarioSeleccionado(null);
+        setDialogoConfirmarEliminarComentario(false);
+        setComentarioAEliminar(null);
+    } catch (error) {
+        toast({ title: "Error", description: "No se pudo eliminar el comentario", variant: "destructive" });
+    }
+  };
+
+  const prepararEdicionComentario = (comentario: ComentarioImagen) => {
+      setComentarioEditando(comentario);
+      setFormComentario({
+          titulo: comentario.titulo,
+          contenido: comentario.contenido,
+          color: comentario.color
+      });
+      setPosicionNuevoComentario(null); 
+      setDialogoComentarioAbierto(true);
+  };
+
+  const iniciarReubicacion = () => {
+      setDialogoComentarioAbierto(false);
+      setModoReubicacion(true);
+      toast({ title: "Modo Reubicación", description: "Haz clic en el nuevo lugar para el comentario." });
   };
 
   const renderizarObjeto = (obj: ObjetoCanvas, index: number) => {
@@ -640,198 +731,246 @@ export function EditorImagenes({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 flex overflow-hidden">
-          <div className="w-[420px] border-r flex flex-col bg-background z-10">
-            <div className="p-5 flex-1 flex flex-col overflow-hidden">
-                <Tabs defaultValue="herramientas" className="w-full h-full flex flex-col">
-                  <TabsList className="grid w-full grid-cols-2 mb-4 flex-shrink-0">
-                    <TabsTrigger value="herramientas">Herramientas</TabsTrigger>
-                    <TabsTrigger value="simbolos">Símbolos</TabsTrigger>
-                  </TabsList>
+        <div className="flex-1 flex overflow-hidden relative">
+          <div className="w-96 border-r p-4 overflow-y-auto flex-shrink-0 bg-background z-10">
+            <Tabs defaultValue="herramientas" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="herramientas">Herramientas</TabsTrigger>
+                <TabsTrigger value="comentarios">Comentarios</TabsTrigger>
+              </TabsList>
 
-                  <TabsContent value="herramientas" className="flex-1 flex flex-col space-y-6 mt-0">
-                    <div className="space-y-3 flex-shrink-0">
-                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Herramientas de Dibujo</Label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Button
-                              variant={
-                                herramienta_actual.tipo === "pencil"
-                                  ? "default"
-                                  : "outline"
-                              }
-                              className="h-14 flex flex-col gap-1"
-                              onClick={() =>
-                                setHerramientaActual({
-                                  ...herramienta_actual,
-                                  tipo: "pencil",
-                                })
-                              }
-                            >
-                              <Pencil className="h-5 w-5" />
-                              <span className="text-sm font-medium">Pincel</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="h-14 flex flex-col gap-1"
-                              disabled
-                              title="Próximamente"
-                            >
-                              <Plus className="h-5 w-5" />
-                              <span className="text-sm font-medium">Comentarios</span>
-                            </Button>
-                            <Button
-                               variant={
-                                herramienta_actual.tipo === "eraser-normal"
-                                  ? "default"
-                                  : "outline"
-                              }
-                              className="h-14 flex flex-col gap-1"
-                              onClick={() =>
-                                setHerramientaActual({
-                                  ...herramienta_actual,
-                                  tipo: "eraser-normal",
-                                })
-                              }
-                            >
-                              <Eraser className="h-5 w-5" />
-                              <span className="text-sm font-medium">Borrador</span>
-                            </Button>
-                            <Button
-                               variant={
-                                herramienta_actual.tipo === "eraser-magic"
-                                  ? "default"
-                                  : "outline"
-                              }
-                              className="h-14 flex flex-col gap-1 relative overflow-visible"
-                              onClick={() =>
-                                setHerramientaActual({
-                                  ...herramienta_actual,
-                                  tipo: "eraser-magic",
-                                })
-                              }
-                            >
-                              <div className="relative">
-                                <Eraser className="h-5 w-5" />
-                                <Sparkles className="h-3 w-3 absolute -top-1 -right-2 text-yellow-500 fill-yellow-500 animate-pulse" />
-                              </div>
-                              <span className="text-sm font-medium">Mágico</span>
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-3 flex-shrink-0">
-                        <Label htmlFor="color">Color del Pincel</Label>
-                        <div className="w-full flex justify-center">
-                            <HexColorPicker 
-                                color={herramienta_actual.color} 
-                                onChange={(newColor) =>
-                                    setHerramientaActual({
-                                      ...herramienta_actual,
-                                      color: newColor,
-                                    })
-                                  }
-                                style={{ width: '100%', height: '100px' }}
-                            />
-                        </div>
-                        <div className="flex gap-2 items-center">
-                             <div className="w-8 h-8 rounded-full border border-border" style={{ backgroundColor: herramienta_actual.color }} />
-                             <Input 
-                                value={herramienta_actual.color}
-                                onChange={(e) => setHerramientaActual({...herramienta_actual, color: e.target.value})}
-                                className="font-mono text-xs"
-                             />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 flex-shrink-0">
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <Label htmlFor="grosor">Grosor</Label>
-                                <span className="text-xs text-muted-foreground">{herramienta_actual.grosor}px</span>
-                            </div>
-                            <Input
-                              id="grosor"
-                              type="range"
-                              min="1"
-                              max="50"
-                              value={herramienta_actual.grosor}
-                              onChange={(e) =>
-                                setHerramientaActual({
-                                  ...herramienta_actual,
-                                  grosor: Number(e.target.value),
-                                })
-                              }
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <Label htmlFor="opacidad">Opacidad</Label>
-                                <span className="text-xs text-muted-foreground">{Math.round(herramienta_actual.opacidad * 100)}%</span>
-                            </div>
-                            <Input
-                              id="opacidad"
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.1"
-                              value={herramienta_actual.opacidad}
-                              onChange={(e) =>
-                                setHerramientaActual({
-                                  ...herramienta_actual,
-                                  opacidad: Number(e.target.value),
-                                })
-                              }
-                            />
-                        </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="simbolos" className="flex-1 overflow-hidden mt-0">
-                     <ScrollArea className="h-full">
-                        {cargando_simbologias ? (
-                          <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin" />
-                          </div>
-                        ) : simbologias.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-8">
-                            No hay símbolos disponibles
-                          </p>
+              <TabsContent value="herramientas" className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Herramientas de Dibujo</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant={
+                        herramienta_actual.tipo === "pencil"
+                          ? "default"
+                          : "outline"
+                      }
+                      className="h-10 flex flex-row gap-2 justify-start px-3"
+                      onClick={() =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          tipo: "pencil",
+                        })
+                      }
+                      disabled={modo_comentario || modo_reubicacion}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span className="text-xs">Pincel</span>
+                    </Button>
+                    <Button
+                      variant={(modo_comentario || modo_reubicacion) ? "destructive" : "outline"}
+                      className="h-10 flex flex-row gap-2 justify-start px-3"
+                      onClick={() => {
+                          if (modo_reubicacion) {
+                              setModoReubicacion(false);
+                              setDialogoComentarioAbierto(true);
+                          } else {
+                              setModoComentario(!modo_comentario);
+                          }
+                      }}
+                      title={modo_reubicacion ? "Cancelar Reubicación" : "Agregar Comentario"}
+                    >
+                        {(modo_comentario || modo_reubicacion) ? (
+                            <>
+                                <X className="h-4 w-4" />
+                                <span className="text-xs">Cancelar</span>
+                            </>
                         ) : (
-                            <div className="grid grid-cols-2 gap-2 pr-4 pb-4">
-                              {simbologias.map((simbologia) => (
-                                <button
-                                  key={simbologia.id}
-                                  onClick={() => agregarSimbolo(simbologia)}
-                                  className="p-2 border rounded-lg hover:bg-secondary/50 transition-colors"
-                                  title={simbologia.descripcion || simbologia.nombre}
-                                >
-                                  <img
-                                    src={`data:image/png;base64,${simbologia.imagen_base64}`}
-                                    alt={simbologia.nombre}
-                                    className="w-full h-16 object-contain"
-                                  />
-                                  <p className="text-xs text-center mt-1 truncate">
-                                    {simbologia.nombre}
-                                  </p>
-                                </button>
-                              ))}
-                            </div>
+                            <>
+                                <Plus className="h-4 w-4" />
+                                <span className="text-xs">Comentario</span>
+                            </>
                         )}
-                     </ScrollArea>
-                  </TabsContent>
-                </Tabs>
-            </div>
+                    </Button>
+                    <Button
+                       variant={
+                        herramienta_actual.tipo === "eraser-normal"
+                          ? "default"
+                          : "outline"
+                      }
+                      className="h-10 flex flex-row gap-2 justify-start px-3"
+                      onClick={() =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          tipo: "eraser-normal",
+                        })
+                      }
+                      disabled={modo_comentario || modo_reubicacion}
+                    >
+                      <Eraser className="h-4 w-4" />
+                      <span className="text-xs">Borrador</span>
+                    </Button>
+                    <Button
+                       variant={
+                        herramienta_actual.tipo === "eraser-magic"
+                          ? "default"
+                          : "outline"
+                      }
+                      className="h-10 flex flex-row gap-2 justify-start px-3 relative overflow-visible"
+                      onClick={() =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          tipo: "eraser-magic",
+                        })
+                      }
+                      disabled={modo_comentario || modo_reubicacion}
+                    >
+                      <div className="relative">
+                        <Eraser className="h-4 w-4" />
+                        <Sparkles className="h-3 w-3 absolute -top-1 -right-2 text-yellow-500 fill-yellow-500 animate-pulse" />
+                      </div>
+                      <span className="text-xs">Mágico</span>
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="color">Color del Pincel</Label>
+                  <div className="w-full flex justify-center">
+                    <HexColorPicker 
+                        color={herramienta_actual.color} 
+                        onChange={(newColor) =>
+                            setHerramientaActual({
+                              ...herramienta_actual,
+                              color: newColor,
+                            })
+                          }
+                        style={{ width: '100%', height: '160px' }}
+                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                     <div className="w-8 h-8 rounded-full border border-border" style={{ backgroundColor: herramienta_actual.color }} />
+                     <Input 
+                        value={herramienta_actual.color}
+                        onChange={(e) => setHerramientaActual({...herramienta_actual, color: e.target.value})}
+                        className="font-mono text-xs"
+                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                        <Label htmlFor="grosor">Grosor</Label>
+                        <span className="text-xs text-muted-foreground">{herramienta_actual.grosor}px</span>
+                    </div>
+                    <Input
+                      id="grosor"
+                      type="range"
+                      min="1"
+                      max="50"
+                      value={herramienta_actual.grosor}
+                      onChange={(e) =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          grosor: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                        <Label htmlFor="opacidad">Opacidad</Label>
+                        <span className="text-xs text-muted-foreground">{Math.round(herramienta_actual.opacidad * 100)}%</span>
+                    </div>
+                    <Input
+                      id="opacidad"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={herramienta_actual.opacidad}
+                      onChange={(e) =>
+                        setHerramientaActual({
+                          ...herramienta_actual,
+                          opacidad: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="comentarios" className="space-y-2">
+                 <div className="mb-4">
+                    <p className="text-sm text-muted-foreground mb-2">Gestiona los comentarios y notas de esta versión.</p>
+                 </div>
+                {cargando_comentarios ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : comentarios.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No hay comentarios aún
+                  </p>
+                ) : (
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-2 pr-4">
+                      {comentarios.map((comentario) => (
+                        <div
+                          key={comentario.id}
+                          className="p-3 border rounded-lg hover:bg-secondary/50 transition-colors space-y-2 group"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: comentario.color }} />
+                                    <h4 className="font-semibold text-sm truncate max-w-[120px]" title={comentario.titulo}>{comentario.titulo}</h4>
+                                </div>
+                                <div className="flex gap-1">
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-6 w-6 hover:text-blue-500"
+                                        onClick={() => setComentarioSeleccionado(comentario)}
+                                        title="Ver detalle"
+                                    >
+                                        <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-6 w-6 hover:text-primary"
+                                        onClick={() => prepararEdicionComentario(comentario)}
+                                        title="Editar"
+                                    >
+                                        <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-6 w-6 hover:text-destructive"
+                                        onClick={() => confirmarEliminarComentario(comentario.id)}
+                                        title="Eliminar"
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                                {comentario.contenido}
+                            </p>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
 
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden relative">
             <div className="p-4 border-b flex items-center justify-between gap-2 bg-background z-10 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={deshacer}
-                  disabled={historial_deshacer.length === 0}
+                  disabled={historial_deshacer.length === 0 || modo_comentario || modo_reubicacion}
                   title="Deshacer"
                 >
                   <Undo className="h-4 w-4" />
@@ -840,7 +979,7 @@ export function EditorImagenes({
                   variant="outline"
                   size="sm"
                   onClick={rehacer}
-                  disabled={historial_rehacer.length === 0}
+                  disabled={historial_rehacer.length === 0 || modo_comentario || modo_reubicacion}
                   title="Rehacer"
                 >
                   <Redo className="h-4 w-4" />
@@ -882,7 +1021,7 @@ export function EditorImagenes({
                   variant="outline"
                   size="sm"
                   onClick={abrirDialogoConfirmarLimpiar}
-                  disabled={objetos.length === 0}
+                  disabled={objetos.length === 0 || modo_comentario || modo_reubicacion}
                   title="Limpiar canvas"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -899,6 +1038,7 @@ export function EditorImagenes({
                   size="sm"
                   onClick={abrirDialogoGuardar}
                   title={version_editar ? "Guardar cambios" : "Guardar versión"}
+                  disabled={modo_comentario || modo_reubicacion}
                 >
                   <Save className="h-4 w-4 mr-2" />
                   Guardar
@@ -906,7 +1046,7 @@ export function EditorImagenes({
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto bg-secondary/10 p-4">
+            <div className="flex-1 overflow-auto bg-secondary/10 p-4 relative">
               <div className="min-w-full min-h-full flex items-center justify-center">
                 <Stage
                   ref={stage_ref}
@@ -961,34 +1101,139 @@ export function EditorImagenes({
                   <Layer ref={layer_dibujo_ref}>
                     {objetos.map((obj, i) => renderizarObjeto(obj, i))}
                   </Layer>
-                  
-                  {/* Capa de Cursor Personalizado */}
+                  {(modo_comentario || modo_reubicacion || comentarios.length > 0) && (
+                      <Layer>
+                        {(modo_comentario || modo_reubicacion) && (
+                             <Rect
+                                x={0}
+                                y={0}
+                                width={dimensiones_imagen.ancho}
+                                height={dimensiones_imagen.alto}
+                                fill="black"
+                                opacity={0.3}
+                                listening={false}
+                             />
+                        )}
+                        {comentarios.map((comentario) => (
+                            <Group 
+                                key={comentario.id}
+                                x={comentario.x} 
+                                y={comentario.y}
+                                onClick={(e) => {
+                                    e.cancelBubble = true;
+                                    setComentarioSeleccionado(comentario);
+                                }}
+                                onMouseEnter={(e) => {
+                                    const stage = e.target.getStage();
+                                    if (stage) {
+                                        stage.container().style.cursor = "pointer";
+                                        const pointerPos = stage.getPointerPosition();
+                                        if (pointerPos) {
+                                            const containerRect = stage.container().getBoundingClientRect();
+                                            setHoverInfo({
+                                                visible: true,
+                                                x: containerRect.left + pointerPos.x,
+                                                y: containerRect.top + pointerPos.y,
+                                                comentario: comentario
+                                            });
+                                        }
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    const stage = e.target.getStage();
+                                    if (stage) {
+                                        stage.container().style.cursor = "default";
+                                    }
+                                    setHoverInfo({ ...hover_info, visible: false, comentario: null });
+                                }}
+                            >
+                                <Circle 
+                                    radius={12} 
+                                    fill={comentario.color} 
+                                    shadowColor="black"
+                                    shadowBlur={5}
+                                    shadowOpacity={0.3}
+                                />
+                                <Circle radius={10} fill="white" opacity={0.2} />
+                                <Text
+                                    text="!"
+                                    fontSize={14}
+                                    fontStyle="bold"
+                                    fill="white"
+                                    align="center"
+                                    verticalAlign="middle"
+                                    x={-4}
+                                    y={-7}
+                                    listening={false}
+                                />
+                            </Group>
+                        ))}
+                      </Layer>
+                  )}
                   {mostrar_cursor && (
                       <Layer>
-                          {/* Círculo que representa el grosor del pincel */}
-                          <Circle 
-                             x={cursor_pos.x}
-                             y={cursor_pos.y}
-                             radius={herramienta_actual.grosor / 2}
-                             stroke="black"
-                             strokeWidth={1}
-                             fill="rgba(255, 255, 255, 0.3)"
-                             listening={false} // Para no interferir con eventos del mouse
-                          />
-                          {/* Cruz "punta" del cursor */}
-                           <Group x={cursor_pos.x} y={cursor_pos.y}>
-                                <Line points={[-5, 0, 5, 0]} stroke="black" strokeWidth={1} />
-                                <Line points={[0, -5, 0, 5]} stroke="black" strokeWidth={1} />
-                           </Group>
+                          {(modo_comentario || modo_reubicacion) ? (
+                               <Group x={cursor_pos.x} y={cursor_pos.y}>
+                                   <Rect 
+                                      width={24} height={18} 
+                                      cornerRadius={4} 
+                                      fill={herramienta_actual.color} 
+                                      offsetY={18}
+                                      shadowBlur={4} shadowColor="black" shadowOpacity={0.3}
+                                   />
+                                   <Group y={0} x={4}>
+                                        <Line 
+                                            points={[0, 0, 8, 8, 16, 0]} 
+                                            fill={herramienta_actual.color} 
+                                            closed 
+                                            offsetY={2}
+                                        />
+                                   </Group>
+                                    <Text text={modo_reubicacion ? "M" : "+"} fontSize={16} fontStyle="bold" fill="white" x={5} y={-16} />
+                               </Group>
+                          ) : (
+                              <Group x={cursor_pos.x} y={cursor_pos.y}>
+                                    <Circle 
+                                        radius={herramienta_actual.grosor / 2}
+                                        stroke="black"
+                                        strokeWidth={1}
+                                        fill="rgba(255, 255, 255, 0.3)"
+                                        listening={false}
+                                    />
+                                    <Line points={[-5, 0, 5, 0]} stroke="black" strokeWidth={1} />
+                                    <Line points={[0, -5, 0, 5]} stroke="black" strokeWidth={1} />
+                                </Group>
+                          )}
                       </Layer>
                   )}
                 </Stage>
               </div>
+              {hover_info.visible && hover_info.comentario && (
+                  <div 
+                    style={{ 
+                        position: 'fixed', 
+                        top: hover_info.y + 20,
+                        left: hover_info.x - 100,
+                        pointerEvents: 'none'
+                    }}
+                  >
+                      <Card className="w-64 shadow-xl border-2 animate-in fade-in zoom-in duration-200">
+                          <CardHeader className="p-3 pb-1">
+                              <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: hover_info.comentario.color }} />
+                                  <CardTitle className="text-sm font-bold truncate">{hover_info.comentario.titulo}</CardTitle>
+                              </div>
+                          </CardHeader>
+                          <CardContent className="p-3 pt-1">
+                              <p className="text-xs text-muted-foreground line-clamp-3">{hover_info.comentario.contenido}</p>
+                          </CardContent>
+                      </Card>
+                  </div>
+              )}
             </div>
           </div>
         </div>
       </DialogContent>
-
       <Dialog
         open={dialogo_confirmar_limpiar_abierto}
         onOpenChange={setDialogoConfirmarLimpiarAbierto}
@@ -1171,6 +1416,23 @@ export function EditorImagenes({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={dialogo_confirmar_eliminar_comentario}
+        onOpenChange={setDialogoConfirmarEliminarComentario}
+      >
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Eliminar Comentario</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de eliminar este comentario? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarComentario(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={eliminarComentario}>Eliminar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={dialogo_versiones_abierto}
@@ -1259,6 +1521,123 @@ export function EditorImagenes({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+      <Dialog open={dialogo_comentario_abierto} onOpenChange={setDialogoComentarioAbierto}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>{comentario_editando ? "Editar Comentario" : "Nuevo Comentario"}</DialogTitle>
+                  <DialogDescription>
+                      Agrega notas y observaciones en este punto específico.
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                      <Label htmlFor="titulo-comentario">Título</Label>
+                      <Input 
+                          id="titulo-comentario"
+                          value={form_comentario.titulo}
+                          onChange={(e) => setFormComentario({...form_comentario, titulo: e.target.value})}
+                          placeholder="Ej. Caries visible"
+                      />
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="contenido-comentario">Contenido</Label>
+                      <Textarea 
+                          id="contenido-comentario"
+                          value={form_comentario.contenido}
+                          onChange={(e) => setFormComentario({...form_comentario, contenido: e.target.value})}
+                          placeholder="Detalles adicionales..."
+                      />
+                  </div>
+                  <div className="space-y-3">
+                      <Label>Color del marcador</Label>
+                      <div className="w-full flex justify-center">
+                        <HexColorPicker 
+                            color={form_comentario.color} 
+                            onChange={(newColor) =>
+                                setFormComentario({
+                                  ...form_comentario,
+                                  color: newColor,
+                                })
+                              }
+                            style={{ width: '100%', height: '100px' }}
+                        />
+                      </div>
+                      <div className="flex gap-2 items-center mt-2">
+                         <div className="w-8 h-8 rounded-full border border-border" style={{ backgroundColor: form_comentario.color }} />
+                         <Input 
+                            value={form_comentario.color}
+                            onChange={(e) => setFormComentario({...form_comentario, color: e.target.value})}
+                            className="font-mono text-xs"
+                         />
+                      </div>
+                  </div>
+              </div>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                  {comentario_editando && (
+                      <Button 
+                        variant="secondary" 
+                        className="sm:mr-auto"
+                        onClick={iniciarReubicacion}
+                      >
+                          <Move className="h-4 w-4 mr-2" />
+                          Reubicar
+                      </Button>
+                  )}
+                  <div className="flex gap-2 justify-end w-full sm:w-auto">
+                      <Button variant="outline" onClick={() => setDialogoComentarioAbierto(false)}>Cancelar</Button>
+                      <Button onClick={guardarComentario}>
+                          {comentario_editando ? "Actualizar" : "Guardar Comentario"}
+                      </Button>
+                  </div>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
+      {comentario_seleccionado && (
+          <Dialog open={!!comentario_seleccionado} onOpenChange={(open) => !open && setComentarioSeleccionado(null)}>
+              <DialogContent className="max-w-md">
+                  <DialogHeader>
+                      <div className="flex items-center gap-3">
+                          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: comentario_seleccionado.color }} />
+                          <DialogTitle>{comentario_seleccionado.titulo}</DialogTitle>
+                      </div>
+                      <DialogDescription>
+                        Creado por {comentario_seleccionado.usuario?.nombre} • {new Date(comentario_seleccionado.fecha_creacion).toLocaleDateString()}
+                      </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                      <p className="text-foreground whitespace-pre-wrap">{comentario_seleccionado.contenido}</p>
+                  </div>
+                  <DialogFooter className="sm:justify-between">
+                       <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => confirmarEliminarComentario(comentario_seleccionado.id)}
+                        >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
+                        </Button>
+                       <div className="flex gap-2">
+                           <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                    setComentarioSeleccionado(null);
+                                    prepararEdicionComentario(comentario_seleccionado);
+                                }}
+                            >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Editar
+                            </Button>
+                           <Button onClick={() => setComentarioSeleccionado(null)}>
+                                <Check className="h-4 w-4 mr-2" />
+                                Entendido
+                           </Button>
+                       </div>
+                  </DialogFooter>
+              </DialogContent>
+          </Dialog>
+      )}
+
     </Dialog>
   );
 }
