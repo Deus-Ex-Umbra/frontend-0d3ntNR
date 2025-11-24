@@ -1193,6 +1193,9 @@ export default function Pacientes() {
               <UserCircle className="h-6 w-6" />
               Detalle del Paciente
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Información detallada del paciente seleccionado
+            </DialogDescription>
           </DialogHeader>
 
           {paciente_seleccionado && (
