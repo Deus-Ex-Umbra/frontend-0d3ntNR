@@ -98,6 +98,8 @@ export default function EdicionImagenes() {
     null
   );
 
+  const [archivo_visualizar, setArchivoVisualizar] = useState<ArchivoAdjunto | null>(null);
+
   const [cargando_inicial, setCargandoInicial] = useState(true);
   const [cargando_archivos, setCargandoArchivos] = useState(false);
   const [cargando_versiones, setCargandoVersiones] = useState(false);
@@ -106,8 +108,6 @@ export default function EdicionImagenes() {
   const [visualizador_abierto, setVisualizadorAbierto] = useState(false);
   const [dialogo_versiones_abierto, setDialogoVersionesAbierto] =
     useState(false);
-  const [version_visualizar, setVersionVisualizar] =
-    useState<EdicionVersion | null>(null);
 
   const [
     dialogo_confirmar_eliminar_version_abierto,
@@ -284,7 +284,7 @@ export default function EdicionImagenes() {
   };
 
   const abrirVisualizador = (archivo: ArchivoAdjunto) => {
-    setArchivoSeleccionado(archivo);
+    setArchivoVisualizar(archivo);
     setVisualizadorAbierto(true);
   };
 
@@ -295,7 +295,17 @@ export default function EdicionImagenes() {
   };
 
   const verVersion = (version: EdicionVersion) => {
-    setVersionVisualizar(version);
+    const versionParaVisualizar: ArchivoAdjunto = {
+      id: version.id,
+      nombre_archivo: version.nombre || `Versión ${version.version}`,
+      tipo_mime: 'image/png',
+      descripcion: version.descripcion 
+        ? `${version.descripcion} - Por ${version.usuario.nombre}` 
+        : `Versión creada por ${version.usuario.nombre}`,
+      url: `data:image/png;base64,${version.imagen_resultado_base64}`,
+      fecha_subida: version.fecha_creacion,
+    };
+    setArchivoVisualizar(versionParaVisualizar);
     setVisualizadorAbierto(true);
   };
 
@@ -717,93 +727,34 @@ export default function EdicionImagenes() {
       </div>
 
       {archivo_seleccionado && (
-        <>
-          <EditorImagenes
-            archivo_id={archivo_seleccionado.id}
-            archivo_nombre={archivo_seleccionado.nombre_archivo}
-            archivo_base64={archivo_seleccionado.contenido_base64 || ""}
-            tipo_mime={archivo_seleccionado.tipo_mime}
-            abierto={editor_abierto}
-            onCerrar={() => {
-              setEditorAbierto(false);
-              setVersionEditar(null);
-            }}
-            onGuardar={() => {
-              if (archivo_seleccionado) {
-                cargarVersiones(archivo_seleccionado.id);
-              }
-            }}
-            version_editar={version_editar || undefined}
-          />
+        <EditorImagenes
+          archivo_id={archivo_seleccionado.id}
+          archivo_nombre={archivo_seleccionado.nombre_archivo}
+          archivo_base64={archivo_seleccionado.contenido_base64 || ""}
+          tipo_mime={archivo_seleccionado.tipo_mime}
+          abierto={editor_abierto}
+          onCerrar={() => {
+            setEditorAbierto(false);
+            setVersionEditar(null);
+          }}
+          onGuardar={() => {
+            if (archivo_seleccionado) {
+              cargarVersiones(archivo_seleccionado.id);
+            }
+          }}
+          version_editar={version_editar || undefined}
+        />
+      )}
 
-          {!version_visualizar ? (
-            <VisualizadorArchivos
-              archivo={archivo_seleccionado}
-              abierto={visualizador_abierto}
-              onCerrar={() => setVisualizadorAbierto(false)}
-            />
-          ) : (
-            <Dialog
-              open={visualizador_abierto}
-              onOpenChange={(abierto) => {
-                setVisualizadorAbierto(abierto);
-                if (!abierto) {
-                  setVersionVisualizar(null);
-                }
-              }}
-            >
-              <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-                <DialogHeader>
-                  <div className="flex items-center justify-between pr-8">
-                    <DialogTitle className="truncate pr-4">
-                      {version_visualizar.nombre ||
-                        `Versión ${version_visualizar.version}`}
-                    </DialogTitle>
-                    <div className="flex gap-2 flex-shrink-0">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => descargarVersion(version_visualizar)}
-                        title="Descargar"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  {version_visualizar.descripcion && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {version_visualizar.descripcion}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                    <Badge variant="outline">
-                      v{version_visualizar.version}
-                    </Badge>
-                    <span>•</span>
-                    <span>Por {version_visualizar.usuario.nombre}</span>
-                    <span>•</span>
-                    <span>
-                      {formatearFecha(version_visualizar.fecha_creacion)}
-                    </span>
-                  </div>
-                </DialogHeader>
-
-                <div className="flex-1 overflow-auto bg-secondary/10 rounded-lg p-4 min-h-[400px] max-h-[600px]">
-                  <div className="flex items-center justify-center h-full">
-                    <img
-                      src={`data:image/png;base64,${version_visualizar.imagen_resultado_base64}`}
-                      alt={
-                        version_visualizar.nombre ||
-                        `Versión ${version_visualizar.version}`
-                      }
-                      className="max-w-full h-auto object-contain"
-                    />
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </>
+      {archivo_visualizar && (
+        <VisualizadorArchivos
+          archivo={archivo_visualizar}
+          abierto={visualizador_abierto}
+          onCerrar={() => {
+            setVisualizadorAbierto(false);
+            setArchivoVisualizar(null);
+          }}
+        />
       )}
 
       <Dialog

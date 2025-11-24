@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
 import { Button } from '@/componentes/ui/button';
-import { ZoomIn, ZoomOut, RotateCw, FileText } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCw, FileText, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 
 interface ArchivoAdjunto {
@@ -51,9 +51,21 @@ export function VisualizadorArchivos({ archivo, abierto, onCerrar }: Props) {
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="truncate pr-4">{archivo.nombre_archivo}</DialogTitle>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               {es_imagen && (
                 <>
+                  {(zoom !== 100 || rotacion !== 0) && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={resetearVista}
+                      className="mr-2 bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200 shadow-sm transition-all duration-200"
+                    >
+                      <RotateCcw className="h-3 w-3 mr-2" />
+                      Resetear
+                    </Button>
+                  )}
+                  
                   <Button
                     variant="outline"
                     size="icon"
@@ -80,15 +92,6 @@ export function VisualizadorArchivos({ archivo, abierto, onCerrar }: Props) {
                   >
                     <RotateCw className="h-4 w-4" />
                   </Button>
-                  {(zoom !== 100 || rotacion !== 0) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={resetearVista}
-                    >
-                      Resetear
-                    </Button>
-                  )}
                 </>
               )}
             </div>
@@ -150,4 +153,3 @@ export function VisualizadorArchivos({ archivo, abierto, onCerrar }: Props) {
     </Dialog>
   );
 }
-
