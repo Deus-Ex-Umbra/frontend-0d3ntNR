@@ -198,6 +198,7 @@ export default function Tratamientos() {
     costo_total: "",
   });
 
+
   const estados_pago = [
     { valor: 'pendiente', etiqueta: 'Pendiente', color: 'bg-yellow-500' },
     { valor: 'pagado', etiqueta: 'Pagado', color: 'bg-green-500' },
@@ -222,8 +223,7 @@ export default function Tratamientos() {
   };
 
   const tratamientoHaFinalizado = (plan: PlanTratamiento): boolean => {
-    if (!plan.citas || plan.citas.length === 0) return false;
-    return plan.citas.every(cita => citaHaFinalizado(cita));
+    return plan.total_abonado >= plan.costo_total;
   };
 
   const formularioPlantillaCambio = (): boolean => {
@@ -1512,30 +1512,36 @@ export default function Tratamientos() {
       for (const material of materiales_raw) {
         if (material.items && material.items.length > 0) {
           for (const item of material.items) {
+            const cant_planeada = Math.max(0, parseFloat(item.cantidad_planeada?.toString() || '0'));
+
             materiales_confirmacion.push({
               material_cita_id: material.id,
               producto_nombre: material.producto_nombre,
               inventario_nombre: material.inventario_nombre,
               tipo_gestion: material.tipo_gestion,
-              cantidad_planeada: item.cantidad_planeada || 0,
-              cantidad_usada: item.cantidad_planeada || 0,
+              cantidad_planeada: cant_planeada,
+              cantidad_usada: cant_planeada,
               lote_id: item.lote_id,
               activo_id: item.activo_id,
               nro_lote: item.nro_lote,
               nro_serie: item.nro_serie,
               nombre_asignado: item.nombre_asignado,
               unidad_medida: material.unidad_medida,
+              inventario_id: material.inventario_id
             });
           }
         } else {
+          const cant_planeada = Math.max(0, parseFloat(material.cantidad_planeada?.toString() || '0'));
+
           materiales_confirmacion.push({
             material_cita_id: material.id,
             producto_nombre: material.producto_nombre,
             inventario_nombre: material.inventario_nombre,
             tipo_gestion: material.tipo_gestion,
-            cantidad_planeada: material.cantidad_planeada || 0,
-            cantidad_usada: material.cantidad_planeada || 0,
+            cantidad_planeada: cant_planeada,
+            cantidad_usada: cant_planeada,
             unidad_medida: material.unidad_medida,
+            inventario_id: material.inventario_id
           });
         }
       }
@@ -1569,7 +1575,8 @@ export default function Tratamientos() {
             cantidad_planeada: item.cantidad_planeada,
           }));
         });
-        await inventarioApi.asignarMaterialesCita(cita_seleccionada.id, {
+        
+        await inventarioApi.agregarMaterialesCita(cita_seleccionada.id, {
           materiales: materiales_para_asignar,
         });
       }
@@ -1589,7 +1596,10 @@ export default function Tratamientos() {
         await inventarioApi.confirmarMaterialesCita(cita_seleccionada.id, {
           materiales: materiales_confirmacion.map(m => ({
             material_cita_id: m.material_cita_id,
-            cantidad_usada: m.cantidad_usada,
+            cantidad_usada: Number(m.cantidad_usada),
+            lote_id: m.lote_id,
+            activo_id: m.activo_id,
+            inventario_id: m.inventario_id
           })),
         });
       }
@@ -3369,7 +3379,7 @@ export default function Tratamientos() {
             </Button>
             <Button
               onClick={manejarConfirmarMaterialesCita}
-              disabled={guardando || materiales_confirmacion.length === 0}
+              disabled={guardando || (materiales_confirmacion.length === 0 && materiales_adicionales_confirmacion.length === 0)}
               className="bg-green-600 hover:bg-green-700"
             >
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -21,6 +21,7 @@ export interface MaterialCitaConfirmacion {
   material_cita_id: number;
   producto_nombre: string;
   inventario_nombre?: string;
+  inventario_id?: number;
   tipo_gestion: string;
   cantidad_planeada: number;
   cantidad_usada: number;

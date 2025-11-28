@@ -627,10 +627,13 @@ export const inventarioApi = {
     const respuesta = await api.post(`/inventario/citas/${cita_id}/confirmar-consumibles`, datos);
     return respuesta.data;
   },
-  asignarMaterialesCita: async (cita_id: number, datos: {
-    materiales: Array<{ producto_id: number; cantidad_planeada: number }>;
-  }) => {
+  asignarMaterialesCita: async (cita_id: number, datos: { materiales: { producto_id: number; cantidad_planeada: number }[] }) => {
     const respuesta = await api.post(`/inventario/citas/${cita_id}/asignar-materiales`, datos);
+    return respuesta.data;
+  },
+
+  agregarMaterialesCita: async (cita_id: number, datos: { materiales: { producto_id: number; cantidad_planeada: number }[] }) => {
+    const respuesta = await api.post(`/inventario/citas/${cita_id}/agregar-materiales`, datos);
     return respuesta.data;
   },
   obtenerMaterialesCita: async (cita_id: number) => {
