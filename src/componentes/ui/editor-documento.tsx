@@ -48,6 +48,21 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
 
   useEffect(() => { cargarTamanos() }, [])
 
+  useEffect(() => {
+    if (!config.tamano_hoja_id && tamanos.length > 0) {
+      const carta = buscarCartaPorDefecto(tamanos)
+      if (carta) {
+        onChangeConfig({
+          ...config,
+          tamano_hoja_id: carta.id,
+          nombre_tamano: carta.nombre,
+          widthMm: Math.round(carta.ancho),
+          heightMm: Math.round(carta.alto),
+        })
+      }
+    }
+  }, [tamanos, config, onChangeConfig])
+
   const cargarTamanos = async () => {
     try {
       const res = await (catalogoApi as any).obtenerTamanosHoja?.()
@@ -55,6 +70,12 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
     } catch (e) {
       console.error('Error cargando tamaños de hoja', e)
     }
+  }
+
+  const buscarCartaPorDefecto = (lista: TamanoHojaItem[]) => {
+    const porNombre = lista.find(t => t.nombre?.toLowerCase().includes('carta'))
+    if (porNombre) return porNombre
+    return lista.find(t => Math.round(t.ancho) === 216 && Math.round(t.alto) === 279)
   }
 
   const onSelectTamano = (valor: string) => {
@@ -84,6 +105,8 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
   }
 
   const pageInfo = seleccionado ? { widthMm: Math.round(seleccionado.ancho), heightMm: Math.round(seleccionado.alto) } : { widthMm: config.widthMm, heightMm: config.heightMm }
+  const anchoEscritura = Math.max(0, pageInfo.widthMm - config.margenes.left - config.margenes.right)
+  const altoEscritura = Math.max(0, pageInfo.heightMm - config.margenes.top - config.margenes.bottom)
 
   const pageMm = { width: pageInfo.widthMm, height: pageInfo.heightMm }
   const clamp = (v: number, min: number, max: number) => Math.min(Math.max(Number.isFinite(v) ? v : min, min), max)
@@ -103,21 +126,29 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
             opciones={opciones}
             valor={config.tamano_hoja_id ? String(config.tamano_hoja_id) : ''}
             onChange={onSelectTamano}
-            tamanoConfig={{ onCrear: onCrearTamano }}
+            tamanoConfig={{ onCrear: onCrearTamano, ocultarDescripcion: true }}
             placeholder="Seleccionar tamaño"
             tituloModal="Agregar tamaño de hoja"
             descripcionModal="Ingresa nombre y medidas; se guardan en mm"
             placeholderInput="Nombre"
+            textoAgregar='Agregar nuevo tamaño'
           />
         </div>
-        {seleccionado && (
-          <div className="text-xs text-muted-foreground">
-            {seleccionado.nombre} • {seleccionado.descripcion || `${seleccionado.ancho} × ${seleccionado.alto} mm`}
+        <div className="text-xs text-muted-foreground space-y-1">
+          <div className="text-foreground text-sm font-medium">
+            Área escribible: {anchoEscritura} × {altoEscritura} mm (según márgenes actuales)
           </div>
-        )}
+          {seleccionado && (
+            <div className="text-xs text-muted-foreground">
+              Hoja seleccionada: {seleccionado.nombre} • {seleccionado.descripcion || `${seleccionado.ancho} × ${seleccionado.alto} mm`}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <p className="text-sm text-muted-foreground">Los márgenes definen el área donde se puede escribir dentro de la página.</p>
+
+      <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Superior (mm)</Label>
           <Input

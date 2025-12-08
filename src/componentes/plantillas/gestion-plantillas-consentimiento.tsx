@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/componentes/ui/input';
 import { MultiSelect } from '@/componentes/ui/mulit-select';
 import { Label } from '@/componentes/ui/label';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/componentes/ui/accordion';
 import { plantillasConsentimientoApi, catalogoApi } from '@/lib/api';
 import { PlantillaConsentimiento } from '@/tipos';
 import { FileText, Edit, Trash2, Plus, Loader2, X, ChevronsUpDown, Eye, Tag, ChevronDown, ChevronUp, Info } from 'lucide-react';
@@ -89,6 +88,28 @@ export function GestionPlantillasConsentimiento() {
     cargarTamanosHoja();
   }, []);
 
+  useEffect(() => {
+    if (!tamano_hoja_id && tamanos_hoja.length > 0) {
+      const carta = buscarCartaPorDefecto(tamanos_hoja);
+      if (carta) {
+        setTamanoHojaId(carta.id);
+        setTamanoPapel('carta');
+        setMargenesPlantilla((prev) => {
+          const maxL = Math.max(0, Math.round(carta.ancho) - prev.derecho);
+          const maxR = Math.max(0, Math.round(carta.ancho) - prev.izquierdo);
+          const maxT = Math.max(0, Math.round(carta.alto) - prev.inferior);
+          const maxB = Math.max(0, Math.round(carta.alto) - prev.superior);
+          return {
+            superior: clamp(prev.superior, 0, maxT),
+            inferior: clamp(prev.inferior, 0, maxB),
+            izquierdo: clamp(prev.izquierdo, 0, maxL),
+            derecho: clamp(prev.derecho, 0, maxR),
+          };
+        });
+      }
+    }
+  }, [tamano_hoja_id, tamanos_hoja]);
+
   const cargarTamanosHoja = async () => {
     try {
       const lista = await (catalogoApi as any).obtenerTamanosHoja?.();
@@ -98,11 +119,19 @@ export function GestionPlantillasConsentimiento() {
     }
   };
 
+  const buscarCartaPorDefecto = (lista: Array<{ id:number; nombre:string; ancho:number; alto:number }>) => {
+    const porNombre = lista.find(t => t.nombre?.toLowerCase().includes('carta'));
+    if (porNombre) return porNombre;
+    return lista.find(t => Math.round(t.ancho) === 216 && Math.round(t.alto) === 279);
+  };
+
   const opciones_tamanos: OpcionSelectConAgregar[] = tamanos_hoja.map(t => {
     const etiquetaMedidas = `${Math.round(t.ancho)} × ${Math.round(t.alto)} mm`;
     return ({ valor: String(t.id), etiqueta: `${t.nombre} (${t.descripcion || etiquetaMedidas})` });
   });
   const tamanoSeleccionado = tamano_hoja_id ? tamanos_hoja.find(t => t.id === tamano_hoja_id) : undefined;
+  const anchoEscritura = (tamanoSeleccionado ? Math.round(tamanoSeleccionado.ancho) : pageMm.width) - margenes_plantilla.izquierdo - margenes_plantilla.derecho;
+  const altoEscritura = (tamanoSeleccionado ? Math.round(tamanoSeleccionado.alto) : pageMm.height) - margenes_plantilla.superior - margenes_plantilla.inferior;
   const seleccionarTamanoHoja = (valor: string) => {
     if (!valor) { setTamanoHojaId(null); return; }
     const id = Number(valor);
@@ -439,7 +468,11 @@ export function GestionPlantillasConsentimiento() {
     <div className="space-y-6">
       <Dialog open={dialogo_abierto} onOpenChange={(open) => {
         setDialogoAbierto(open);
-        if (!open) {
+        if (open) {
+          const carta = buscarCartaPorDefecto(tamanos_hoja);
+          setTamanoHojaId(carta?.id ?? null);
+          setTamanoPapel('carta');
+        } else {
           setNombrePlantilla('');
           setContenidoPlantilla('');
           setMargenesPlantilla({ superior: 20, inferior: 20, izquierdo: 20, derecho: 20 });
@@ -466,124 +499,130 @@ export function GestionPlantillasConsentimiento() {
                 />
               </div>
 
-              <Accordion type="single" collapsible className="w-full border rounded-lg px-4">
-                <AccordionItem value="margenes-config" className="border-none">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <Info className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm font-medium">Configuración de papel y márgenes del PDF</span>
+              <div className="space-y-4 rounded-lg border border-border bg-secondary/20 p-4">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-500 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">Tamaño de hoja y márgenes</p>
+                    <p className="text-xs text-muted-foreground">Configura la página tal como la usarás en el PDF. Carta se aplica por defecto, pero puedes agregar otro tamaño sin salir.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tamaño de papel</Label>
+                    <SelectConAgregar
+                      opciones={opciones_tamanos}
+                      valor={tamano_hoja_id ? String(tamano_hoja_id) : ''}
+                      onChange={seleccionarTamanoHoja}
+                      tamanoConfig={{ onCrear: crearTamanoHoja, ocultarDescripcion: true }}
+                      placeholder="Seleccionar tamaño"
+                      tituloModal="Agregar tamaño de hoja"
+                      descripcionModal="Ingresa nombre y medidas; se guardan en mm"
+                      placeholderInput="Nombre"
+                      textoAgregar='Agregar nuevo tamaño'
+                    />
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1 flex flex-col justify-center min-h-[44px] self-center pt-3">
+                    <div className="text-foreground text-sm font-medium leading-tight">
+                      Área escribible: {Math.max(0, anchoEscritura)} × {Math.max(0, altoEscritura)} mm (según márgenes actuales)
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4 pt-2">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Tamaño de papel</Label>
-                          <SelectConAgregar
-                            opciones={opciones_tamanos}
-                            valor={tamano_hoja_id ? String(tamano_hoja_id) : ''}
-                            onChange={seleccionarTamanoHoja}
-                            tamanoConfig={{ onCrear: crearTamanoHoja }}
-                            placeholder="Seleccionar tamaño"
-                            tituloModal="Agregar tamaño de hoja"
-                            descripcionModal="Ingresa nombre y medidas; se guardan en mm"
-                            placeholderInput="Nombre"
-                          />
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Selecciona el tamaño de hoja para vista previa y PDF. Los márgenes se aplican encima del área útil de la hoja.
-                        </div>
+                    {tamanoSeleccionado && (
+                      <div className="text-foreground text-xs leading-tight">
+                        Hoja seleccionada: {tamanoSeleccionado.nombre} • {tamanoSeleccionado.descripcion || `${Math.round(tamanoSeleccionado.ancho)} × ${Math.round(tamanoSeleccionado.alto)} mm`}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Define los márgenes predeterminados para esta plantilla. Estos valores se utilizarán al generar el PDF.
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label htmlFor="margen-superior-crear" className="text-xs">Superior (mm)</Label>
-                          <Input
-                            id="margen-superior-crear"
-                            type="number"
-                            min={0}
-                            max={maxTop}
-                            value={margenes_plantilla.superior}
-                            onChange={(e) => {
-                              const nuevo = clamp(Number(e.target.value), 0, maxTop);
-                              setMargenesPlantilla({ ...margenes_plantilla, superior: nuevo });
-                            }}
-                            className={cn(
-                              "h-8",
-                              (margenes_plantilla.superior > 999 || verticalZero) && "border-yellow-400"
-                            )}
-                            title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.superior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="margen-inferior-crear" className="text-xs">Inferior (mm)</Label>
-                          <Input
-                            id="margen-inferior-crear"
-                            type="number"
-                            min={0}
-                            max={maxBottom}
-                            value={margenes_plantilla.inferior}
-                            onChange={(e) => {
-                              const nuevo = clamp(Number(e.target.value), 0, maxBottom);
-                              setMargenesPlantilla({ ...margenes_plantilla, inferior: nuevo });
-                            }}
-                            className={cn(
-                              "h-8",
-                              (margenes_plantilla.inferior > 999 || verticalZero) && "border-yellow-400"
-                            )}
-                            title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.inferior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="margen-izquierdo-crear" className="text-xs">Izquierdo (mm)</Label>
-                          <Input
-                            id="margen-izquierdo-crear"
-                            type="number"
-                            min={0}
-                            max={maxLeft}
-                            value={margenes_plantilla.izquierdo}
-                            onChange={(e) => {
-                              const nuevo = clamp(Number(e.target.value), 0, maxLeft);
-                              setMargenesPlantilla({ ...margenes_plantilla, izquierdo: nuevo });
-                            }}
-                            className={cn(
-                              "h-8",
-                              (margenes_plantilla.izquierdo > 999 || horizontalZero) && "border-yellow-400"
-                            )}
-                            title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.izquierdo > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="margen-derecho-crear" className="text-xs">Derecho (mm)</Label>
-                          <Input
-                            id="margen-derecho-crear"
-                            type="number"
-                            min={0}
-                            max={maxRight}
-                            value={margenes_plantilla.derecho}
-                            onChange={(e) => {
-                              const nuevo = clamp(Number(e.target.value), 0, maxRight);
-                              setMargenesPlantilla({ ...margenes_plantilla, derecho: nuevo });
-                            }}
-                            className={cn(
-                              "h-8",
-                              (margenes_plantilla.derecho > 999 || horizontalZero) && "border-yellow-400"
-                            )}
-                            title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.derecho > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
-                          />
-                        </div>
-                      </div>
-                      {(horizontalZero || verticalZero) && (
-                        <div className="text-xs text-yellow-700 mt-1">
-                          ⚠️ El área de escritura {horizontalZero && verticalZero ? 'horizontal y vertical' : horizontalZero ? 'horizontal' : 'vertical'} es nula.
-                        </div>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Los márgenes definen el área donde se puede escribir dentro de la página.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="margen-superior-crear" className="text-xs">Superior (mm)</Label>
+                    <Input
+                      id="margen-superior-crear"
+                      type="number"
+                      min={0}
+                      max={maxTop}
+                      value={margenes_plantilla.superior}
+                      onChange={(e) => {
+                        const nuevo = clamp(Number(e.target.value), 0, maxTop);
+                        setMargenesPlantilla({ ...margenes_plantilla, superior: nuevo });
+                      }}
+                      className={cn(
+                        "h-8",
+                        (margenes_plantilla.superior > 999 || verticalZero) && "border-yellow-400"
                       )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                      title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.superior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="margen-inferior-crear" className="text-xs">Inferior (mm)</Label>
+                    <Input
+                      id="margen-inferior-crear"
+                      type="number"
+                      min={0}
+                      max={maxBottom}
+                      value={margenes_plantilla.inferior}
+                      onChange={(e) => {
+                        const nuevo = clamp(Number(e.target.value), 0, maxBottom);
+                        setMargenesPlantilla({ ...margenes_plantilla, inferior: nuevo });
+                      }}
+                      className={cn(
+                        "h-8",
+                        (margenes_plantilla.inferior > 999 || verticalZero) && "border-yellow-400"
+                      )}
+                      title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.inferior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="margen-izquierdo-crear" className="text-xs">Izquierdo (mm)</Label>
+                    <Input
+                      id="margen-izquierdo-crear"
+                      type="number"
+                      min={0}
+                      max={maxLeft}
+                      value={margenes_plantilla.izquierdo}
+                      onChange={(e) => {
+                        const nuevo = clamp(Number(e.target.value), 0, maxLeft);
+                        setMargenesPlantilla({ ...margenes_plantilla, izquierdo: nuevo });
+                      }}
+                      className={cn(
+                        "h-8",
+                        (margenes_plantilla.izquierdo > 999 || horizontalZero) && "border-yellow-400"
+                      )}
+                      title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.izquierdo > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="margen-derecho-crear" className="text-xs">Derecho (mm)</Label>
+                    <Input
+                      id="margen-derecho-crear"
+                      type="number"
+                      min={0}
+                      max={maxRight}
+                      value={margenes_plantilla.derecho}
+                      onChange={(e) => {
+                        const nuevo = clamp(Number(e.target.value), 0, maxRight);
+                        setMargenesPlantilla({ ...margenes_plantilla, derecho: nuevo });
+                      }}
+                      className={cn(
+                        "h-8",
+                        (margenes_plantilla.derecho > 999 || horizontalZero) && "border-yellow-400"
+                      )}
+                      title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.derecho > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
+                    />
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Área escribible: {Math.max(0, anchoEscritura)} × {Math.max(0, altoEscritura)} mm (según márgenes actuales)
+                </div>
+                {(horizontalZero || verticalZero) && (
+                  <div className="text-xs text-yellow-700 mt-1">
+                    ⚠️ El área de escritura {horizontalZero && verticalZero ? 'horizontal y vertical' : horizontalZero ? 'horizontal' : 'vertical'} es nula.
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -894,112 +933,118 @@ export function GestionPlantillasConsentimiento() {
                 />
               </div>
 
-              <Accordion type="single" collapsible className="w-full border rounded-lg px-4">
-                <AccordionItem value="margenes-config-edit" className="border-none">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <Info className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm font-medium">Configuración de papel y márgenes del PDF</span>
+              <div className="space-y-4 rounded-lg border border-border bg-secondary/20 p-4">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-500 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">Tamaño de hoja y márgenes</p>
+                    <p className="text-xs text-muted-foreground">Configura el tamaño que verán tus pacientes en el PDF. Carta queda seleccionada por defecto.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tamaño de papel</Label>
+                    <SelectConAgregar
+                      opciones={opciones_tamanos}
+                      valor={tamano_hoja_id ? String(tamano_hoja_id) : ''}
+                      onChange={seleccionarTamanoHoja}
+                      tamanoConfig={{ onCrear: crearTamanoHoja, ocultarDescripcion: true }}
+                      placeholder="Seleccionar tamaño"
+                      tituloModal="Agregar tamaño de hoja"
+                      descripcionModal="Ingresa nombre y medidas; se guardan en mm"
+                      placeholderInput="Nombre"
+                      textoAgregar="Agregar nuevo tamaño"
+                    />
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1 flex flex-col justify-center min-h-[44px] self-center pt-3">
+                    <div className="text-foreground text-sm font-medium leading-tight">
+                      Área escribible: {Math.max(0, anchoEscritura)} × {Math.max(0, altoEscritura)} mm (según márgenes actuales)
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4 pt-2">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Tamaño de papel</Label>
-                          <SelectConAgregar
-                            opciones={opciones_tamanos}
-                            valor={tamano_hoja_id ? String(tamano_hoja_id) : ''}
-                            onChange={seleccionarTamanoHoja}
-                            tamanoConfig={{ onCrear: crearTamanoHoja }}
-                            placeholder="Seleccionar tamaño"
-                            tituloModal="Agregar tamaño de hoja"
-                            descripcionModal="Ingresa nombre y medidas; se guardan en mm"
-                            placeholderInput="Nombre"
-                          />
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Selecciona el tamaño de hoja para vista previa y PDF. Los márgenes se aplican encima del área útil de la hoja.
-                        </div>
+                    {tamanoSeleccionado && (
+                      <div className="text-foreground text-xs leading-tight">
+                        Hoja seleccionada: {tamanoSeleccionado.nombre} • {tamanoSeleccionado.descripcion || `${Math.round(tamanoSeleccionado.ancho)} × ${Math.round(tamanoSeleccionado.alto)} mm`}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Define los márgenes predeterminados para esta plantilla. Estos valores se utilizarán al generar el PDF.
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label htmlFor="margen-superior-edit" className="text-xs">Superior (mm)</Label>
-                          <Input
-                            id="margen-superior-edit"
-                            type="number"
-                            min={0}
-                            max={maxTop}
-                            value={margenes_plantilla.superior}
-                            onChange={(e) => {
-                              const nuevo = clamp(Number(e.target.value), 0, maxTop);
-                              setMargenesPlantilla({ ...margenes_plantilla, superior: nuevo });
-                            }}
-                            className={cn("h-8", (margenes_plantilla.superior > 999 || verticalZero) && "border-yellow-400")}
-                            title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.superior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="margen-inferior-edit" className="text-xs">Inferior (mm)</Label>
-                          <Input
-                            id="margen-inferior-edit"
-                            type="number"
-                            min={0}
-                            max={maxBottom}
-                            value={margenes_plantilla.inferior}
-                            onChange={(e) => {
-                              const nuevo = clamp(Number(e.target.value), 0, maxBottom);
-                              setMargenesPlantilla({ ...margenes_plantilla, inferior: nuevo });
-                            }}
-                            className={cn("h-8", (margenes_plantilla.inferior > 999 || verticalZero) && "border-yellow-400")}
-                            title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.inferior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="margen-izquierdo-edit" className="text-xs">Izquierdo (mm)</Label>
-                          <Input
-                            id="margen-izquierdo-edit"
-                            type="number"
-                            min={0}
-                            max={maxLeft}
-                            value={margenes_plantilla.izquierdo}
-                            onChange={(e) => {
-                              const nuevo = clamp(Number(e.target.value), 0, maxLeft);
-                              setMargenesPlantilla({ ...margenes_plantilla, izquierdo: nuevo });
-                            }}
-                            className={cn("h-8", (margenes_plantilla.izquierdo > 999 || horizontalZero) && "border-yellow-400")}
-                            title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.izquierdo > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="margen-derecho-edit" className="text-xs">Derecho (mm)</Label>
-                          <Input
-                            id="margen-derecho-edit"
-                            type="number"
-                            min={0}
-                            max={maxRight}
-                            value={margenes_plantilla.derecho}
-                            onChange={(e) => {
-                              const nuevo = clamp(Number(e.target.value), 0, maxRight);
-                              setMargenesPlantilla({ ...margenes_plantilla, derecho: nuevo });
-                            }}
-                            className={cn("h-8", (margenes_plantilla.derecho > 999 || horizontalZero) && "border-yellow-400")}
-                            title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.derecho > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
-                          />
-                        </div>
-                      </div>
-                      {(horizontalZero || verticalZero) && (
-                        <div className="text-xs text-yellow-700 mt-1">
-                          ⚠️ El área de escritura {horizontalZero && verticalZero ? 'horizontal y vertical' : horizontalZero ? 'horizontal' : 'vertical'} es nula.
-                        </div>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Los márgenes definen el área donde se puede escribir dentro de la página.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="margen-superior-edit" className="text-xs">Superior (mm)</Label>
+                    <Input
+                      id="margen-superior-edit"
+                      type="number"
+                      min={0}
+                      max={maxTop}
+                      value={margenes_plantilla.superior}
+                      onChange={(e) => {
+                        const nuevo = clamp(Number(e.target.value), 0, maxTop);
+                        setMargenesPlantilla({ ...margenes_plantilla, superior: nuevo });
+                      }}
+                      className={cn("h-8", (margenes_plantilla.superior > 999 || verticalZero) && "border-yellow-400")}
+                      title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.superior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="margen-inferior-edit" className="text-xs">Inferior (mm)</Label>
+                    <Input
+                      id="margen-inferior-edit"
+                      type="number"
+                      min={0}
+                      max={maxBottom}
+                      value={margenes_plantilla.inferior}
+                      onChange={(e) => {
+                        const nuevo = clamp(Number(e.target.value), 0, maxBottom);
+                        setMargenesPlantilla({ ...margenes_plantilla, inferior: nuevo });
+                      }}
+                      className={cn("h-8", (margenes_plantilla.inferior > 999 || verticalZero) && "border-yellow-400")}
+                      title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.inferior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="margen-izquierdo-edit" className="text-xs">Izquierdo (mm)</Label>
+                    <Input
+                      id="margen-izquierdo-edit"
+                      type="number"
+                      min={0}
+                      max={maxLeft}
+                      value={margenes_plantilla.izquierdo}
+                      onChange={(e) => {
+                        const nuevo = clamp(Number(e.target.value), 0, maxLeft);
+                        setMargenesPlantilla({ ...margenes_plantilla, izquierdo: nuevo });
+                      }}
+                      className={cn("h-8", (margenes_plantilla.izquierdo > 999 || horizontalZero) && "border-yellow-400")}
+                      title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.izquierdo > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="margen-derecho-edit" className="text-xs">Derecho (mm)</Label>
+                    <Input
+                      id="margen-derecho-edit"
+                      type="number"
+                      min={0}
+                      max={maxRight}
+                      value={margenes_plantilla.derecho}
+                      onChange={(e) => {
+                        const nuevo = clamp(Number(e.target.value), 0, maxRight);
+                        setMargenesPlantilla({ ...margenes_plantilla, derecho: nuevo });
+                      }}
+                      className={cn("h-8", (margenes_plantilla.derecho > 999 || horizontalZero) && "border-yellow-400")}
+                      title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.derecho > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
+                    />
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Área escribible: {Math.max(0, anchoEscritura)} × {Math.max(0, altoEscritura)} mm (según márgenes actuales)
+                </div>
+                {(horizontalZero || verticalZero) && (
+                  <div className="text-xs text-yellow-700 mt-1">
+                    ⚠️ El área de escritura {horizontalZero && verticalZero ? 'horizontal y vertical' : horizontalZero ? 'horizontal' : 'vertical'} es nula.
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

@@ -925,8 +925,9 @@ export default function Pacientes() {
                     if (valor) toggleAlergia(parseInt(valor));
                   }}
                   onAgregarNuevo={agregarAlergia}
+                  estiloAgregar="destacado"
                   placeholder="Seleccionar alergia"
-                  textoAgregar="+ Agregar nueva alergia"
+                  textoAgregar="Agregar nueva alergia"
                   tituloModal="Agregar Nueva Alergia"
                   descripcionModal="Ingresa el nombre de la alergia"
                   placeholderInput="Ej: Penicilina"
@@ -957,8 +958,9 @@ export default function Pacientes() {
                     if (valor) toggleEnfermedad(parseInt(valor));
                   }}
                   onAgregarNuevo={agregarEnfermedad}
+                  estiloAgregar="destacado"
                   placeholder="Seleccionar enfermedad"
-                  textoAgregar="+ Agregar nueva enfermedad"
+                  textoAgregar="Agregar nueva enfermedad"
                   tituloModal="Agregar Nueva Enfermedad"
                   descripcionModal="Ingresa el nombre de la enfermedad"
                   placeholderInput="Ej: Diabetes"
@@ -988,8 +990,9 @@ export default function Pacientes() {
                     if (valor) toggleMedicamento(parseInt(valor));
                   }}
                   onAgregarNuevo={agregarMedicamento}
+                  estiloAgregar="destacado"
                   placeholder="Seleccionar medicamento"
-                  textoAgregar="+ Agregar nuevo medicamento"
+                  textoAgregar="Agregar nuevo medicamento"
                   tituloModal="Agregar Nuevo Medicamento"
                   descripcionModal="Ingresa el nombre del medicamento"
                   placeholderInput="Ej: Aspirina"

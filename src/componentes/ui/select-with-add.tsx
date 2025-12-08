@@ -36,10 +36,11 @@ interface SelectConAgregarProps {
   valor?: string
   onChange: (valor: string) => void
   onAgregarNuevo?: (nombre: string) => Promise<void> | void
-  tamanoConfig?: { onCrear: (datos: { nombre: string; anchoCm: number; altoCm: number; descripcion?: string }) => Promise<void> | void }
+  tamanoConfig?: { onCrear: (datos: { nombre: string; anchoCm: number; altoCm: number; descripcion?: string }) => Promise<void> | void; ocultarDescripcion?: boolean }
   placeholder?: string
   textoVacio?: string
   textoAgregar?: string
+  estiloAgregar?: "normal" | "destacado"
   className?: string
   disabled?: boolean
   tituloModal?: string
@@ -56,6 +57,7 @@ export function SelectConAgregar({
   placeholder = "Seleccionar...",
   textoVacio = "No se encontraron resultados",
   textoAgregar = "Agregar nuevo...",
+  estiloAgregar = "normal",
   className,
   disabled = false,
   tituloModal = "Agregar Nueva Opción",
@@ -76,7 +78,9 @@ export function SelectConAgregar({
       if (!Number.isFinite(nAncho) || !Number.isFinite(nAlto) || nAncho <= 0 || nAlto <= 0) return
       setGuardando(true)
       try {
-        const descripcion = formTamano.descripcion?.trim() || `${Math.round(nAncho)} × ${Math.round(nAlto)} mm`
+        const descripcion = tamanoConfig.ocultarDescripcion
+          ? `${Math.round(nAncho)} × ${Math.round(nAlto)} mm`
+          : (formTamano.descripcion?.trim() || `${Math.round(nAncho)} × ${Math.round(nAlto)} mm`)
         await tamanoConfig.onCrear({ nombre: formTamano.nombre.trim(), anchoCm: nAncho, altoCm: nAlto, descripcion })
         setModalAbierto(false)
         setFormTamano({ nombre:'', ancho:'', alto:'', descripcion:'' })
@@ -142,13 +146,18 @@ export function SelectConAgregar({
                     {opcion.etiqueta}
                   </CommandItem>
                 ))}
-                {onAgregarNuevo && (
+                {(onAgregarNuevo || tamanoConfig) && (
                   <CommandItem
                     onSelect={() => {
                       setAbierto(false)
                       setModalAbierto(true)
                     }}
-                    className="text-primary font-medium"
+                    className={cn(
+                      "font-medium hover:bg-primary/10 focus:bg-primary/10",
+                      estiloAgregar === "destacado"
+                        ? "mx-1 my-1 rounded-md border border-primary/30 bg-primary/10 text-primary data-[selected=true]:bg-primary/15 data-[selected=true]:text-primary data-[selected=true]:border-primary/40"
+                        : "text-primary"
+                    )}
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     {textoAgregar}
@@ -184,10 +193,12 @@ export function SelectConAgregar({
                   <Input value={formTamano.alto} onChange={(e)=>setFormTamano({...formTamano, alto:e.target.value})} placeholder={'297'} />
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label>Descripción (opcional)</Label>
-                <Input value={formTamano.descripcion} onChange={(e)=>setFormTamano({...formTamano, descripcion:e.target.value})} placeholder="Se autogenera si se deja vacío" />
-              </div>
+              {!tamanoConfig.ocultarDescripcion && (
+                <div className="grid gap-2">
+                  <Label>Descripción (opcional)</Label>
+                  <Input value={formTamano.descripcion} onChange={(e)=>setFormTamano({...formTamano, descripcion:e.target.value})} placeholder="Se autogenera si se deja vacío" />
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid gap-4 py-4">

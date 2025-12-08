@@ -8,17 +8,25 @@ interface RenderizadorHtmlProps {
   tamanoPapel?: 'carta' | 'legal' | 'a4';
   margenes?: { top: number; right: number; bottom: number; left: number };
   tamanoPersonalizado?: { widthMm: number; heightMm: number } | null;
+  escala?: number;
 }
 
-export function RenderizadorHtml({ contenido, className, modoDocumento = false, tamanoPapel = 'carta', margenes, tamanoPersonalizado = null }: RenderizadorHtmlProps) {
-  if (!contenido || contenido.trim() === '') {
-    return (
-      <div className={cn('text-muted-foreground italic', className)}>
-        No hay contenido para mostrar
-      </div>
-    );
+export function RenderizadorHtml({ 
+  contenido, 
+  className, 
+  modoDocumento = false, 
+  tamanoPapel = 'carta', 
+  margenes, 
+  tamanoPersonalizado = null,
+  escala = 1 
+}: RenderizadorHtmlProps) {
+  
+  if (!contenido) {
+    return null;
   }
+
   const mmToPx = (mm: number) => (mm / 25.4) * 96;
+  
   const PAGE = useMemo(() => {
     const base = tamanoPersonalizado
       ? { widthMm: tamanoPersonalizado.widthMm, heightMm: tamanoPersonalizado.heightMm }
@@ -27,285 +35,183 @@ export function RenderizadorHtml({ contenido, className, modoDocumento = false, 
         : tamanoPapel === 'legal'
           ? { widthMm: 216, heightMm: 356 }
           : { widthMm: 210, heightMm: 297 };
+          
     const m = margenes || { top: 20, right: 20, bottom: 20, left: 20 };
+    
     return {
       widthMm: base.widthMm,
       heightMm: base.heightMm,
-      marginTopMm: m.top,
-      marginBottomMm: m.bottom,
-      marginLeftMm: m.left,
-      marginRightMm: m.right,
+      paddingTop: mmToPx(m.top),
+      paddingBottom: mmToPx(m.bottom),
+      paddingLeft: mmToPx(m.left),
+      paddingRight: mmToPx(m.right),
     };
   }, [tamanoPapel, margenes, tamanoPersonalizado]);
+
   const pageWidthPx = Math.round(mmToPx(PAGE.widthMm));
   const pageHeightPx = Math.round(mmToPx(PAGE.heightMm));
-  const marginTopPx = Math.round(mmToPx(PAGE.marginTopMm));
-  const marginBottomPx = Math.round(mmToPx(PAGE.marginBottomMm));
-  const marginLeftPx = Math.round(mmToPx(PAGE.marginLeftMm));
-  const marginRightPx = Math.round(mmToPx(PAGE.marginRightMm));
-  const contentWidthPx = pageWidthPx - marginLeftPx - marginRightPx;
-  const contentHeightPx = pageHeightPx - marginTopPx - marginBottomPx;
+  
+  const contentAreaHeight = pageHeightPx - PAGE.paddingTop - PAGE.paddingBottom;
+  const contentAreaWidth = pageWidthPx - PAGE.paddingLeft - PAGE.paddingRight;
 
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [pageCount, setPageCount] = useState(1);
+  const [contentHeight, setContentHeight] = useState(0);
+  const measurerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!modoDocumento) return;
-    const el = contentRef.current;
-    if (!el) return;
-    const update = () => {
-      const h = el.scrollHeight;
-      const base = contentHeightPx > 0 ? contentHeightPx : 1;
-      const pages = Math.max(1, Math.ceil(h / base));
-      setPageCount(pages);
+
+    const measure = () => {
+      if (measurerRef.current) {
+        setContentHeight(measurerRef.current.scrollHeight);
+      }
     };
-    update();
-    const ro = new ResizeObserver(() => update());
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [modoDocumento, contentHeightPx, contenido]);
+
+    measure();
+    const timeoutId = setTimeout(measure, 200);
+    
+    const resizeObserver = new ResizeObserver(() => measure());
+    if (measurerRef.current) {
+      resizeObserver.observe(measurerRef.current);
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      resizeObserver.disconnect();
+    };
+  }, [contenido, pageWidthPx, modoDocumento]);
+
+  const pageCount = modoDocumento && contentHeight > 0
+    ? Math.max(1, Math.ceil(contentHeight / contentAreaHeight)) 
+    : 1;
+
+  const contentStyle: React.CSSProperties = {
+    whiteSpace: 'pre-wrap',
+    wordWrap: 'break-word',
+    width: '100%',
+    fontFamily: 'Arial, sans-serif',
+    fontSize: '11pt',
+    lineHeight: '1.5',
+    color: '#000',
+    textAlign: 'left'
+  };
+
+  if (!modoDocumento) {
+    return (
+      <div
+        className={className}
+        style={contentStyle}
+        dangerouslySetInnerHTML={{ __html: contenido }}
+      />
+    );
+  }
 
   return (
-    <>
-      {modoDocumento ? (
-        <div className={cn('w-full', className)} style={{ display: 'flex', justifyContent: 'center' }}>
-          <div className={cn('doc-wrapper')} style={{ width: pageWidthPx, position: 'relative' }}>
-            <div className="pages-bg" style={{ position: 'relative', width: pageWidthPx, height: pageCount * pageHeightPx }}>
-            {Array.from({ length: pageCount }).map((_, i) => (
-              <div
-                key={i}
-                className="page-box"
-                style={{
-                  position: 'absolute',
-                  top: i * pageHeightPx,
-                  left: 0,
-                  width: pageWidthPx,
-                  height: pageHeightPx,
-                  backgroundColor: '#ffffff',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  border: '1px solid rgba(0,0,0,0.08)'
-                }}
-              />
-            ))}
-            </div>
+    <div className={cn('flex flex-col items-center w-full bg-gray-100/50 p-8 rounded-lg overflow-auto border border-border', className)}>
+      
+      <div 
+        style={{ 
+          ...contentStyle,
+          position: 'absolute', 
+          visibility: 'hidden', 
+          pointerEvents: 'none',
+          width: contentAreaWidth,
+          left: 0, 
+          top: 0
+        }}
+        ref={measurerRef}
+        className="renderizador-contenido"
+        dangerouslySetInnerHTML={{ __html: contenido }}
+      />
+
+      <div 
+        style={{ 
+          transform: `scale(${escala})`, 
+          transformOrigin: 'top center',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '30px'
+        }}
+      >
+        {Array.from({ length: pageCount }).map((_, pageIndex) => (
+          <div
+            key={pageIndex}
+            className="bg-white shadow-xl"
+            style={{
+              width: pageWidthPx,
+              height: pageHeightPx,
+              overflow: 'hidden',
+              flexShrink: 0,
+              position: 'relative'
+            }}
+          >
             <div
-              className="content-layer renderizador-documento"
               style={{
                 position: 'absolute',
-                top: 0,
-                left: 0,
-                width: pageWidthPx,
-                height: pageCount * pageHeightPx,
+                top: PAGE.paddingTop,
+                left: PAGE.paddingLeft,
+                width: contentAreaWidth,
+                height: contentAreaHeight,
+                overflow: 'hidden'
               }}
             >
               <div
-                className={cn('renderizador-html', 'prose prose-sm max-w-none')}
-                ref={contentRef}
+                className="renderizador-contenido"
                 style={{
-                  position: 'absolute',
-                  top: marginTopPx,
-                  left: marginLeftPx,
-                  width: contentWidthPx,
+                  ...contentStyle,
+                  marginTop: `-${pageIndex * contentAreaHeight}px`
                 }}
                 dangerouslySetInnerHTML={{ __html: contenido }}
               />
             </div>
-            <div className="masks-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-              {Array.from({ length: pageCount }).map((_, i) => (
-                <div key={`mask-${i}`} style={{ position: 'absolute', top: i * pageHeightPx, left: 0, width: pageWidthPx, height: pageHeightPx }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, width: pageWidthPx, height: marginTopPx, background: '#ffffff' }} />
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, width: pageWidthPx, height: marginBottomPx, background: '#ffffff' }} />
-                </div>
-              ))}
-              {Array.from({ length: Math.max(0, pageCount - 1) }).map((_, i) => (
-                <div key={`cut-${i}`} style={{ position: 'absolute', top: (i + 1) * pageHeightPx - 6, left: 8, width: pageWidthPx - 16, height: 12, background: 'rgba(0,0,0,0.03)', borderRadius: 6 }} />
-              ))}
+
+            <div 
+              style={{ 
+                position: 'absolute', 
+                bottom: '10px', 
+                right: '20px', 
+                fontSize: '10px', 
+                color: '#aaa',
+                userSelect: 'none'
+              }}
+            >
+              Página {pageIndex + 1} de {pageCount}
             </div>
-            <div style={{ height: pageCount * pageHeightPx }} />
           </div>
-        </div>
-      ) : (
-        <div
-          className={cn(
-            'prose prose-sm max-w-none renderizador-html',
-            className,
-          )}
-          dangerouslySetInnerHTML={{ __html: contenido }}
-        />
-      )}
+        ))}
+      </div>
+
       <style>{`
-        .renderizador-documento {
-          background-color: #ffffff;
-          color: #000000;
-          color-scheme: light;
-          --tw-prose-body: #111827;
-          --tw-prose-headings: #111827;
-          --tw-prose-links: #111827;
-          --tw-prose-bold: #111827;
-          --tw-prose-counters: #6b7280;
-          --tw-prose-bullets: currentColor;
-          --tw-prose-hr: #e5e7eb;
-          --tw-prose-quotes: #111827;
-          --tw-prose-quote-borders: #e5e7eb;
-          --tw-prose-captions: #6b7280;
-          --tw-prose-code: #111827;
-          --tw-prose-pre-code: #e5e7eb;
-          --tw-prose-pre-bg: #111827;
-          --tw-prose-th-borders: #d1d5db;
-          --tw-prose-td-borders: #e5e7eb;
+        .renderizador-contenido p { margin: 0 0 1em 0; }
+        .renderizador-contenido h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0; }
+        .renderizador-contenido h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0; }
+        .renderizador-contenido h3 { font-size: 1.17em; font-weight: bold; margin: 1em 0; }
+        
+        .renderizador-contenido ul { 
+          list-style-type: disc; 
+          padding-left: 2.5em; 
+          margin: 1em 0; 
         }
-        .renderizador-documento.renderizador-html *:not([style*="color"]) {
-          color: #000000;
+        .renderizador-contenido ol { 
+          list-style-type: decimal; 
+          padding-left: 2.5em; 
+          margin: 1em 0; 
         }
-        .renderizador-documento :where(ul > li)::marker,
-        .renderizador-documento :where(ol > li)::marker {
-          color: currentColor;
+        .renderizador-contenido li { 
+          margin-bottom: 0.5em; 
         }
-        .renderizador-html ul,
-        .renderizador-html ol,
-        .renderizador-html li {
-          color: inherit;
-        }
-        .renderizador-html :where(ul > li)::marker,
-        .renderizador-html :where(ol > li)::marker {
-          color: currentColor !important;
-        }
-        .renderizador-html ul[style*="color"] li *,
-        .renderizador-html ol[style*="color"] li * {
-          color: inherit;
-        }
-        .renderizador-html ul li,
-        .renderizador-html ol li {
-          color: inherit;
-        }
-        .renderizador-html {
-          overflow-wrap: break-word;
-          word-break: break-word;
-          hyphens: auto;
-          white-space: normal;
-        }
-        .renderizador-html h1 {
-          font-size: 2em;
-          font-weight: bold;
-          margin: 0.67em 0;
-          line-height: 1.2;
-        }
-        .renderizador-html h2 {
-          font-size: 1.5em;
-          font-weight: bold;
-          margin: 0.75em 0;
-          line-height: 1.3;
-        }
-        .renderizador-html h3 {
-          font-size: 1.17em;
-          font-weight: bold;
-          margin: 0.83em 0;
-          line-height: 1.4;
-        }
-        .renderizador-html p {
-          margin: 0.5em 0;
-          line-height: 1.6;
-          min-height: 1em;
-        }
-        .renderizador-html p:empty {
-          min-height: 1.6em;
-        }
-        .renderizador-html br {
-          display: block;
-          content: "";
-          margin: 0.8em 0;
-        }
-        .renderizador-html ul,
-        .renderizador-html ol {
-          padding-left: 2rem;
-          margin: 1rem 0;
-          list-style-position: outside;
-        }
-        .renderizador-html ul li,
-        .renderizador-html ol li {
-          margin: 0.5rem 0;
-          line-height: 1.6;
-        }
-        .renderizador-html ul[style*="text-align: center"],
-        .renderizador-html ol[style*="text-align: center"] {
-          display: table;
-          text-align: left;
-          list-style-position: outside;
-          padding-left: 2rem;
-          margin-left: auto;
-          margin-right: auto;
-        }
-        .renderizador-html ul[style*="text-align: right"],
-        .renderizador-html ol[style*="text-align: right"] {
-          display: table;
-          text-align: left;
-          list-style-position: outside;
-          padding-left: 2rem;
-          margin-left: auto;
-          margin-right: 0;
-        }
-        .renderizador-html ul[style*="text-align: left"],
-        .renderizador-html ol[style*="text-align: left"] {
-          display: block;
-          text-align: left;
-          list-style-position: outside;
-          padding-left: 2rem;
-          margin-left: 0;
-          margin-right: auto;
-        }
-        .renderizador-html ul[style*="text-align: center"] li,
-        .renderizador-html ol[style*="text-align: center"] li,
-        .renderizador-html ul[style*="text-align: right"] li,
-        .renderizador-html ol[style*="text-align: right"] li {
-          text-align: left;
-          display: list-item;
-        }
-        .renderizador-html ul {
-          list-style-type: disc;
-        }
-        .renderizador-html ol {
-          list-style-type: decimal;
-        }
-        .renderizador-html ul ul {
-          list-style-type: circle;
-          margin: 0.25rem 0;
-        }
-        .renderizador-html ul ul ul {
-          list-style-type: square;
-        }
-        .renderizador-html strong {
-          font-weight: bold;
-        }
-        .renderizador-html em {
+        
+        .renderizador-contenido img { max-width: 100%; height: auto; }
+        .renderizador-contenido blockquote {
+          border-left: 4px solid #ccc;
+          margin: 1em 0;
+          padding-left: 1em;
           font-style: italic;
         }
-        .renderizador-html u {
-          text-decoration: underline;
-        }
-        .renderizador-html s {
-          text-decoration: line-through;
-        }
-        .renderizador-html [style*="text-align: left"] {
-          text-align: left;
-        }
-        .renderizador-html [style*="text-align: center"] {
-          text-align: center;
-        }
-        .renderizador-html [style*="text-align: right"] {
-          text-align: right;
-        }
-        .renderizador-html table,
-        .renderizador-html img,
-        .renderizador-html pre,
-        .renderizador-html code,
-        .renderizador-html blockquote,
-        .renderizador-html div,
-        .renderizador-html p,
-        .renderizador-html ul,
-        .renderizador-html ol {
-          max-width: 100%;
-        }
+        
+        .renderizador-contenido [style*="text-align: center"] { text-align: center; }
+        .renderizador-contenido [style*="text-align: right"] { text-align: right; }
+        .renderizador-contenido [style*="text-align: justify"] { text-align: justify; }
       `}</style>
-    </>
+    </div>
   );
 }
