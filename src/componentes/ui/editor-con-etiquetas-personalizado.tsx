@@ -213,6 +213,16 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   const contentWidthPx = Math.max(0, pageWidthPx - marginLeftPx - marginRightPx);
   const contentHeightPx = Math.max(0, pageHeightPx - marginTopPx - marginBottomPx);
   const effectivePageOffset = pageHeightPx - marginTopPx - marginBottomPx;
+  const parsePxValue = (value: string | undefined): number | null => {
+    if (!value) return null;
+    const match = /([0-9]+(?:\.[0-9]+)?)px/.exec(value.trim());
+    return match ? Number(match[1]) : null;
+  };
+  const requestedMinHeightPx = parsePxValue(minHeight) ?? 0;
+  const availableContentHeightPx = Math.max(120, contentHeightPx);
+  const resolvedMinHeightPx = requestedMinHeightPx > 0
+    ? Math.min(requestedMinHeightPx, availableContentHeightPx)
+    : Math.min(400, availableContentHeightPx);
   const [maskClipPath, setMaskClipPath] = useState<string>('none');
 
   const [colorActual, setColorActual] = useState('#000000');
@@ -221,7 +231,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   const [tamanoActual, setTamanoActual] = useState('16px');
   const [mostrarGuiasMargen, setMostrarGuiasMargen] = useState(true);
   const [zoom, setZoom] = useState(1);
-  const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 1.75, 2];
+  const ZOOM_STEPS = [0.67, 0.75, 0.9, 1, 1.25, 1.5, 1.75, 2];
   const [formatosActivos, setFormatosActivos] = useState({
     bold: false,
     italic: false,
@@ -816,7 +826,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
         <div
           className="editor-doc-container"
           style={{
-            minHeight,
+            minHeight: `${resolvedMinHeightPx}px`,
             maxHeight: '600px',
             overflowY: 'auto',
             overflowX: 'auto',
@@ -987,7 +997,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
 
         <style>{`
           .ProseMirror {
-            min-height: ${minHeight};
+            min-height: ${resolvedMinHeightPx}px;
             white-space: pre-wrap;
             background-color: transparent !important;
             padding: 0;

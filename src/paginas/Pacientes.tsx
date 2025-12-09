@@ -744,7 +744,7 @@ export default function Pacientes() {
       </Dialog>
 
       <Dialog open={dialogo_abierto} onOpenChange={setDialogoAbierto}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {modo_edicion ? 'Editar Paciente' : 'Nuevo Paciente'}
@@ -756,6 +756,7 @@ export default function Pacientes() {
             </DialogDescription>
           </DialogHeader>
 
+          <div className="flex-1 overflow-y-auto pr-2">
           <Tabs defaultValue="datos-generales" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="datos-generales">Datos Generales</TabsTrigger>
@@ -1011,6 +1012,7 @@ export default function Pacientes() {
               </div>
             </TabsContent>
           </Tabs>
+          </div>
 
           <DialogFooter>
             <Button

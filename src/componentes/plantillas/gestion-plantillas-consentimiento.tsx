@@ -479,7 +479,7 @@ export function GestionPlantillasConsentimiento() {
           setBotonesEtiquetas([]);
         }
       }}>
-        <DialogContent className="max-w-5xl max-h-[90vh]">
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Crear Nueva Plantilla</DialogTitle>
             <DialogDescription>
@@ -487,7 +487,7 @@ export function GestionPlantillasConsentimiento() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-[calc(90vh-200px)] pr-4 overflow-y-auto overflow-x-auto">
+          <div className="flex-1 pr-4 overflow-y-auto overflow-x-auto">
             <div className="space-y-6 py-4">
               <div className="space-y-2">
                 <Label htmlFor="nombre">Nombre de la plantilla</Label>
@@ -914,7 +914,7 @@ export function GestionPlantillasConsentimiento() {
           setBotonesEtiquetas([]);
         }
       }}>
-        <DialogContent className="max-w-5xl max-h-[90vh]">
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Editar Plantilla</DialogTitle>
             <DialogDescription>
@@ -922,7 +922,7 @@ export function GestionPlantillasConsentimiento() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-[calc(90vh-200px)] pr-4 overflow-y-auto overflow-x-auto">
+          <div className="flex-1 pr-4 overflow-y-auto overflow-x-auto">
             <div className="space-y-6 py-4">
               <div className="space-y-2">
                 <Label htmlFor="nombre-editar">Nombre de la plantilla</Label>
