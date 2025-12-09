@@ -492,8 +492,11 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     if (idx > 0) setZoom(ZOOM_STEPS[idx - 1]);
   };
   const resetZoom = () => setZoom(1);
+  const canZoomOut = zoom > ZOOM_STEPS[0];
+  const canZoomIn = zoom < ZOOM_STEPS[ZOOM_STEPS.length - 1];
   const alturaMinDocumentosPx = Math.max(resolvedMinHeightPx, 420);
   const alturaCajaDocumento = `clamp(${alturaMinDocumentosPx}px, 60vh, 760px)`;
+  const totalHeightPx = pageCount * effectivePageOffset + marginTopPx + marginBottomPx;
   return (
     <div className="space-y-2">
       <div className={cn('border rounded-lg bg-background shadow-sm flex flex-col', className)}>
@@ -759,6 +762,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               size="sm"
               className="h-8 px-2"
               onClick={disminuirZoom}
+              disabled={!canZoomOut}
               title="Reducir zoom"
             >
               -
@@ -777,6 +781,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               size="sm"
               className="h-8 px-2"
               onClick={aumentarZoom}
+              disabled={!canZoomIn}
               title="Aumentar zoom"
             >
               +
@@ -861,11 +866,11 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             style={{
               width: `${Math.max(1, pageWidthPx * zoom)}px`,
               position: 'relative',
-              height: `${(pageCount * effectivePageOffset + marginTopPx + marginBottomPx) * zoom}px`,
+              height: `${totalHeightPx * zoom}px`,
               margin: '0 auto',
             }}
           >
-            <div className="absolute top-0 left-0" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', pointerEvents: 'none', zIndex: 0 }}>
+            <div className="absolute top-0 left-0" style={{ width: pageWidthPx, height: totalHeightPx, transform: `scale(${zoom})`, transformOrigin: 'top left', pointerEvents: 'none', zIndex: 0 }}>
               {Array.from({ length: pageCount }).map((_, i) => {
                 const isCurrentPage = (i + 1) === currentPage;
                 const topPos = i * effectivePageOffset + marginTopPx;
@@ -888,7 +893,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               })}
             </div>
             {mostrarGuiasMargen && (
-              <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 20 }}>
+              <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: totalHeightPx, transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 20 }}>
                 {Array.from({ length: pageCount }).map((_, i) => {
                   if ((i + 1) !== currentPage) return null;
                   const topPos = i * effectivePageOffset + marginTopPx;
@@ -907,7 +912,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               className="absolute top-0 left-0" 
               style={{ 
                 width: pageWidthPx, 
-                height: '100%', 
+                height: totalHeightPx, 
                 transform: `scale(${zoom})`, 
                 transformOrigin: 'top left', 
                 zIndex: 30,
@@ -921,7 +926,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 </div>
               </div>
             </div>
-            <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 40 }}>
+            <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: totalHeightPx, transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 40 }}>
               {Array.from({ length: pageCount }).map((_, i) => {
                 const isCurrentPage = (i + 1) === currentPage;
                 const topPos = i * effectivePageOffset + marginTopPx;
@@ -964,7 +969,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 );
               })}
             </div>
-            <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 50 }}>
+            <div className="absolute top-0 left-0 pointer-events-none" style={{ width: pageWidthPx, height: totalHeightPx, transform: `scale(${zoom})`, transformOrigin: 'top left', zIndex: 50 }}>
               {(() => {
                 const topPos = (currentPage - 1) * effectivePageOffset + marginTopPx;
                 return (
