@@ -492,149 +492,182 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     if (idx > 0) setZoom(ZOOM_STEPS[idx - 1]);
   };
   const resetZoom = () => setZoom(1);
+  const alturaMinDocumentosPx = Math.max(resolvedMinHeightPx, 420);
+  const alturaCajaDocumento = `clamp(${alturaMinDocumentosPx}px, 60vh, 760px)`;
   return (
     <div className="space-y-2">
-      <div className={cn('border rounded-lg overflow-hidden', className)}>
-        <div className="flex flex-wrap items-center gap-2 p-2 border-b bg-muted/30">
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
+      <div className={cn('border rounded-lg bg-background shadow-sm flex flex-col', className)}>
+        <div className="sticky top-0 z-20 border-b bg-muted/40 backdrop-blur supports-[backdrop-filter]:backdrop-blur-sm">
+          <div className="flex flex-wrap items-center gap-2 p-2 border-b bg-muted/30">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2"
+                onClick={disminuirTamano}
+                title="Disminuir tamano"
+              >
+                A-
+              </Button>
+
+              <Select value={tamanoActual} onValueChange={aplicarTamano}>
+                <SelectTrigger className="h-8 w-[80px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {tamanos_fuente.map((tamano) => (
+                    <SelectItem key={tamano.value} value={tamano.value}>
+                      {tamano.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2"
+                onClick={aumentarTamano}
+                title="Aumentar tamano"
+              >
+                A+
+              </Button>
+            </div>
+
+            <div className="w-px h-6 bg-border mx-1" />
+
+            <Toggle
               size="sm"
-              className="h-8 px-2"
-              onClick={disminuirTamano}
-              title="Disminuir tamaño"
+              pressed={formatosActivos.bold}
+              onPressedChange={() => {
+                editor.chain().focus().toggleBold().run();
+                setFormatosActivos((prev) => ({ ...prev, bold: !prev.bold }));
+              }}
+              aria-label="Negrita"
+              data-state={formatosActivos.bold ? 'on' : 'off'}
             >
-              A-
-            </Button>
-            
-            <Select value={tamanoActual} onValueChange={aplicarTamano}>
-              <SelectTrigger className="h-8 w-[80px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {tamanos_fuente.map((tamano) => (
-                  <SelectItem key={tamano.value} value={tamano.value}>
-                    {tamano.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Button
-              variant="outline"
+              <Bold className="h-4 w-4" />
+            </Toggle>
+
+            <Toggle
               size="sm"
-              className="h-8 px-2"
-              onClick={aumentarTamano}
-              title="Aumentar tamaño"
+              pressed={formatosActivos.italic}
+              onPressedChange={() => {
+                editor.chain().focus().toggleItalic().run();
+                setFormatosActivos((prev) => ({ ...prev, italic: !prev.italic }));
+              }}
+              aria-label="Cursiva"
+              data-state={formatosActivos.italic ? 'on' : 'off'}
             >
-              A+
-            </Button>
-          </div>
-          <div className="w-px h-6 bg-border mx-1" />
-          <Toggle
-            size="sm"
-            pressed={formatosActivos.bold}
-            onPressedChange={() => {
-              editor.chain().focus().toggleBold().run();
-              setFormatosActivos(prev => ({ ...prev, bold: !prev.bold }));
-            }}
-            aria-label="Negrita"
-            data-state={formatosActivos.bold ? 'on' : 'off'}
-          >
-            <Bold className="h-4 w-4" />
-          </Toggle>
+              <Italic className="h-4 w-4" />
+            </Toggle>
 
-          <Toggle
-            size="sm"
-            pressed={formatosActivos.italic}
-            onPressedChange={() => {
-              editor.chain().focus().toggleItalic().run();
-              setFormatosActivos(prev => ({ ...prev, italic: !prev.italic }));
-            }}
-            aria-label="Cursiva"
-            data-state={formatosActivos.italic ? 'on' : 'off'}
-          >
-            <Italic className="h-4 w-4" />
-          </Toggle>
+            <Toggle
+              size="sm"
+              pressed={formatosActivos.underline}
+              onPressedChange={() => {
+                editor.chain().focus().toggleUnderline().run();
+                setFormatosActivos((prev) => ({ ...prev, underline: !prev.underline }));
+              }}
+              aria-label="Subrayado"
+              data-state={formatosActivos.underline ? 'on' : 'off'}
+            >
+              <UnderlineIcon className="h-4 w-4" />
+            </Toggle>
 
-          <Toggle
-            size="sm"
-            pressed={formatosActivos.underline}
-            onPressedChange={() => {
-              editor.chain().focus().toggleUnderline().run();
-              setFormatosActivos(prev => ({ ...prev, underline: !prev.underline }));
-            }}
-            aria-label="Subrayado"
-            data-state={formatosActivos.underline ? 'on' : 'off'}
-          >
-            <UnderlineIcon className="h-4 w-4" />
-          </Toggle>
+            <Toggle
+              size="sm"
+              pressed={formatosActivos.strike}
+              onPressedChange={() => {
+                editor.chain().focus().toggleStrike().run();
+                setFormatosActivos((prev) => ({ ...prev, strike: !prev.strike }));
+              }}
+              aria-label="Tachado"
+              data-state={formatosActivos.strike ? 'on' : 'off'}
+            >
+              <Strikethrough className="h-4 w-4" />
+            </Toggle>
 
-          <Toggle
-            size="sm"
-            pressed={formatosActivos.strike}
-            onPressedChange={() => {
-              editor.chain().focus().toggleStrike().run();
-              setFormatosActivos(prev => ({ ...prev, strike: !prev.strike }));
-            }}
-            aria-label="Tachado"
-            data-state={formatosActivos.strike ? 'on' : 'off'}
-          >
-            <Strikethrough className="h-4 w-4" />
-          </Toggle>
+            <div className="w-px h-6 bg-border mx-1" />
 
-          <div className="w-px h-6 bg-border mx-1" />
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('bulletList')}
-            onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
-            aria-label="Lista con viñetas"
-            data-state={editor.isActive('bulletList') ? 'on' : 'off'}
-          >
-            <List className="h-4 w-4" />
-          </Toggle>
+            <Toggle
+              size="sm"
+              pressed={editor.isActive('bulletList')}
+              onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
+              aria-label="Lista con vinetas"
+              data-state={editor.isActive('bulletList') ? 'on' : 'off'}
+            >
+              <List className="h-4 w-4" />
+            </Toggle>
 
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('orderedList')}
-            onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
-            aria-label="Lista numerada"
-            data-state={editor.isActive('orderedList') ? 'on' : 'off'}
-          >
-            <ListOrdered className="h-4 w-4" />
-          </Toggle>
-          <div className="w-px h-6 bg-border mx-1" />
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('bulletList') ? (editor.getAttributes('bulletList').textAlign === 'left' || !editor.getAttributes('bulletList').textAlign) : (editor.isActive('orderedList') ? (editor.getAttributes('orderedList').textAlign === 'left' || !editor.getAttributes('orderedList').textAlign) : editor.isActive({ textAlign: 'left' }))}
-            onPressedChange={() => editor.chain().focus().setTextAlign('left').run()}
-            aria-label="Alinear a la izquierda"
-            data-state={(editor.isActive('bulletList') ? (editor.getAttributes('bulletList').textAlign === 'left' || !editor.getAttributes('bulletList').textAlign) : (editor.isActive('orderedList') ? (editor.getAttributes('orderedList').textAlign === 'left' || !editor.getAttributes('orderedList').textAlign) : editor.isActive({ textAlign: 'left' }))) ? 'on' : 'off'}
-          >
-            <AlignLeft className="h-4 w-4" />
-          </Toggle>
+            <Toggle
+              size="sm"
+              pressed={editor.isActive('orderedList')}
+              onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
+              aria-label="Lista numerada"
+              data-state={editor.isActive('orderedList') ? 'on' : 'off'}
+            >
+              <ListOrdered className="h-4 w-4" />
+            </Toggle>
 
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'center' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'center' : editor.isActive({ textAlign: 'center' }))}
-            onPressedChange={() => editor.chain().focus().setTextAlign('center').run()}
-            aria-label="Centrar"
-            data-state={(editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'center' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'center' : editor.isActive({ textAlign: 'center' }))) ? 'on' : 'off'}
-          >
-            <AlignCenter className="h-4 w-4" />
-          </Toggle>
+            <div className="w-px h-6 bg-border mx-1" />
 
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'right' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'right' : editor.isActive({ textAlign: 'right' }))}
-            onPressedChange={() => editor.chain().focus().setTextAlign('right').run()}
-            aria-label="Alinear a la derecha"
-            data-state={(editor.isActive('bulletList') ? editor.getAttributes('bulletList').textAlign === 'right' : (editor.isActive('orderedList') ? editor.getAttributes('orderedList').textAlign === 'right' : editor.isActive({ textAlign: 'right' }))) ? 'on' : 'off'}
-          >
-            <AlignRight className="h-4 w-4" />
-          </Toggle>
-          <div className="w-px h-6 bg-border mx-1" />
-          <div className="flex items-center gap-1">
+            <Toggle
+              size="sm"
+              pressed={editor.isActive('bulletList')
+                ? (editor.getAttributes('bulletList').textAlign === 'left' || !editor.getAttributes('bulletList').textAlign)
+                : (editor.isActive('orderedList')
+                  ? (editor.getAttributes('orderedList').textAlign === 'left' || !editor.getAttributes('orderedList').textAlign)
+                  : editor.isActive({ textAlign: 'left' }))}
+              onPressedChange={() => editor.chain().focus().setTextAlign('left').run()}
+              aria-label="Alinear a la izquierda"
+              data-state={(editor.isActive('bulletList')
+                ? (editor.getAttributes('bulletList').textAlign === 'left' || !editor.getAttributes('bulletList').textAlign)
+                : (editor.isActive('orderedList')
+                  ? (editor.getAttributes('orderedList').textAlign === 'left' || !editor.getAttributes('orderedList').textAlign)
+                  : editor.isActive({ textAlign: 'left' }))) ? 'on' : 'off'}
+            >
+              <AlignLeft className="h-4 w-4" />
+            </Toggle>
+
+            <Toggle
+              size="sm"
+              pressed={editor.isActive('bulletList')
+                ? editor.getAttributes('bulletList').textAlign === 'center'
+                : (editor.isActive('orderedList')
+                  ? editor.getAttributes('orderedList').textAlign === 'center'
+                  : editor.isActive({ textAlign: 'center' }))}
+              onPressedChange={() => editor.chain().focus().setTextAlign('center').run()}
+              aria-label="Centrar"
+              data-state={(editor.isActive('bulletList')
+                ? editor.getAttributes('bulletList').textAlign === 'center'
+                : (editor.isActive('orderedList')
+                  ? editor.getAttributes('orderedList').textAlign === 'center'
+                  : editor.isActive({ textAlign: 'center' }))) ? 'on' : 'off'}
+            >
+              <AlignCenter className="h-4 w-4" />
+            </Toggle>
+
+            <Toggle
+              size="sm"
+              pressed={editor.isActive('bulletList')
+                ? editor.getAttributes('bulletList').textAlign === 'right'
+                : (editor.isActive('orderedList')
+                  ? editor.getAttributes('orderedList').textAlign === 'right'
+                  : editor.isActive({ textAlign: 'right' }))}
+              onPressedChange={() => editor.chain().focus().setTextAlign('right').run()}
+              aria-label="Alinear a la derecha"
+              data-state={(editor.isActive('bulletList')
+                ? editor.getAttributes('bulletList').textAlign === 'right'
+                : (editor.isActive('orderedList')
+                  ? editor.getAttributes('orderedList').textAlign === 'right'
+                  : editor.isActive({ textAlign: 'right' }))) ? 'on' : 'off'}
+            >
+              <AlignRight className="h-4 w-4" />
+            </Toggle>
+
+            <div className="w-px h-6 bg-border mx-1" />
+
             <Popover open={popoverColorAbierto} onOpenChange={setPopoverColorAbierto}>
               <PopoverTrigger asChild>
                 <Button
@@ -649,65 +682,52 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                   />
                 </Button>
               </PopoverTrigger>
-            <PopoverContent 
-              className="w-64 p-3" 
-              align="start"
-              onInteractOutside={(e) => {
-                const target = e.target as HTMLElement;
-                if (target.closest('.react-colorful') || target.closest('[role="dialog"]')) {
-                  e.preventDefault();
-                }
-              }}
-              onPointerDownOutside={(e) => {
-                const target = e.target as HTMLElement;
-                if (target.closest('.react-colorful') || target.closest('[role="dialog"]')) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              <div className="space-y-3">
-                    <HexColorPicker 
-                      color={colorTemporal} 
-                      onChange={(color) => setColorTemporal(color)}
-                    />
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="px-2 py-1 rounded border bg-muted" style={{ backgroundColor: colorTemporal, color: '#fff' }}>
-                        {colorTemporal.toUpperCase()}
-                      </span>
-                      {colorTemporal !== colorActual && (
-                        <span className="text-muted-foreground">(no aplicado)</span>
-                      )}
-                    </div>
-                <div className="grid grid-cols-9 gap-2">
-                  {colores_predefinidos.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      className={cn(
-                        "h-6 w-6 rounded border-2 hover:scale-110 transition-transform",
-                        color === '#FFFFFF' ? 'border-gray-300' : 'border-border'
-                      )}
-                      style={{ backgroundColor: color }}
-                      onClick={() => aplicarColor(color)}
-                      title={color}
-                    />
-                  ))}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    editor.chain().focus().unsetColor().run();
-                    setColorActual('#000000');
-                    setColorTemporal('#000000');
-                  }}
-                >
-                  Quitar color
-                </Button>
-                <div className="grid grid-cols-2 gap-2">
+              <PopoverContent
+                className="w-64 p-3"
+                align="start"
+                onInteractOutside={(e) => {
+                  const target = e.target as HTMLElement;
+                  if (target.closest('.react-colorful') || target.closest('[role="dialog"]')) {
+                    e.preventDefault();
+                  }
+                }}
+                onPointerDownOutside={(e) => {
+                  const target = e.target as HTMLElement;
+                  if (target.closest('.react-colorful') || target.closest('[role="dialog"]')) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <div className="space-y-3">
+                  <HexColorPicker
+                    color={colorTemporal}
+                    onChange={(color) => setColorTemporal(color)}
+                  />
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="px-2 py-1 rounded border bg-muted" style={{ backgroundColor: colorTemporal, color: '#fff' }}>
+                      {colorTemporal.toUpperCase()}
+                    </span>
+                    {colorTemporal !== colorActual && (
+                      <span className="text-muted-foreground">(no aplicado)</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-9 gap-2">
+                    {colores_predefinidos.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={cn(
+                          'h-6 w-6 rounded border-2 hover:scale-110 transition-transform',
+                          color === '#FFFFFF' ? 'border-gray-300' : 'border-border'
+                        )}
+                        style={{ backgroundColor: color }}
+                        onClick={() => aplicarColor(color)}
+                        title={color}
+                      />
+                    ))}
+                  </div>
                   <Button
-                    variant="default"
+                    variant="outline"
                     size="sm"
                     className="w-full"
                     onClick={() => {
@@ -729,11 +749,10 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                     Cancelar
                   </Button>
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 p-2 border-b bg-muted/30">
+              </PopoverContent>
+            </Popover>
+          </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-muted/30">
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
@@ -770,9 +789,9 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               className="h-8 px-2"
               onClick={() => irAPagina(currentPage - 1)}
               disabled={currentPage <= 1}
-              title="Página anterior"
+              title="Pagina anterior"
             >
-              ◀
+              {'<'}
             </Button>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Input
@@ -812,25 +831,28 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               className="h-8 px-2"
               onClick={() => irAPagina(currentPage + 1)}
               disabled={currentPage >= pageCount}
-              title="Página siguiente"
+              title="Pagina siguiente"
             >
-              ▶
+              {'>'}
             </Button>
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-xs">Guías de margen</Label>
+            <Label className="text-xs">Guias de margen</Label>
             <Switch checked={mostrarGuiasMargen} onCheckedChange={setMostrarGuiasMargen} />
           </div>
         </div>
-        </div>
+      </div>
         <div
-          className="editor-doc-container"
+          className="editor-doc-container flex-1"
           style={{
-            minHeight: `${resolvedMinHeightPx}px`,
-            maxHeight: '600px',
+            height: alturaCajaDocumento,
+            maxHeight: alturaCajaDocumento,
             overflowY: 'auto',
             overflowX: 'auto',
             display: 'block',
+            padding: '12px',
+            position: 'relative',
+            zIndex: 0,
           }}
           ref={containerRef}
         >
@@ -843,7 +865,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               margin: '0 auto',
             }}
           >
-            <div className="absolute top-0 left-0" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
+            <div className="absolute top-0 left-0" style={{ width: pageWidthPx, height: '100%', transform: `scale(${zoom})`, transformOrigin: 'top left', pointerEvents: 'none', zIndex: 0 }}>
               {Array.from({ length: pageCount }).map((_, i) => {
                 const isCurrentPage = (i + 1) === currentPage;
                 const topPos = i * effectivePageOffset + marginTopPx;
@@ -857,8 +879,9 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                       width: pageWidthPx, 
                       height: effectivePageOffset,
                       background: '#fff',
-                      zIndex: isCurrentPage ? 10 : 1,
+                      zIndex: isCurrentPage ? 1 : 0,
                       boxShadow: isCurrentPage ? '0 4px 20px rgba(0,0,0,0.15)' : 'none',
+                      pointerEvents: 'none',
                     }} 
                   />
                 );
@@ -928,13 +951,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                   >
                     {!isCurrentPage && (
                         <div className="w-full h-full flex flex-col items-center justify-center opacity-50">
-                            <span className="text-slate-500 font-bold text-lg select-none">Página {i + 1}</span>
+                            <span className="text-slate-500 font-bold text-lg select-none">Pagina {i + 1}</span>
                             <span className="text-slate-400 text-xs select-none">(Clic para editar)</span>
                         </div>
                     )}
                     {isCurrentPage && (
                       <div style={{ position: 'absolute', bottom: 4, right: 8, fontSize: '10px', color: '#94a3b8', pointerEvents: 'none' }}>
-                        Pág. {i + 1}
+                        Pag. {i + 1}
                       </div>
                     )}
                   </div>
