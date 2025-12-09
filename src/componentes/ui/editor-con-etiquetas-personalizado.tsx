@@ -494,6 +494,9 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   const resetZoom = () => setZoom(1);
   const canZoomOut = zoom > ZOOM_STEPS[0];
   const canZoomIn = zoom < ZOOM_STEPS[ZOOM_STEPS.length - 1];
+  const tamanoActualIndex = tamanos_fuente.findIndex(t => t.value === tamanoActual);
+  const puedeDisminuirTamano = tamanoActualIndex > 0;
+  const puedeAumentarTamano = tamanoActualIndex === -1 ? true : tamanoActualIndex < tamanos_fuente.length - 1;
   const alturaMinDocumentosPx = Math.max(resolvedMinHeightPx, 420);
   const alturaCajaDocumento = `clamp(${alturaMinDocumentosPx}px, 60vh, 760px)`;
   const totalHeightPx = pageCount * effectivePageOffset + marginTopPx + marginBottomPx;
@@ -508,6 +511,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 size="sm"
                 className="h-8 px-2"
                 onClick={disminuirTamano}
+                disabled={!puedeDisminuirTamano}
                 title="Disminuir tamano"
               >
                 A-
@@ -531,6 +535,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 size="sm"
                 className="h-8 px-2"
                 onClick={aumentarTamano}
+                disabled={!puedeAumentarTamano}
                 title="Aumentar tamano"
               >
                 A+

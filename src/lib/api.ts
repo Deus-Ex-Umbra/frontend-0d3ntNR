@@ -507,6 +507,9 @@ export const plantillasConsentimientoApi = {
     nombre: string;
     contenido: string;
     tamano_papel?: 'carta' | 'legal' | 'a4';
+    tamano_hoja_id?: number | null;
+    ancho_mm?: number | null;
+    alto_mm?: number | null;
     margen_superior?: number;
     margen_inferior?: number;
     margen_izquierdo?: number;
@@ -527,6 +530,9 @@ export const plantillasConsentimientoApi = {
     nombre?: string;
     contenido?: string;
     tamano_papel?: 'carta' | 'legal' | 'a4';
+    tamano_hoja_id?: number | null;
+    ancho_mm?: number | null;
+    alto_mm?: number | null;
     margen_superior?: number;
     margen_inferior?: number;
     margen_izquierdo?: number;

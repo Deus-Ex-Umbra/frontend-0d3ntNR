@@ -41,17 +41,6 @@ export function GestionPlantillasConsentimiento() {
     izquierdo: 20,
     derecho: 20,
   });
-  const pageMm = tamano_papel === 'carta'
-    ? { width: 216, height: 279 }
-    : tamano_papel === 'legal'
-    ? { width: 216, height: 356 }
-    : { width: 210, height: 297 };
-  const maxLeft = Math.max(0, pageMm.width - margenes_plantilla.derecho);
-  const maxRight = Math.max(0, pageMm.width - margenes_plantilla.izquierdo);
-  const maxTop = Math.max(0, pageMm.height - margenes_plantilla.inferior);
-  const maxBottom = Math.max(0, pageMm.height - margenes_plantilla.superior);
-  const horizontalZero = margenes_plantilla.izquierdo + margenes_plantilla.derecho === pageMm.width;
-  const verticalZero = margenes_plantilla.superior + margenes_plantilla.inferior === pageMm.height;
 
   const clamp = (v: number, min: number, max: number) => {
     if (Number.isNaN(v)) return min;
@@ -119,6 +108,21 @@ export function GestionPlantillasConsentimiento() {
     }
   };
 
+  const obtenerTamanoPlantilla = (
+    id?: number | null,
+    ancho?: number | null,
+    alto?: number | null,
+  ): { widthMm: number; heightMm: number } | undefined => {
+    const encontrado = id ? tamanos_hoja.find(t => t.id === id) : undefined;
+    if (encontrado) {
+      return { widthMm: Math.round(encontrado.ancho), heightMm: Math.round(encontrado.alto) };
+    }
+    if (ancho && alto) {
+      return { widthMm: Math.round(ancho), heightMm: Math.round(alto) };
+    }
+    return undefined;
+  };
+
   const buscarCartaPorDefecto = (lista: Array<{ id:number; nombre:string; ancho:number; alto:number }>) => {
     const porNombre = lista.find(t => t.nombre?.toLowerCase().includes('carta'));
     if (porNombre) return porNombre;
@@ -130,8 +134,23 @@ export function GestionPlantillasConsentimiento() {
     return ({ valor: String(t.id), etiqueta: `${t.nombre} (${t.descripcion || etiquetaMedidas})` });
   });
   const tamanoSeleccionado = tamano_hoja_id ? tamanos_hoja.find(t => t.id === tamano_hoja_id) : undefined;
-  const anchoEscritura = (tamanoSeleccionado ? Math.round(tamanoSeleccionado.ancho) : pageMm.width) - margenes_plantilla.izquierdo - margenes_plantilla.derecho;
-  const altoEscritura = (tamanoSeleccionado ? Math.round(tamanoSeleccionado.alto) : pageMm.height) - margenes_plantilla.superior - margenes_plantilla.inferior;
+  const tamanoActual = obtenerTamanoPlantilla(tamano_hoja_id, plantilla_seleccionada?.ancho_mm ?? null, plantilla_seleccionada?.alto_mm ?? null);
+  const pageBase = tamanoActual
+    ? { width: tamanoActual.widthMm, height: tamanoActual.heightMm }
+    : tamano_papel === 'carta'
+      ? { width: 216, height: 279 }
+      : tamano_papel === 'legal'
+        ? { width: 216, height: 356 }
+        : { width: 210, height: 297 };
+  const pageMm = pageBase;
+  const maxLeft = Math.max(0, pageMm.width - margenes_plantilla.derecho);
+  const maxRight = Math.max(0, pageMm.width - margenes_plantilla.izquierdo);
+  const maxTop = Math.max(0, pageMm.height - margenes_plantilla.inferior);
+  const maxBottom = Math.max(0, pageMm.height - margenes_plantilla.superior);
+  const horizontalZero = margenes_plantilla.izquierdo + margenes_plantilla.derecho === pageMm.width;
+  const verticalZero = margenes_plantilla.superior + margenes_plantilla.inferior === pageMm.height;
+  const anchoEscritura = pageMm.width - margenes_plantilla.izquierdo - margenes_plantilla.derecho;
+  const altoEscritura = pageMm.height - margenes_plantilla.superior - margenes_plantilla.inferior;
   const seleccionarTamanoHoja = (valor: string) => {
     if (!valor) { setTamanoHojaId(null); return; }
     const id = Number(valor);
@@ -224,6 +243,9 @@ export function GestionPlantillasConsentimiento() {
         nombre: nombre_plantilla,
         contenido: contenido_plantilla,
         tamano_papel,
+        tamano_hoja_id: tamano_hoja_id ?? null,
+        ancho_mm: pageMm.width,
+        alto_mm: pageMm.height,
         margen_superior: margenes_plantilla.superior,
         margen_inferior: margenes_plantilla.inferior,
         margen_izquierdo: margenes_plantilla.izquierdo,
@@ -275,6 +297,9 @@ export function GestionPlantillasConsentimiento() {
         nombre: nombre_plantilla,
         contenido: contenido_plantilla,
         tamano_papel,
+        tamano_hoja_id: tamano_hoja_id ?? null,
+        ancho_mm: pageMm.width,
+        alto_mm: pageMm.height,
         margen_superior: margenes_plantilla.superior,
         margen_inferior: margenes_plantilla.inferior,
         margen_izquierdo: margenes_plantilla.izquierdo,
@@ -335,6 +360,7 @@ export function GestionPlantillasConsentimiento() {
     setNombrePlantilla(plantilla.nombre);
     setContenidoPlantilla(plantilla.contenido);
     setTamanoPapel((plantilla as any).tamano_papel || 'carta');
+    setTamanoHojaId((plantilla as any).tamano_hoja_id ?? null);
     setMargenesPlantilla({
       superior: plantilla.margen_superior || 20,
       inferior: plantilla.margen_inferior || 20,
@@ -723,7 +749,8 @@ export function GestionPlantillasConsentimiento() {
                     onChange={setContenidoPlantilla}
                     minHeight="400px"
                     tamanoPapel={tamano_papel}
-                    tamanoPersonalizado={tamanoSeleccionado ? { widthMm: Math.round(tamanoSeleccionado.ancho), heightMm: Math.round(tamanoSeleccionado.alto) } : undefined as any}
+                    tamanoPersonalizado={tamanoActual ? { widthMm: tamanoActual.widthMm, heightMm: tamanoActual.heightMm } : undefined as any}
+                    margenes={{ top: margenes_plantilla.superior, right: margenes_plantilla.derecho, bottom: margenes_plantilla.inferior, left: margenes_plantilla.izquierdo }}
                   />
                 </div>
               </div>
@@ -1145,7 +1172,7 @@ export function GestionPlantillasConsentimiento() {
                   onChange={setContenidoPlantilla}
                   minHeight="400px"
                   tamanoPapel={tamano_papel}
-                  tamanoPersonalizado={tamanoSeleccionado ? { widthMm: Math.round(tamanoSeleccionado.ancho), heightMm: Math.round(tamanoSeleccionado.alto) } : undefined as any}
+                  tamanoPersonalizado={tamanoActual ? { widthMm: tamanoActual.widthMm, heightMm: tamanoActual.heightMm } : undefined as any}
                   margenes={{ top: margenes_plantilla.superior, right: margenes_plantilla.derecho, bottom: margenes_plantilla.inferior, left: margenes_plantilla.izquierdo }}
                 />
               </div>
@@ -1253,7 +1280,11 @@ export function GestionPlantillasConsentimiento() {
                     contenido={plantilla_visualizando?.contenido || ''}
                     modoDocumento
                     tamanoPapel={(plantilla_visualizando as any)?.tamano_papel || 'carta'}
-                    tamanoPersonalizado={tamanoSeleccionado ? { widthMm: Math.round(tamanoSeleccionado.ancho), heightMm: Math.round(tamanoSeleccionado.alto) } : undefined as any}
+                    tamanoPersonalizado={plantilla_visualizando ? obtenerTamanoPlantilla(
+                      (plantilla_visualizando as any)?.tamano_hoja_id ?? null,
+                      (plantilla_visualizando as any)?.ancho_mm ?? null,
+                      (plantilla_visualizando as any)?.alto_mm ?? null,
+                    ) : undefined as any}
                     margenes={{
                       top: plantilla_visualizando?.margen_superior ?? 20,
                       bottom: plantilla_visualizando?.margen_inferior ?? 20,
