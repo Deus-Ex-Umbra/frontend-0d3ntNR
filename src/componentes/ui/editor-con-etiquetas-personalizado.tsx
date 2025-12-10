@@ -7,6 +7,7 @@ import { ListItem as BaseListItem } from '@tiptap/extension-list-item';
 import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
 import { TextAlign } from '@tiptap/extension-text-align';
+import { Table as TableExtension, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
 import { FontSize } from '@/lib/tiptap-font-size';
 import { Node, mergeAttributes, wrappingInputRule } from '@tiptap/core';
 import { useEffect, useState, forwardRef, useImperativeHandle, useRef } from 'react';
@@ -23,6 +24,7 @@ import {
   AlignCenter,
   AlignRight,
   Check,
+  Table as TableIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utilidades';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
@@ -176,6 +178,126 @@ const CustomBulletList = BulletList.extend({
   },
 })
 
+const CustomTableCell = TableCell.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      borderStyle: {
+        default: 'solid',
+        parseHTML: (element: HTMLElement) => element.style?.borderStyle || 'solid',
+        renderHTML: () => ({}),
+      },
+      borderWidth: {
+        default: 1,
+        parseHTML: (element: HTMLElement) => {
+          const bw = element.style?.borderWidth;
+          const n = bw ? parseInt(bw, 10) : 1;
+          return Number.isFinite(n) ? n : 1;
+        },
+        renderHTML: () => ({}),
+      },
+      borderColor: {
+        default: '#cbd5e1',
+        parseHTML: (element: HTMLElement) => element.style?.borderColor || '#cbd5e1',
+        renderHTML: () => ({}),
+      },
+      backgroundColor: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.style?.backgroundColor || null,
+        renderHTML: () => ({}),
+      },
+    } as any;
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    // Usa los atributos del nodo para reflejar cambios realizados con setCellAttribute.
+    const { borderStyle = 'solid', borderWidth = 1, borderColor = '#cbd5e1', backgroundColor = null } = node.attrs as any;
+    const existingStyle = (HTMLAttributes as any).style || '';
+    const borderCss = `border: ${borderWidth}px ${borderStyle} ${borderColor};`;
+    const bgCss = backgroundColor ? `background-color: ${backgroundColor};` : '';
+    const style = existingStyle ? `${existingStyle}; ${borderCss} ${bgCss}` : `${borderCss} ${bgCss}`;
+    return [
+      'td',
+      mergeAttributes(HTMLAttributes, {
+        style,
+      }),
+      0,
+    ];
+  },
+}) as typeof TableCell;
+
+const CustomTableHeader = TableHeader.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      borderStyle: {
+        default: 'solid',
+        parseHTML: (element: HTMLElement) => element.style?.borderStyle || 'solid',
+        renderHTML: () => ({}),
+      },
+      borderWidth: {
+        default: 1,
+        parseHTML: (element: HTMLElement) => {
+          const bw = element.style?.borderWidth;
+          const n = bw ? parseInt(bw, 10) : 1;
+          return Number.isFinite(n) ? n : 1;
+        },
+        renderHTML: () => ({}),
+      },
+      borderColor: {
+        default: '#cbd5e1',
+        parseHTML: (element: HTMLElement) => element.style?.borderColor || '#cbd5e1',
+        renderHTML: () => ({}),
+      },
+      backgroundColor: {
+        default: '#f8fafc',
+        parseHTML: (element: HTMLElement) => element.style?.backgroundColor || '#f8fafc',
+        renderHTML: () => ({}),
+      },
+    } as any;
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    // Igual que en la celda, tomamos los valores reales del nodo.
+    const { borderStyle = 'solid', borderWidth = 1, borderColor = '#cbd5e1', backgroundColor = '#f8fafc' } = node.attrs as any;
+    const existingStyle = (HTMLAttributes as any).style || '';
+    const borderCss = `border: ${borderWidth}px ${borderStyle} ${borderColor};`;
+    const bgCss = backgroundColor ? `background-color: ${backgroundColor};` : '';
+    const style = existingStyle ? `${existingStyle}; ${borderCss} ${bgCss}` : `${borderCss} ${bgCss}`;
+    return [
+      'th',
+      mergeAttributes(HTMLAttributes, {
+        style,
+      }),
+      0,
+    ];
+  },
+}) as typeof TableHeader;
+
+const CustomTable = TableExtension.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      tableMode: {
+        default: 'auto',
+        parseHTML: (element: HTMLElement) => element.getAttribute('data-table-mode') || 'auto',
+        renderHTML: (attributes) => ({
+          'data-table-mode': attributes.tableMode || 'auto',
+        }),
+      },
+    };
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    // Usa el atributo interno tableMode para forzar el render correcto.
+    const mode = (node.attrs as any).tableMode === 'full' ? 'full' : 'auto';
+    const columns = Math.max(1, node.child(0)?.childCount ?? 1);
+    const common = `--table-cols: ${columns};`;
+    const style = mode === 'full'
+      ? `width: 100%; max-width: 100%; table-layout: fixed; ${common}`
+      : `width: auto; max-width: 100%; table-layout: auto; ${common}`;
+    const base = mergeAttributes(HTMLAttributes, { 'data-table-mode': mode });
+    return ['table', { ...base, style }, 0];
+  },
+});
+
 export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorConEtiquetasPersonalizadoProps>(({ 
   contenido, 
   onChange, 
@@ -230,6 +352,22 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   const [colorActual, setColorActual] = useState('#000000');
   const [colorTemporal, setColorTemporal] = useState('#000000');
   const [popoverColorAbierto, setPopoverColorAbierto] = useState(false);
+  const [tablePopoverAbierto, setTablePopoverAbierto] = useState(false);
+  const [tableRows, setTableRows] = useState(1);
+  const [tableCols, setTableCols] = useState(1);
+  const [tableMode, setTableMode] = useState<'auto' | 'full'>('auto');
+  const [tableBorderWidth, setTableBorderWidth] = useState(1);
+  const [tableBorderStyle, setTableBorderStyle] = useState<'solid' | 'dashed' | 'dotted' | 'double'>('solid');
+  const [tableBorderColor, setTableBorderColor] = useState('#cbd5e1');
+  const [tableCellBg, setTableCellBg] = useState<string>('');
+  const [draftBorderWidth, setDraftBorderWidth] = useState(1);
+  const [draftBorderStyle, setDraftBorderStyle] = useState<'solid' | 'dashed' | 'dotted' | 'double'>('solid');
+  const [draftBorderColor, setDraftBorderColor] = useState('#cbd5e1');
+  const [draftFillColor, setDraftFillColor] = useState<string>('');
+  const [popoverBordeAbierto, setPopoverBordeAbierto] = useState(false);
+  const [popoverFondoAbierto, setPopoverFondoAbierto] = useState(false);
+  const [colorTemporalBorde, setColorTemporalBorde] = useState('#cbd5e1');
+  const [colorTemporalFondo, setColorTemporalFondo] = useState('#ffffff');
   const [tamanoActual, setTamanoActual] = useState('16px');
   const [mostrarGuiasMargen, setMostrarGuiasMargen] = useState(true);
   const [zoom, setZoom] = useState(1);
@@ -255,6 +393,17 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
         listItem: false,
         heading: false,
       }),
+      CustomTable.configure({
+        // Deshabilitamos el resize manual para evitar anchos personalizados problemáticos.
+        resizable: false,
+        HTMLAttributes: {
+          class: 'editor-table',
+          'data-table-mode': 'auto',
+        },
+      }),
+      TableRow,
+      CustomTableHeader,
+      CustomTableCell,
       TextStyle,
       Color,
       FontSize,
@@ -336,8 +485,57 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
         underline: editor.isActive('underline'),
         strike: editor.isActive('strike'),
       });
+
+      const cellAttrs = editor.getAttributes('tableCell');
+      const headerAttrs = editor.getAttributes('tableHeader');
+      const activeBorderWidth = (cellAttrs?.borderWidth ?? headerAttrs?.borderWidth ?? 1) as number;
+      const activeBorderStyle = (cellAttrs?.borderStyle ?? headerAttrs?.borderStyle ?? 'solid') as 'solid' | 'dashed' | 'dotted' | 'double';
+      const activeBorderColor = (cellAttrs?.borderColor ?? headerAttrs?.borderColor ?? '#cbd5e1') as string;
+      const activeBg = (cellAttrs?.backgroundColor ?? headerAttrs?.backgroundColor ?? '') as string;
+      const isTable = editor.isActive('table');
+      const tableAttrs = isTable ? (editor.getAttributes('table') as any) : null;
+      const activeTableMode = isTable && tableAttrs?.tableMode === 'full' ? 'full' : isTable ? 'auto' : tableMode;
+      const bw = Number.isFinite(activeBorderWidth) ? activeBorderWidth : 1;
+      const bs = ['solid', 'dashed', 'dotted', 'double'].includes(activeBorderStyle) ? activeBorderStyle : 'solid';
+      const bc = activeBorderColor || '#cbd5e1';
+      const bg = activeBg || '';
+      setTableBorderWidth(bw);
+      setTableBorderStyle(bs);
+      setTableBorderColor(bc);
+      setTableCellBg(bg);
+      setDraftBorderWidth(bw);
+      setDraftBorderStyle(bs);
+      setDraftBorderColor(bc);
+      setDraftFillColor(bg || '');
+      setColorTemporalBorde(bc);
+      setColorTemporalFondo(bg || '#ffffff');
+      if (isTable) {
+        setTableMode(activeTableMode);
+      }
     },
   });
+
+  const forceAllTablesFull = () => {
+    if (!editor) return;
+    const { state } = editor;
+    let tr = state.tr;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === 'table') {
+        tr = tr.setNodeMarkup(pos, node.type, { ...node.attrs, tableMode: 'full' });
+      }
+      if (node.type.name === 'tableCell' || node.type.name === 'tableHeader') {
+        const attrs = { ...node.attrs } as any;
+        if (attrs.colwidth) {
+          attrs.colwidth = null;
+        }
+        tr = tr.setNodeMarkup(pos, node.type, attrs);
+      }
+    });
+    if (tr.docChanged) {
+      editor.view.dispatch(tr);
+      setTableMode('full');
+    }
+  };
 
   useEffect(() => {
     if (editor) {
@@ -443,6 +641,28 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     cont.addEventListener('scroll', onScroll, { passive: true } as any);
     return () => cont.removeEventListener('scroll', onScroll);
   }, [pageHeightPx, zoom, pageCount]);
+
+  useEffect(() => {
+    forceAllTablesFull();
+  }, [contentWidthPx]);
+
+  const getActiveTableColumns = () => {
+    if (!editor || !editor.isActive('table')) return null;
+    const { state } = editor;
+    let cols: number | null = null;
+    state.doc.nodesBetween(state.selection.from, state.selection.to, (node) => {
+      if (node.type.name === 'table' && cols === null) {
+        cols = node.firstChild?.childCount ?? 1;
+        return false;
+      }
+      return cols === null;
+    });
+    return cols;
+  };
+
+  const activeTableCols = getActiveTableColumns();
+  const autoBlocked = activeTableCols !== null && activeTableCols * 16 > contentWidthPx;
+  const autoBlockedMsg = autoBlocked ? 'No hay espacio suficiente para modo auto con los márgenes actuales.' : undefined;
   const irAPagina = (p: number) => {
     const cont = containerRef.current;
     if (!cont) return;
@@ -510,9 +730,116 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   const tamanoActualIndex = tamanos_fuente.findIndex(t => t.value === tamanoActual);
   const puedeDisminuirTamano = tamanoActualIndex > 0;
   const puedeAumentarTamano = tamanoActualIndex === -1 ? true : tamanoActualIndex < tamanos_fuente.length - 1;
+  const MIN_COL_WIDTH_PX = 28;
+  const clampTableDimension = (v: number) => Math.max(1, Number.isFinite(v) ? Math.round(v) : 1);
+  const nonNegativeWidth = (v: number) => Math.max(0, Number.isFinite(v) ? Math.round(v) : 0);
+  const insertarTabla = () => {
+    if (soloLectura || !editor) return;
+    const rows = clampTableDimension(tableRows);
+    const cols = clampTableDimension(tableCols);
+    setTableRows(rows);
+    setTableCols(cols);
+    // El cast a any evita el error de tipos en comandos de tabla; la extensión los provee en runtime
+    (editor.chain() as any)
+      .focus()
+      .insertTable({ rows, cols, withHeaderRow: false })
+      .updateAttributes('table', { tableMode })
+      .run();
+    // Asegura estilos inmediatos post-inserción
+    cambiarModoTabla(tableMode);
+    setTablePopoverAbierto(false);
+  };
+  const estaEnTabla = editor?.isActive('table') ?? false;
+  const cambiarModoTabla = (mode: 'auto' | 'full') => {
+    setTableMode(mode);
+    if (soloLectura || !editor || !editor.isActive('table')) return;
+    (editor.chain() as any)
+      .focus()
+      .updateAttributes('table', { tableMode: mode })
+      // Al cambiar modo, quitamos colwidth para permitir que el ancho se redistribuya.
+      .setCellAttribute('colwidth', null)
+      .run();
+  };
+  const agregarFilaArriba = () => {
+    if (soloLectura || !editor) return;
+    (editor.chain() as any).focus().addRowBefore().run();
+  };
+  const agregarFilaAbajo = () => {
+    if (soloLectura || !editor) return;
+    (editor.chain() as any).focus().addRowAfter().run();
+  };
+  const agregarColumnaIzquierda = () => {
+    if (soloLectura || !editor) return;
+    (editor.chain() as any).focus().addColumnBefore().run();
+  };
+  const agregarColumnaDerecha = () => {
+    if (soloLectura || !editor) return;
+    (editor.chain() as any).focus().addColumnAfter().run();
+  };
+  const eliminarFila = () => {
+    if (soloLectura || !editor) return;
+    (editor.chain() as any).focus().deleteRow().run();
+  };
+  const eliminarColumna = () => {
+    if (soloLectura || !editor) return;
+    (editor.chain() as any).focus().deleteColumn().run();
+  };
+  const eliminarTabla = () => {
+    if (soloLectura || !editor) return;
+    (editor.chain() as any).focus().deleteTable().run();
+  };
+  const combinarCeldas = () => {
+    if (soloLectura || !editor) return;
+    (editor.chain() as any).focus().mergeCells().run();
+  };
+  const dividirCelda = () => {
+    if (soloLectura || !editor) return;
+    (editor.chain() as any).focus().splitCell().run();
+  };
+  const aplicarBordeTabla = (width?: number, style?: 'solid' | 'dashed' | 'dotted' | 'double', color?: string) => {
+    if (soloLectura || !editor) return;
+    const newWidth = nonNegativeWidth(width ?? tableBorderWidth);
+    const newStyle = style ?? tableBorderStyle;
+    const newColor = color ?? tableBorderColor;
+    setTableBorderWidth(newWidth);
+    setTableBorderStyle(newStyle);
+    setTableBorderColor(newColor);
+    setDraftBorderWidth(newWidth);
+    setDraftBorderStyle(newStyle);
+    setDraftBorderColor(newColor);
+    // Aplica a todas las celdas seleccionadas (o celda actual)
+        (editor.chain() as any).focus()
+            .setCellAttribute('borderWidth', newWidth)
+            .setCellAttribute('borderStyle', newStyle)
+            .setCellAttribute('borderColor', newColor)
+            // Limpiamos colwidth para que el layout fijo reparta el ancho de forma uniforme.
+              .setCellAttribute('colwidth', null)
+            .run();
+  };
+  const aplicarFondoCelda = (color?: string) => {
+    if (soloLectura || !editor) return;
+    const newBg = color ?? tableCellBg ?? '';
+    setTableCellBg(newBg);
+    setDraftFillColor(newBg);
+    (editor.chain() as any)
+      .focus()
+      .setCellAttribute('backgroundColor', newBg || null)
+        .setCellAttribute('colwidth', null)
+      .run();
+  };
+  const aplicarCambiosTabla = () => {
+    if (!estaEnTabla || soloLectura) return;
+    aplicarBordeTabla(draftBorderWidth, draftBorderStyle, draftBorderColor);
+    aplicarFondoCelda(draftFillColor);
+  };
   const alturaMinDocumentosPx = Math.max(resolvedMinHeightPx, 420);
   const alturaCajaDocumento = `clamp(${alturaMinDocumentosPx}px, 60vh, 760px)`;
   const totalHeightPx = pageCount * effectivePageOffset + marginTopPx + marginBottomPx;
+  const areaEscribiblePx = contentWidthPx;
+  const areaEscribibleMm = Math.round(((areaEscribiblePx * 25.4) / 96) * 10) / 10;
+  const anchoEstimadoTablaPx = tableCols * MIN_COL_WIDTH_PX;
+  const anchoEstimadoTablaMm = Math.round(((anchoEstimadoTablaPx * 25.4) / 96) * 10) / 10;
+  const superaAnchoEscribible = anchoEstimadoTablaPx > areaEscribiblePx;
   return (
     <div className="space-y-2">
       <div className={cn('border rounded-lg bg-background shadow-sm flex flex-col', className)}>
@@ -717,6 +1044,257 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
 
             <div className="w-px h-6 bg-border mx-1" />
 
+            <Popover open={tablePopoverAbierto} onOpenChange={(open) => !soloLectura && setTablePopoverAbierto(open)}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2"
+                  aria-label="Insertar tabla"
+                  disabled={soloLectura}
+                >
+                  <TableIcon className="h-4 w-4 mr-2" />
+                  Tabla
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[460px] p-4" align="start">
+                <div className="space-y-4 text-sm">
+                  <div className="grid grid-cols-4 gap-3 items-end">
+                    <div className="space-y-1 col-span-1">
+                      <Label className="text-xs">Filas</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={tableRows}
+                        onChange={(e) => setTableRows(clampTableDimension(parseInt(e.target.value, 10)))}
+                        className="h-8"
+                      />
+                    </div>
+                    <div className="space-y-1 col-span-1">
+                      <Label className="text-xs">Columnas</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={tableCols}
+                        onChange={(e) => setTableCols(clampTableDimension(parseInt(e.target.value, 10)))}
+                        className="h-8"
+                      />
+                    </div>
+                    <div className="space-y-1 col-span-1">
+                      <Label className="text-xs">Tipo de tabla</Label>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={tableMode === 'full'}
+                          onCheckedChange={(checked) => {
+                            if (!checked && autoBlocked) return;
+                            cambiarModoTabla(checked ? 'full' : 'auto');
+                          }}
+                          disabled={soloLectura || autoBlocked}
+                          title={autoBlocked ? autoBlockedMsg : undefined}
+                          className={cn(autoBlocked ? 'opacity-50 cursor-not-allowed' : '')}
+                        />
+                        <span className="text-xs text-muted-foreground">Ancho completo (100%)</span>
+                      </div>
+                    </div>
+                    <div className="flex items-end col-span-1">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="w-full"
+                        onClick={insertarTabla}
+                        disabled={soloLectura || (superaAnchoEscribible && tableMode !== 'full')}
+                      >
+                        Insertar tabla
+                      </Button>
+                    </div>
+                  </div>
+                  {superaAnchoEscribible && (
+                    <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 flex flex-col gap-1">
+                      <span className="font-semibold">Advertencia</span>
+                      <span>
+                        {`Con ${tableCols} columnas, el ancho mínimo estimado es ~${Math.round(anchoEstimadoTablaPx)}px (${anchoEstimadoTablaMm}mm) y supera el área escribible disponible (~${Math.round(areaEscribiblePx)}px / ${areaEscribibleMm}mm).`}
+                      </span>
+                      <span>Reduce columnas o cambia a “Ancho completo (100%)” para habilitar la creación.</span>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t space-y-2">
+                    <div className="text-xs text-muted-foreground">Acciones rápidas (selecciona dentro de la tabla)</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" size="sm" onClick={agregarFilaArriba} disabled={!estaEnTabla || soloLectura}>
+                        Fila arriba
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={agregarFilaAbajo} disabled={!estaEnTabla || soloLectura}>
+                        Fila abajo
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={agregarColumnaIzquierda} disabled={!estaEnTabla || soloLectura}>
+                        Columna izq.
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={agregarColumnaDerecha} disabled={!estaEnTabla || soloLectura}>
+                        Columna der.
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={eliminarFila} disabled={!estaEnTabla || soloLectura}>
+                        Eliminar fila
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={eliminarColumna} disabled={!estaEnTabla || soloLectura}>
+                        Eliminar columna
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={combinarCeldas} disabled={!estaEnTabla || soloLectura}>
+                        Combinar celdas
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={dividirCelda} disabled={!estaEnTabla || soloLectura}>
+                        Dividir celda
+                      </Button>
+                      <Button variant="destructive" size="sm" className="col-span-2" onClick={eliminarTabla} disabled={!estaEnTabla || soloLectura}>
+                        Eliminar tabla
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t space-y-3">
+                    <div className="text-xs text-muted-foreground">Bordes y relleno (selección actual)</div>
+                    <div className="grid grid-cols-4 gap-3 items-start">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Grosor (px)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={draftBorderWidth}
+                          onChange={(e) => setDraftBorderWidth(nonNegativeWidth(parseFloat(e.target.value)))}
+                          className="h-8"
+                          disabled={!estaEnTabla || soloLectura}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Estilo</Label>
+                        <Select
+                          value={draftBorderStyle}
+                          onValueChange={(v) => setDraftBorderStyle(v as 'solid' | 'dashed' | 'dotted' | 'double')}
+                          disabled={!estaEnTabla || soloLectura}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="solid">Sólido</SelectItem>
+                            <SelectItem value="dashed">Discontinuo</SelectItem>
+                            <SelectItem value="dotted">Punteado</SelectItem>
+                            <SelectItem value="double">Doble</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Color borde</Label>
+                        <Popover open={popoverBordeAbierto} onOpenChange={(open) => !soloLectura && setPopoverBordeAbierto(open)}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 w-full justify-start">
+                              <span className="w-4 h-4 rounded border mr-2" style={{ backgroundColor: draftBorderColor }} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3" align="start">
+                            <div className="space-y-3">
+                              <HexColorPicker color={colorTemporalBorde} onChange={(c) => {
+                                setColorTemporalBorde(c);
+                                setDraftBorderColor(c);
+                              }} />
+                              <div className="grid grid-cols-9 gap-2">
+                                {colores_predefinidos.map((color) => (
+                                  <button
+                                    key={color}
+                                    type="button"
+                                    className={cn('h-6 w-6 rounded border-2 hover:scale-110 transition-transform', color === '#FFFFFF' ? 'border-gray-300' : 'border-border')}
+                                    style={{ backgroundColor: color }}
+                                    onClick={() => {
+                                      setDraftBorderColor(color);
+                                      setColorTemporalBorde(color);
+                                    }}
+                                    title={color}
+                                  />
+                                ))}
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => setPopoverBordeAbierto(false)}
+                              >
+                                Cerrar
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Relleno celdas</Label>
+                        <Popover open={popoverFondoAbierto} onOpenChange={(open) => !soloLectura && setPopoverFondoAbierto(open)}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 w-full justify-start">
+                              <span className="w-4 h-4 rounded border mr-2" style={{ backgroundColor: draftFillColor || '#ffffff' }} />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3" align="start">
+                            <div className="space-y-3">
+                              <HexColorPicker color={colorTemporalFondo} onChange={(c) => {
+                                setColorTemporalFondo(c);
+                                setDraftFillColor(c);
+                              }} />
+                              <div className="grid grid-cols-9 gap-2">
+                                {colores_predefinidos.map((color) => (
+                                  <button
+                                    key={color}
+                                    type="button"
+                                    className={cn('h-6 w-6 rounded border-2 hover:scale-110 transition-transform', color === '#FFFFFF' ? 'border-gray-300' : 'border-border')}
+                                    style={{ backgroundColor: color }}
+                                    onClick={() => {
+                                      setDraftFillColor(color);
+                                      setColorTemporalFondo(color);
+                                    }}
+                                    title={color}
+                                  />
+                                ))}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const empty = '';
+                                    setDraftFillColor(empty);
+                                    setColorTemporalFondo('#ffffff');
+                                  }}
+                                >
+                                  Quitar relleno
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setPopoverFondoAbierto(false)}
+                                >
+                                  Cerrar
+                                </Button>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+
+                    <div className="flex items-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={aplicarCambiosTabla}
+                        disabled={!estaEnTabla || soloLectura}
+                      >
+                        Aplicar cambios
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
             <Popover open={popoverColorAbierto} onOpenChange={(open) => !soloLectura && setPopoverColorAbierto(open)}>
               <PopoverTrigger asChild>
                 <Button
@@ -903,6 +1481,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             height: alturaCajaDocumento,
             maxHeight: alturaCajaDocumento,
             overflowY: 'auto',
+            // Permitimos scroll horizontal para que tablas autoajustables no se corten si el contenido es más ancho que el área útil.
             overflowX: 'auto',
             display: 'block',
             padding: '12px',
@@ -911,15 +1490,16 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
           }}
           ref={containerRef}
         >
-          <div
-            className="editor-doc-zoom-sizer"
-            style={{
-              width: `${Math.max(1, pageWidthPx * zoom)}px`,
-              position: 'relative',
-              height: `${totalHeightPx * zoom}px`,
-              margin: '0 auto',
-            }}
-          >
+            <div
+              className="editor-doc-zoom-sizer"
+              style={{
+                width: `${Math.max(1, pageWidthPx * zoom)}px`,
+                position: 'relative',
+                height: `${totalHeightPx * zoom}px`,
+                margin: '0 auto',
+                overflow: 'hidden',
+              }}
+            >
             <div className="absolute top-0 left-0" style={{ width: pageWidthPx, height: totalHeightPx, transform: `scale(${zoom})`, transformOrigin: 'top left', pointerEvents: 'none', zIndex: 0 }}>
               {Array.from({ length: pageCount }).map((_, i) => {
                 const isCurrentPage = (i + 1) === currentPage;
@@ -1083,14 +1663,19 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             box-sizing: content-box;
             overflow-wrap: break-word;
             word-break: break-word;
+            border-spacing: 0;
+            box-sizing: border-box;
             hyphens: auto;
           }
           .ProseMirror:focus {
             outline: none;
+            padding: 2px 4px;
           }
           .ProseMirror p {
             margin: 0.5em 0;
             min-height: 1em;
+            min-width: 0;
+            box-sizing: border-box;
             color: inherit;
             max-width: 100%;
           }
@@ -1123,12 +1708,12 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             list-style-type: decimal;
             display: block;
           }
-          .ProseMirror table,
-          .ProseMirror img,
-          .ProseMirror pre,
           .ProseMirror code,
           .ProseMirror blockquote,
-          .ProseMirror div,
+          .ProseMirror div {
+            overflow-wrap: break-word;
+            white-space: normal;
+          }
           .ProseMirror p,
           .ProseMirror ul,
           .ProseMirror ol {
@@ -1168,9 +1753,62 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             text-align: left;
             display: list-item;
           }
+          .ProseMirror table {
+            max-width: 100%;
+            border-collapse: collapse;
+            margin: 0.5rem 0;
+            border-spacing: 0;
+            box-sizing: border-box;
+          }
+          .ProseMirror table[data-table-mode="auto"] {
+            width: auto;
+            table-layout: auto;
+            display: table;
+          }
+          .ProseMirror table[data-table-mode="full"] {
+            width: 100% !important;
+            max-width: 100%;
+            table-layout: fixed;
+          }
+          .ProseMirror table td,
+          .ProseMirror table th {
+            border: 1px solid #cbd5e1;
+            padding: 2px 4px;
+            vertical-align: top;
+            position: relative;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            min-width: 0;
+            box-sizing: border-box;
+          }
+          .ProseMirror table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+          }
+          .ProseMirror table p {
+            margin: 0;
+            max-width: 100%;
+          }
+          .ProseMirror .selectedCell:after {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            pointer-events: none;
+            content: '';
+            background: rgba(59, 130, 246, 0.12);
+            outline: 1px solid rgba(59, 130, 246, 0.5);
+          }
           button[data-state="on"] {
             background-color: hsl(var(--primary));
             color: hsl(var(--primary-foreground));
+          }
+          .ProseMirror table[data-table-mode="full"] td,
+          .ProseMirror table[data-table-mode="full"] th {
+            width: calc(100% / var(--table-cols, 1));
+            min-width: 16px;
           }
           .etiqueta-plantilla {
             display: inline-flex;
