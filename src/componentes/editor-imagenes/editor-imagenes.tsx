@@ -138,7 +138,7 @@ export function EditorImagenes({
   );
   const [dibujando, setDibujando] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [offset] = useState({ x: 0, y: 0 });
   const [rotacion, setRotacion] = useState(0);
 
   const [imagen_cargada, setImagenCargada] = useState<HTMLImageElement | null>(

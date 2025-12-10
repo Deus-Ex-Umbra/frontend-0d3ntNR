@@ -4,11 +4,12 @@ import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { Card, CardContent, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { Toaster } from '@/componentes/ui/toaster';
-import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Sparkles, Loader2, TrendingDown, FileSignature, BarChart3 } from 'lucide-react';
+import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Sparkles, Loader2, TrendingDown, FileSignature, BarChart3, Pill } from 'lucide-react';
 import { estadisticasApi, asistenteApi } from '@/lib/api';
 import { MarkdownRenderer } from '@/componentes/ui/markdown-rendered';
 import { GestionReportes } from '@/componentes/reportes/gestion-reportes';
 import { GestionPlantillasConsentimiento } from '@/componentes/plantillas/gestion-plantillas-consentimiento';
+import { GestionPlantillasRecetas } from '@/componentes/plantillas/gestion-plantillas-recetas';
 
 interface Transaccion {
   id: number;
@@ -255,9 +256,9 @@ export default function Inicio() {
                 <BarChart3 className="h-4 w-4" />
                 Reportes
               </TabsTrigger>
-              <TabsTrigger value="consentimientos" className="gap-2">
+              <TabsTrigger value="plantillas" className="gap-2">
                 <FileSignature className="h-4 w-4" />
-                Consentimientos
+                Plantillas
               </TabsTrigger>
             </TabsList>
 
@@ -393,8 +394,23 @@ export default function Inicio() {
               <GestionReportes />
             </TabsContent>
 
-            <TabsContent value="consentimientos" className="mt-6">
-              <GestionPlantillasConsentimiento />
+            <TabsContent value="plantillas" className="mt-6 space-y-4">
+              <Tabs defaultValue="consentimientos">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="consentimientos" className="gap-2">
+                    <FileSignature className="h-4 w-4" /> Consentimientos
+                  </TabsTrigger>
+                  <TabsTrigger value="recetas" className="gap-2">
+                    <Pill className="h-4 w-4" /> Recetas
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="consentimientos" className="mt-4">
+                  <GestionPlantillasConsentimiento />
+                </TabsContent>
+                <TabsContent value="recetas" className="mt-4">
+                  <GestionPlantillasRecetas />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>

@@ -1,6 +1,6 @@
 export type { Usuario, UsuarioInventario } from './usuario';
 
-export type { Paciente, PacienteBasico } from './paciente';
+export type { Paciente, PacienteBasico, HistoriaClinicaVersion } from './paciente';
 
 export type { Cita, HoraLibre, ElementoAgenda } from './cita';
 
@@ -32,3 +32,4 @@ export { AreaReporte } from './reporte';
 
 export type { PlantillaConsentimiento, EtiquetaReemplazable } from './plantilla-consentimiento';
 export { ETIQUETAS_PREDEFINIDAS } from './plantilla-consentimiento';
+export type { PlantillaReceta, MedicamentoRecetaValor } from './plantilla-receta';

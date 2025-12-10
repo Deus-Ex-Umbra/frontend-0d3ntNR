@@ -8,7 +8,7 @@ import { cn } from '@/lib/utilidades'
 
 export interface DocumentoConfig {
   tamano_hoja_id?: number | null
-  nombre_tamano?: string
+  nombre_tamano?: string | null
   widthMm: number
   heightMm: number
   margenes: { top: number; right: number; bottom: number; left: number }
@@ -21,6 +21,7 @@ interface EditorDocumentoProps {
   onChangeConfig: (cfg: DocumentoConfig) => void
   className?: string
   minHeight?: string
+  soloLectura?: boolean
 }
 
 interface TamanoHojaItem {
@@ -32,7 +33,7 @@ interface TamanoHojaItem {
   protegido: boolean
 }
 
-export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfig, className, minHeight = '200px' }: EditorDocumentoProps) {
+export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfig, className, minHeight = '200px', soloLectura = false }: EditorDocumentoProps) {
   const [tamanos, setTamanos] = useState<TamanoHojaItem[]>([])
 
   const opciones: OpcionSelectConAgregar[] = useMemo(() => {
@@ -132,6 +133,7 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
             descripcionModal="Ingresa nombre y medidas; se guardan en mm"
             placeholderInput="Nombre"
             textoAgregar='Agregar nuevo tamaño'
+            disabled={soloLectura}
           />
         </div>
         <div className="text-xs text-muted-foreground space-y-1">
@@ -161,6 +163,7 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
               onChangeConfig({ ...config, margenes: { ...config.margenes, top } })
             }}
             className={cn('h-8', (config.margenes.top > 999 || verticalZero) && 'border-yellow-400')}
+            disabled={soloLectura}
           />
         </div>
         <div className="space-y-1">
@@ -175,6 +178,7 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
               onChangeConfig({ ...config, margenes: { ...config.margenes, bottom } })
             }}
             className={cn('h-8', (config.margenes.bottom > 999 || verticalZero) && 'border-yellow-400')}
+            disabled={soloLectura}
           />
         </div>
         <div className="space-y-1">
@@ -189,6 +193,7 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
               onChangeConfig({ ...config, margenes: { ...config.margenes, left } })
             }}
             className={cn('h-8', (config.margenes.left > 999 || horizontalZero) && 'border-yellow-400')}
+            disabled={soloLectura}
           />
         </div>
         <div className="space-y-1">
@@ -203,6 +208,7 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
               onChangeConfig({ ...config, margenes: { ...config.margenes, right } })
             }}
             className={cn('h-8', (config.margenes.right > 999 || horizontalZero) && 'border-yellow-400')}
+            disabled={soloLectura}
           />
         </div>
       </div>
@@ -215,6 +221,7 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
         tamanoPersonalizado={{ widthMm: pageInfo.widthMm, heightMm: pageInfo.heightMm }}
         margenes={config.margenes}
         habilitarEtiquetas={false}
+        soloLectura={soloLectura}
       />
     </div>
   )

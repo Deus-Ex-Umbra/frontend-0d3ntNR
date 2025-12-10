@@ -8,7 +8,7 @@ import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { FontSize } from '@/lib/tiptap-font-size';
-import { Node, mergeAttributes, InputRule, wrappingInputRule } from '@tiptap/core';
+import { Node, mergeAttributes, wrappingInputRule } from '@tiptap/core';
 import { useEffect, useState, forwardRef, useImperativeHandle, useRef } from 'react';
 import { Button } from '@/componentes/ui/button';
 import { Toggle } from '@/componentes/ui/toggle';
@@ -115,6 +115,7 @@ interface EditorConEtiquetasPersonalizadoProps {
   margenes?: { top: number; right: number; bottom: number; left: number };
   tamanoPersonalizado?: { widthMm: number; heightMm: number } | null;
   habilitarEtiquetas?: boolean;
+  soloLectura?: boolean;
 }
 
 export interface EditorHandle {
@@ -166,7 +167,7 @@ const CustomBulletList = BulletList.extend({
       wrappingInputRule({
         find: /^\s*([-+*])\s$/,
         type: this.type,
-        getAttributes: (match) => {
+        getAttributes: () => {
           const attributes = this.editor.state.selection.$from.parent.attrs
           return attributes.textAlign ? { textAlign: attributes.textAlign } : {}
         },
@@ -184,6 +185,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   margenes = { top: 20, right: 20, bottom: 20, left: 20 },
   tamanoPersonalizado = null,
   habilitarEtiquetas = true,
+  soloLectura = false,
 }, ref) => {
   const mmToPx = (mm: number) => (mm / 25.4) * 96;
   const defaultLetterMm = { widthMm: 216, heightMm: 279 };
@@ -245,6 +247,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   const [pageInputValue, setPageInputValue] = useState('1');
   const debounceRef = useRef<number | null>(null);
   const editor = useEditor({
+    editable: !soloLectura,
     extensions: [
       StarterKit.configure({
         bulletList: false,
@@ -335,6 +338,15 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
       });
     },
   });
+
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(!soloLectura);
+      if (soloLectura && popoverColorAbierto) {
+        setPopoverColorAbierto(false);
+      }
+    }
+  }, [editor, soloLectura, popoverColorAbierto]);
   useImperativeHandle(ref, () => ({
     chain: () => editor?.chain(),
     getHTML: () => editor?.getHTML() || '',
@@ -468,6 +480,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     setColorTemporal(color);
   };
   const aplicarTamano = (tamano: string) => {
+    if (soloLectura) return;
     editor.chain().focus().setFontSize(tamano).run();
     setTamanoActual(tamano);
   };
@@ -511,13 +524,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 size="sm"
                 className="h-8 px-2"
                 onClick={disminuirTamano}
-                disabled={!puedeDisminuirTamano}
+                disabled={soloLectura || !puedeDisminuirTamano}
                 title="Disminuir tamano"
               >
                 A-
               </Button>
 
-              <Select value={tamanoActual} onValueChange={aplicarTamano}>
+              <Select value={tamanoActual} onValueChange={aplicarTamano} disabled={soloLectura}>
                 <SelectTrigger className="h-8 w-[80px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -535,7 +548,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 size="sm"
                 className="h-8 px-2"
                 onClick={aumentarTamano}
-                disabled={!puedeAumentarTamano}
+                disabled={soloLectura || !puedeAumentarTamano}
                 title="Aumentar tamano"
               >
                 A+
@@ -548,11 +561,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               size="sm"
               pressed={formatosActivos.bold}
               onPressedChange={() => {
+                if (soloLectura) return;
                 editor.chain().focus().toggleBold().run();
                 setFormatosActivos((prev) => ({ ...prev, bold: !prev.bold }));
               }}
               aria-label="Negrita"
               data-state={formatosActivos.bold ? 'on' : 'off'}
+              disabled={soloLectura}
             >
               <Bold className="h-4 w-4" />
             </Toggle>
@@ -561,11 +576,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               size="sm"
               pressed={formatosActivos.italic}
               onPressedChange={() => {
+                if (soloLectura) return;
                 editor.chain().focus().toggleItalic().run();
                 setFormatosActivos((prev) => ({ ...prev, italic: !prev.italic }));
               }}
               aria-label="Cursiva"
               data-state={formatosActivos.italic ? 'on' : 'off'}
+              disabled={soloLectura}
             >
               <Italic className="h-4 w-4" />
             </Toggle>
@@ -574,11 +591,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               size="sm"
               pressed={formatosActivos.underline}
               onPressedChange={() => {
+                if (soloLectura) return;
                 editor.chain().focus().toggleUnderline().run();
                 setFormatosActivos((prev) => ({ ...prev, underline: !prev.underline }));
               }}
               aria-label="Subrayado"
               data-state={formatosActivos.underline ? 'on' : 'off'}
+              disabled={soloLectura}
             >
               <UnderlineIcon className="h-4 w-4" />
             </Toggle>
@@ -587,11 +606,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               size="sm"
               pressed={formatosActivos.strike}
               onPressedChange={() => {
+                if (soloLectura) return;
                 editor.chain().focus().toggleStrike().run();
                 setFormatosActivos((prev) => ({ ...prev, strike: !prev.strike }));
               }}
               aria-label="Tachado"
               data-state={formatosActivos.strike ? 'on' : 'off'}
+              disabled={soloLectura}
             >
               <Strikethrough className="h-4 w-4" />
             </Toggle>
@@ -601,9 +622,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             <Toggle
               size="sm"
               pressed={editor.isActive('bulletList')}
-              onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
+              onPressedChange={() => {
+                if (soloLectura) return;
+                editor.chain().focus().toggleBulletList().run();
+              }}
               aria-label="Lista con vinetas"
               data-state={editor.isActive('bulletList') ? 'on' : 'off'}
+              disabled={soloLectura}
             >
               <List className="h-4 w-4" />
             </Toggle>
@@ -611,9 +636,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             <Toggle
               size="sm"
               pressed={editor.isActive('orderedList')}
-              onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
+              onPressedChange={() => {
+                if (soloLectura) return;
+                editor.chain().focus().toggleOrderedList().run();
+              }}
               aria-label="Lista numerada"
               data-state={editor.isActive('orderedList') ? 'on' : 'off'}
+              disabled={soloLectura}
             >
               <ListOrdered className="h-4 w-4" />
             </Toggle>
@@ -627,13 +656,17 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 : (editor.isActive('orderedList')
                   ? (editor.getAttributes('orderedList').textAlign === 'left' || !editor.getAttributes('orderedList').textAlign)
                   : editor.isActive({ textAlign: 'left' }))}
-              onPressedChange={() => editor.chain().focus().setTextAlign('left').run()}
+              onPressedChange={() => {
+                if (soloLectura) return;
+                editor.chain().focus().setTextAlign('left').run();
+              }}
               aria-label="Alinear a la izquierda"
               data-state={(editor.isActive('bulletList')
                 ? (editor.getAttributes('bulletList').textAlign === 'left' || !editor.getAttributes('bulletList').textAlign)
                 : (editor.isActive('orderedList')
                   ? (editor.getAttributes('orderedList').textAlign === 'left' || !editor.getAttributes('orderedList').textAlign)
                   : editor.isActive({ textAlign: 'left' }))) ? 'on' : 'off'}
+              disabled={soloLectura}
             >
               <AlignLeft className="h-4 w-4" />
             </Toggle>
@@ -645,13 +678,17 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 : (editor.isActive('orderedList')
                   ? editor.getAttributes('orderedList').textAlign === 'center'
                   : editor.isActive({ textAlign: 'center' }))}
-              onPressedChange={() => editor.chain().focus().setTextAlign('center').run()}
+              onPressedChange={() => {
+                if (soloLectura) return;
+                editor.chain().focus().setTextAlign('center').run();
+              }}
               aria-label="Centrar"
               data-state={(editor.isActive('bulletList')
                 ? editor.getAttributes('bulletList').textAlign === 'center'
                 : (editor.isActive('orderedList')
                   ? editor.getAttributes('orderedList').textAlign === 'center'
                   : editor.isActive({ textAlign: 'center' }))) ? 'on' : 'off'}
+              disabled={soloLectura}
             >
               <AlignCenter className="h-4 w-4" />
             </Toggle>
@@ -663,26 +700,31 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 : (editor.isActive('orderedList')
                   ? editor.getAttributes('orderedList').textAlign === 'right'
                   : editor.isActive({ textAlign: 'right' }))}
-              onPressedChange={() => editor.chain().focus().setTextAlign('right').run()}
+              onPressedChange={() => {
+                if (soloLectura) return;
+                editor.chain().focus().setTextAlign('right').run();
+              }}
               aria-label="Alinear a la derecha"
               data-state={(editor.isActive('bulletList')
                 ? editor.getAttributes('bulletList').textAlign === 'right'
                 : (editor.isActive('orderedList')
                   ? editor.getAttributes('orderedList').textAlign === 'right'
                   : editor.isActive({ textAlign: 'right' }))) ? 'on' : 'off'}
+              disabled={soloLectura}
             >
               <AlignRight className="h-4 w-4" />
             </Toggle>
 
             <div className="w-px h-6 bg-border mx-1" />
 
-            <Popover open={popoverColorAbierto} onOpenChange={setPopoverColorAbierto}>
+            <Popover open={popoverColorAbierto} onOpenChange={(open) => !soloLectura && setPopoverColorAbierto(open)}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   size="sm"
                   className="h-8 w-8 p-0"
                   aria-label="Seleccionar color"
+                  disabled={soloLectura}
                 >
                   <div
                     className="w-4 h-4 rounded border border-border"
@@ -739,9 +781,11 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                     size="sm"
                     className="w-full"
                     onClick={() => {
+                      if (soloLectura) return;
                       aplicarColor(colorTemporal);
                       setPopoverColorAbierto(false);
                     }}
+                    disabled={soloLectura}
                   >
                     <Check className="h-4 w-4 mr-2" /> Aplicar
                   </Button>
@@ -753,6 +797,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                       setColorTemporal(colorActual);
                       setPopoverColorAbierto(false);
                     }}
+                    disabled={soloLectura}
                   >
                     Cancelar
                   </Button>

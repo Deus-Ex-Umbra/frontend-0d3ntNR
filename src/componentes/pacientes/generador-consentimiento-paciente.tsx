@@ -6,7 +6,7 @@ import { Input } from '@/componentes/ui/input';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Switch } from '@/componentes/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
-import { plantillasConsentimientoApi, archivosApi, catalogoApi } from '@/lib/api';
+import { plantillasConsentimientoApi, catalogoApi } from '@/lib/api';
 import { PlantillaConsentimiento } from '@/tipos';
 import { useToast } from '@/hooks/use-toast';
 import { FileText, Settings } from 'lucide-react';
@@ -68,6 +68,12 @@ export function GeneradorConsentimientoPaciente({
   });
   const { toast } = useToast();
   const contenido_imprimible_ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!nombre_archivo) {
+      setNombreArchivo(`Consentimiento_${paciente_nombre}_${paciente_id || ''}`);
+    }
+  }, [nombre_archivo, paciente_nombre, paciente_id]);
 
   useEffect(() => {
     if (dialogo_abierto) {

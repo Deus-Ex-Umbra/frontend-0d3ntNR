@@ -113,6 +113,40 @@ export const pacientesApi = {
   },
 };
 
+export const historiasClinicasApi = {
+  listarPorPaciente: async (paciente_id: number) => {
+    const respuesta = await api.get(`/pacientes/${paciente_id}/historias-clinicas`);
+    return respuesta.data;
+  },
+  obtener: async (paciente_id: number, version_id: number) => {
+    const respuesta = await api.get(`/pacientes/${paciente_id}/historias-clinicas/${version_id}`);
+    return respuesta.data;
+  },
+  crear: async (
+    paciente_id: number,
+    datos: { nombre?: string; contenido_html?: string; config?: any; clonar_de_version_id?: number }
+  ) => {
+    const respuesta = await api.post(`/pacientes/${paciente_id}/historias-clinicas`, datos);
+    return respuesta.data;
+  },
+  actualizar: async (
+    paciente_id: number,
+    version_id: number,
+    datos: { nombre?: string; contenido_html?: string; config?: any }
+  ) => {
+    const respuesta = await api.put(`/pacientes/${paciente_id}/historias-clinicas/${version_id}`, datos);
+    return respuesta.data;
+  },
+  finalizar: async (paciente_id: number, version_id: number) => {
+    const respuesta = await api.post(`/pacientes/${paciente_id}/historias-clinicas/${version_id}/finalizar`);
+    return respuesta.data;
+  },
+  clonar: async (paciente_id: number, version_id: number) => {
+    const respuesta = await api.post(`/pacientes/${paciente_id}/historias-clinicas/${version_id}/clonar`);
+    return respuesta.data;
+  },
+};
+
 export const tratamientosApi = {
   crear: async (datos: { nombre: string; numero_citas: number; costo_total: number }) => {
     const respuesta = await api.post('/tratamientos', datos);
@@ -550,6 +584,51 @@ export const plantillasConsentimientoApi = {
     pdf_firmado_base64: string;
   }) => {
     const respuesta = await api.post(`/plantillas-consentimiento/pacientes/${paciente_id}/generar-consentimiento`, datos);
+    return respuesta.data;
+  },
+};
+
+export const plantillasRecetasApi = {
+  crear: async (datos: {
+    nombre: string;
+    contenido: string;
+    tamano_papel?: 'carta' | 'legal' | 'a4';
+    tamano_hoja_id?: number | null;
+    ancho_mm?: number | null;
+    alto_mm?: number | null;
+    margen_superior?: number;
+    margen_inferior?: number;
+    margen_izquierdo?: number;
+    margen_derecho?: number;
+  }) => {
+    const respuesta = await api.post('/plantillas-recetas', datos);
+    return respuesta.data;
+  },
+  obtenerTodas: async () => {
+    const respuesta = await api.get('/plantillas-recetas');
+    return respuesta.data;
+  },
+  obtenerPorId: async (id: number) => {
+    const respuesta = await api.get(`/plantillas-recetas/${id}`);
+    return respuesta.data;
+  },
+  actualizar: async (id: number, datos: {
+    nombre?: string;
+    contenido?: string;
+    tamano_papel?: 'carta' | 'legal' | 'a4';
+    tamano_hoja_id?: number | null;
+    ancho_mm?: number | null;
+    alto_mm?: number | null;
+    margen_superior?: number;
+    margen_inferior?: number;
+    margen_izquierdo?: number;
+    margen_derecho?: number;
+  }) => {
+    const respuesta = await api.put(`/plantillas-recetas/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminar: async (id: number) => {
+    const respuesta = await api.delete(`/plantillas-recetas/${id}`);
     return respuesta.data;
   },
 };

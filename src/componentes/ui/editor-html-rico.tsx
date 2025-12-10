@@ -7,7 +7,7 @@ import { ListItem as BaseListItem } from '@tiptap/extension-list-item';
 import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
 import { TextAlign } from '@tiptap/extension-text-align';
-import { InputRule, wrappingInputRule } from '@tiptap/core';
+import { wrappingInputRule } from '@tiptap/core';
 import { FontSize } from '@/lib/tiptap-font-size';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/componentes/ui/button';
@@ -81,7 +81,7 @@ const CustomBulletList = BulletList.extend({
       wrappingInputRule({
         find: /^\s*([-+*])\s$/,
         type: this.type,
-        getAttributes: (match) => {
+        getAttributes: () => {
           const attributes = this.editor.state.selection.$from.parent.attrs
           return attributes.textAlign ? { textAlign: attributes.textAlign } : {}
         },

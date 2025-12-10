@@ -25,6 +25,8 @@ export interface Paciente {
     margenes: { top: number; right: number; bottom: number; left: number };
   } | null;
   color_categoria?: string;
+  historia_clinica_activa_id?: number;
+  total_versiones_historia_clinica?: number;
 }
 
 export interface PacienteBasico {
@@ -32,5 +34,22 @@ export interface PacienteBasico {
   nombre: string;
   apellidos: string;
   color_categoria?: string;
+}
+
+export interface HistoriaClinicaVersion {
+  id: number;
+  nombre: string;
+  numero_version: number;
+  contenido_html?: string;
+  config?: {
+    tamano_hoja_id?: number | null;
+    nombre_tamano?: string | null;
+    widthMm: number;
+    heightMm: number;
+    margenes: { top: number; right: number; bottom: number; left: number };
+  } | null;
+  finalizada: boolean;
+  creado_en: string;
+  actualizado_en: string;
 }
 

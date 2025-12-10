@@ -11,7 +11,7 @@ import { Badge } from '@/componentes/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Users, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, UserCircle, MessageCircle, Palette, Calendar, FileText } from 'lucide-react';
-import { pacientesApi, catalogoApi } from '@/lib/api';
+import { pacientesApi, catalogoApi, historiasClinicasApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { SelectConAgregar } from '@/componentes/ui/select-with-add';
@@ -22,7 +22,15 @@ import { EditorHtmlRico } from '@/componentes/ui/editor-html-rico';
 import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
 import { HexColorPicker } from 'react-colorful';
 import '@/componentes/ui/color-picker.css';
-import { Paciente, ItemCatalogo } from '@/tipos';
+import { Paciente, ItemCatalogo, HistoriaClinicaVersion } from '@/tipos';
+
+const CONFIG_DOC_DEF: DocumentoConfig = {
+  tamano_hoja_id: null,
+  nombre_tamano: 'Carta',
+  widthMm: 216,
+  heightMm: 279,
+  margenes: { top: 20, right: 20, bottom: 20, left: 20 },
+};
 
 export default function Pacientes() {
   const [todos_pacientes, setTodosPacientes] = useState<Paciente[]>([]);
@@ -44,20 +52,8 @@ export default function Pacientes() {
   const [ultima_cita, setUltimaCita] = useState<any>(null);
   const [ultimo_tratamiento, setUltimoTratamiento] = useState<any>(null);
   const [cargando_info_adicional, setCargandoInfoAdicional] = useState(false);
-  const [notas_generales_config, setNotasGeneralesConfig] = useState<DocumentoConfig>({
-    tamano_hoja_id: null,
-    nombre_tamano: 'Carta',
-    widthMm: 216,
-    heightMm: 279,
-    margenes: { top: 20, right: 20, bottom: 20, left: 20 },
-  });
-  const [notas_medicas_config, setNotasMedicasConfig] = useState<DocumentoConfig>({
-    tamano_hoja_id: null,
-    nombre_tamano: 'Carta',
-    widthMm: 216,
-    heightMm: 279,
-    margenes: { top: 20, right: 20, bottom: 20, left: 20 },
-  });
+  const [notas_generales_config, setNotasGeneralesConfig] = useState<DocumentoConfig>({ ...CONFIG_DOC_DEF });
+  const [notas_medicas_config, setNotasMedicasConfig] = useState<DocumentoConfig>({ ...CONFIG_DOC_DEF });
 
   const abrirDialogoConfirmarEliminar = (id: number) => {
     setPacienteAEliminar(id);
@@ -91,6 +87,17 @@ export default function Pacientes() {
     descripcion: '',
     color: '#808080',
   });
+
+  const [versiones_historia, setVersionesHistoria] = useState<HistoriaClinicaVersion[]>([]);
+  const [version_activa, setVersionActiva] = useState<HistoriaClinicaVersion | null>(null);
+  const [version_visualizada, setVersionVisualizada] = useState<HistoriaClinicaVersion | null>(null);
+  const [cargando_historias, setCargandoHistorias] = useState(false);
+  const [dialogo_historia_abierto, setDialogoHistoriaAbierto] = useState(false);
+  const [historia_en_edicion, setHistoriaEnEdicion] = useState<HistoriaClinicaVersion | null>(null);
+  const [historia_contenido, setHistoriaContenido] = useState('');
+  const [historia_config, setHistoriaConfig] = useState<DocumentoConfig>({ ...CONFIG_DOC_DEF });
+  const [guardando_historia, setGuardandoHistoria] = useState(false);
+  const [creando_historia, setCreandoHistoria] = useState(false);
 
   useEffect(() => {
     cargarDatosIniciales();
@@ -170,8 +177,9 @@ export default function Pacientes() {
       color_categoria: '',
     });
     setModoEdicion(false);
-    setNotasGeneralesConfig({ tamano_hoja_id: null, nombre_tamano: 'Carta', widthMm: 216, heightMm: 279, margenes: { top: 20, right: 20, bottom: 20, left: 20 } });
-    setNotasMedicasConfig({ tamano_hoja_id: null, nombre_tamano: 'Carta', widthMm: 216, heightMm: 279, margenes: { top: 20, right: 20, bottom: 20, left: 20 } });
+    setNotasGeneralesConfig({ ...CONFIG_DOC_DEF });
+    setNotasMedicasConfig({ ...CONFIG_DOC_DEF });
+    limpiarEstadoHistoria();
     setDialogoAbierto(true);
   };
 
@@ -220,6 +228,7 @@ export default function Pacientes() {
       } else {
         setNotasMedicasConfig({ tamano_hoja_id: null, nombre_tamano: 'Carta', widthMm: 216, heightMm: 279, margenes: { top: 20, right: 20, bottom: 20, left: 20 } });
       }
+      await cargarHistoriasClinicas(paciente.id, false);
       setModoEdicion(true);
       setDialogoAbierto(true);
     } catch (error) {
@@ -265,16 +274,27 @@ export default function Pacientes() {
 
       if (modo_edicion && paciente_seleccionado) {
         await pacientesApi.actualizar(paciente_seleccionado.id, datos);
+        if (versionSeleccionadaEditable && historia_en_edicion) {
+          await historiasClinicasApi.actualizar(paciente_seleccionado.id, historia_en_edicion.id, {
+            nombre: historia_en_edicion.nombre,
+            contenido_html: historia_contenido,
+            config: historia_config,
+          });
+          await cargarHistoriasClinicas(paciente_seleccionado.id);
+        }
         toast({
           title: 'Éxito',
-          description: 'Paciente actualizado correctamente',
+          description: 'Paciente y versión actualizados correctamente',
         });
       } else {
-        await pacientesApi.crear(datos);
+        const paciente_creado = await pacientesApi.crear(datos);
         toast({
           title: 'Éxito',
           description: 'Paciente creado correctamente',
         });
+        if (paciente_creado?.id) {
+          await crearPrimeraHistoria(paciente_creado.id, false);
+        }
       }
       setDialogoAbierto(false);
       cargarDatos();
@@ -317,6 +337,7 @@ export default function Pacientes() {
       const datos = await pacientesApi.obtenerPorId(id);
       setPacienteSeleccionado(datos);
       setDialogoVerAbierto(true);
+      await cargarHistoriasClinicas(id, true);
       cargarInfoAdicionalPaciente(id);
     } catch (error) {
       toast({
@@ -529,6 +550,200 @@ export default function Pacientes() {
     if (!Array.isArray(ids)) return [];
     return ids.map(id => catalogos.medicamentos.find(m => m.id === id)).filter(Boolean) as ItemCatalogo[];
   };
+
+  const limpiarEstadoHistoria = () => {
+    setVersionesHistoria([]);
+    setVersionActiva(null);
+    setVersionVisualizada(null);
+    setHistoriaEnEdicion(null);
+    setHistoriaContenido('');
+    setHistoriaConfig({ ...CONFIG_DOC_DEF });
+  };
+
+  const cargarHistoriasClinicas = async (paciente_id: number, crear_si_no_existe: boolean = false) => {
+    setCargandoHistorias(true);
+    try {
+      const lista = await historiasClinicasApi.listarPorPaciente(paciente_id);
+      const ordenadas = Array.isArray(lista)
+        ? [...lista].sort((a, b) => (a.numero_version || 0) - (b.numero_version || 0))
+        : [];
+
+      setVersionesHistoria(ordenadas);
+      const ultima = ordenadas[ordenadas.length - 1] || null;
+      const editable = ultima && !ultima.finalizada ? ultima : null;
+      const seleccion = ultima || null;
+
+      setVersionActiva(editable || null);
+      setVersionVisualizada(seleccion);
+
+      if (seleccion) {
+        const esEditable = editable && seleccion.id === editable.id && !seleccion.finalizada;
+        setHistoriaEnEdicion(esEditable ? seleccion : null);
+        setHistoriaContenido(seleccion.contenido_html || '');
+        setHistoriaConfig(seleccion.config || { ...CONFIG_DOC_DEF });
+      }
+
+      if (crear_si_no_existe && lista.length === 0) {
+        await crearPrimeraHistoria(paciente_id, false);
+      }
+    } catch (error) {
+      console.error('Error al cargar historias clínicas', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar las versiones de la historia clínica',
+        variant: 'destructive',
+      });
+    }
+    setCargandoHistorias(false);
+  };
+
+  const abrirEditorHistoria = (version: HistoriaClinicaVersion) => {
+    setHistoriaEnEdicion(version);
+    setHistoriaContenido(version.contenido_html || '');
+    setHistoriaConfig(version.config || { ...CONFIG_DOC_DEF });
+    setDialogoHistoriaAbierto(true);
+  };
+
+  const crearPrimeraHistoria = async (paciente_id: number, abrirEditor: boolean = false) => {
+    setCreandoHistoria(true);
+    try {
+      const version = await historiasClinicasApi.crear(paciente_id, {
+        contenido_html: '',
+        config: { ...CONFIG_DOC_DEF },
+      });
+      await cargarHistoriasClinicas(paciente_id);
+      setVersionActiva(version);
+      setVersionVisualizada(version);
+      setHistoriaEnEdicion(version);
+      setHistoriaContenido(version.contenido_html || '');
+      setHistoriaConfig(version.config || { ...CONFIG_DOC_DEF });
+      if (abrirEditor) {
+        abrirEditorHistoria(version);
+      }
+      toast({
+        title: 'Historia clínica creada',
+        description: 'Se generó la primera versión en blanco.',
+      });
+    } catch (error: any) {
+      console.error('Error al crear historia clínica', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo crear la historia clínica',
+        variant: 'destructive',
+      });
+    } finally {
+      setCreandoHistoria(false);
+    }
+  };
+
+  const crearNuevaVersionDesdeActual = async () => {
+    if (!paciente_seleccionado) return;
+    const base = version_activa || version_visualizada || versiones_historia[0];
+    if (!base) {
+      await crearPrimeraHistoria(paciente_seleccionado.id, false);
+      return;
+    }
+    setCreandoHistoria(true);
+    try {
+      // Guardar la versión editable antes de clonar para no perder cambios
+      if (versionSeleccionadaEditable && historia_en_edicion) {
+        await historiasClinicasApi.actualizar(paciente_seleccionado.id, historia_en_edicion.id, {
+          nombre: historia_en_edicion.nombre,
+          contenido_html: historia_contenido,
+          config: historia_config,
+        });
+      }
+
+      const nueva = await historiasClinicasApi.clonar(paciente_seleccionado.id, base.id);
+      await cargarHistoriasClinicas(paciente_seleccionado.id);
+      setVersionActiva(nueva);
+      setVersionVisualizada(nueva);
+      setHistoriaEnEdicion(nueva);
+      setHistoriaContenido(nueva.contenido_html || '');
+      setHistoriaConfig(nueva.config || { ...CONFIG_DOC_DEF });
+      toast({
+        title: 'Nueva versión creada',
+        description: 'Se creó una copia lista para editar y la versión anterior fue finalizada.',
+      });
+    } catch (error: any) {
+      console.error('Error al clonar historia clínica', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo crear la nueva versión',
+        variant: 'destructive',
+      });
+    } finally {
+      setCreandoHistoria(false);
+    }
+  };
+
+  const seleccionarVersionHistoria = (versionId: number) => {
+    const seleccionada = versiones_historia.find((v) => v.id === versionId);
+    if (!seleccionada) return;
+    setVersionVisualizada(seleccionada);
+
+    const esEditable = version_activa && seleccionada.id === version_activa.id && !seleccionada.finalizada;
+    setHistoriaEnEdicion(esEditable ? seleccionada : null);
+    setHistoriaContenido(seleccionada.contenido_html || '');
+    setHistoriaConfig(seleccionada.config || { ...CONFIG_DOC_DEF });
+  };
+
+  const guardarHistoriaClinica = async () => {
+    if (!paciente_seleccionado || !historia_en_edicion) return;
+    setGuardandoHistoria(true);
+    try {
+      await historiasClinicasApi.actualizar(paciente_seleccionado.id, historia_en_edicion.id, {
+        nombre: historia_en_edicion.nombre,
+        contenido_html: historia_contenido,
+        config: historia_config,
+      });
+      await cargarHistoriasClinicas(paciente_seleccionado.id);
+      setDialogoHistoriaAbierto(false);
+      toast({ title: 'Guardado', description: 'Historia clínica actualizada' });
+    } catch (error: any) {
+      console.error('Error al guardar historia clínica', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo guardar la historia clínica',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardandoHistoria(false);
+    }
+  };
+
+  const finalizarHistoriaClinica = async (version: HistoriaClinicaVersion) => {
+    if (!paciente_seleccionado) return;
+    setGuardandoHistoria(true);
+    try {
+      await historiasClinicasApi.finalizar(paciente_seleccionado.id, version.id);
+      await cargarHistoriasClinicas(paciente_seleccionado.id);
+      setDialogoHistoriaAbierto(false);
+      toast({ title: 'Versión finalizada', description: 'La versión quedó bloqueada para edición.' });
+    } catch (error: any) {
+      console.error('Error al finalizar historia clínica', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo finalizar la versión',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardandoHistoria(false);
+    }
+  };
+
+  const versionSeleccionadaEditable = Boolean(
+    version_visualizada &&
+    version_activa &&
+    version_visualizada.id === version_activa.id &&
+    !version_visualizada.finalizada,
+  );
+
+  const esUltimaSeleccionada = Boolean(
+    version_visualizada &&
+    versiones_historia.length > 0 &&
+    version_visualizada.id === versiones_historia[versiones_historia.length - 1].id,
+  );
 
   if (cargando && pacientes.length === 0) {
     return (
@@ -1001,14 +1216,107 @@ export default function Pacientes() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notas_medicas">Notas Médicas Importantes</Label>
-                <EditorDocumento
-                  valorHtml={formulario.notas_medicas}
-                  onChangeHtml={(contenido) => setFormulario({ ...formulario, notas_medicas: contenido })}
-                  config={notas_medicas_config}
-                  onChangeConfig={setNotasMedicasConfig}
-                  minHeight="200px"
-                />
+                <Label>Historia Clínica</Label>
+                {!modo_edicion && (
+                  <div className="p-4 rounded-lg border border-border bg-secondary/30 text-sm text-muted-foreground">
+                    Primero debe crear el paciente para iniciar una historia clínica.
+                  </div>
+                )}
+
+                {modo_edicion && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">
+                          Solo la última versión es editable; las anteriores se pueden visualizar.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Cada versión conserva su tamaño de hoja y márgenes.
+                        </p>
+                      </div>
+                      {versiones_historia.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={crearNuevaVersionDesdeActual}
+                          disabled={creando_historia || guardando_historia || versiones_historia.length === 0 || !esUltimaSeleccionada}
+                        >
+                          {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Guardar y crear nueva versión
+                        </Button>
+                      )}
+                    </div>
+
+                    {cargando_historias ? (
+                      <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Cargando versiones...
+                      </div>
+                    ) : versiones_historia.length === 0 ? (
+                      <div className="p-4 rounded-lg border border-dashed text-sm text-muted-foreground flex items-center justify-between gap-3">
+                        <span>Aún no hay versiones. Crea la primera para comenzar a documentar.</span>
+                        {paciente_seleccionado && (
+                          <Button onClick={() => crearPrimeraHistoria(paciente_seleccionado.id, false)} disabled={creando_historia}>
+                            {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Crear primera versión
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="grid md:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-sm">Seleccionar versión</Label>
+                            <select
+                              className="w-full border rounded-md h-10 bg-background"
+                              value={version_visualizada?.id ?? ''}
+                              onChange={(e) => seleccionarVersionHistoria(Number(e.target.value))}
+                            >
+                              {versiones_historia.map((v) => (
+                                <option key={v.id} value={v.id}>
+                                  Versión {v.numero_version}: {v.nombre || 'Sin nombre'}{v.id === version_activa?.id ? ' (actual)' : ''}
+                                </option>
+                              ))}
+                            </select>
+                            {version_visualizada && (
+                              <p className="text-xs text-muted-foreground">
+                                {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
+                              </p>
+                            )}
+                          </div>
+                          <div className="space-y-1 md:col-span-2">
+                            <Label className="text-sm">Nombre de la versión</Label>
+                            <Input
+                              value={versionSeleccionadaEditable ? (historia_en_edicion?.nombre || '') : (version_visualizada?.nombre || '')}
+                              onChange={(e) => {
+                                if (!version_visualizada) return;
+                                const nuevoNombre = e.target.value;
+                                if (versionSeleccionadaEditable) {
+                                  setHistoriaEnEdicion((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
+                                  setVersionActiva((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
+                                }
+                                setVersionVisualizada({ ...version_visualizada, nombre: nuevoNombre });
+                                setVersionesHistoria((prev) => prev.map((v) => (v.id === version_visualizada.id ? { ...v, nombre: nuevoNombre } : v)));
+                              }}
+                              disabled={!versionSeleccionadaEditable}
+                            />
+                            {!versionSeleccionadaEditable && (
+                              <p className="text-xs text-muted-foreground">Esta versión está bloqueada. Solo la última versión sin finalizar se puede editar.</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <EditorDocumento
+                          valorHtml={versionSeleccionadaEditable ? historia_contenido : (version_visualizada?.contenido_html || '')}
+                          onChangeHtml={versionSeleccionadaEditable ? setHistoriaContenido : () => {}}
+                          config={versionSeleccionadaEditable ? historia_config : ((version_visualizada as any)?.config ?? historia_config)}
+                          onChangeConfig={versionSeleccionadaEditable ? setHistoriaConfig : () => {}}
+                          minHeight="320px"
+                          soloLectura={!versionSeleccionadaEditable}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
@@ -1191,7 +1499,74 @@ export default function Pacientes() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogo_ver_abierto} onOpenChange={setDialogoVerAbierto}>
+      <Dialog open={dialogo_historia_abierto} onOpenChange={setDialogoHistoriaAbierto}>
+        <DialogContent className="max-w-5xl h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Editar historia clínica</DialogTitle>
+            <DialogDescription>
+              Versión {historia_en_edicion?.numero_version || ''}{' '}
+              {historia_en_edicion?.finalizada ? '(finalizada)' : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto pr-1">
+            <div className="space-y-2">
+              <Label>Nombre de la versión</Label>
+              <Input
+                value={historia_en_edicion?.nombre || ''}
+                onChange={(e) =>
+                  setHistoriaEnEdicion((prev: HistoriaClinicaVersion | null) =>
+                    prev ? { ...prev, nombre: e.target.value } : prev,
+                  )
+                }
+                disabled={historia_en_edicion?.finalizada}
+              />
+            </div>
+
+            <div className="mt-4">
+              <EditorDocumento
+                valorHtml={historia_contenido}
+                onChangeHtml={setHistoriaContenido}
+                config={historia_config}
+                onChangeConfig={setHistoriaConfig}
+                minHeight="400px"
+                soloLectura={Boolean(historia_en_edicion?.finalizada)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogoHistoriaAbierto(false)} disabled={guardando_historia}>
+              Cancelar
+            </Button>
+            {!historia_en_edicion?.finalizada && (
+              <Button
+                variant="secondary"
+                onClick={() => historia_en_edicion && finalizarHistoriaClinica(historia_en_edicion)}
+                disabled={guardando_historia}
+              >
+                Finalizar versión
+              </Button>
+            )}
+            {!historia_en_edicion?.finalizada && (
+              <Button onClick={guardarHistoriaClinica} disabled={guardando_historia}>
+                {guardando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Guardar cambios
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialogo_ver_abierto}
+        onOpenChange={(open) => {
+          setDialogoVerAbierto(open);
+          if (!open) {
+            limpiarEstadoHistoria();
+          }
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1438,22 +1813,110 @@ export default function Pacientes() {
                         </div>
                       )}
                       
-                      {paciente_seleccionado.notas_medicas && (
+                      <div className="space-y-3">
                         <div className="space-y-2">
-                          <Label className="text-muted-foreground">Notas Médicas</Label>
-                          <div className="p-3 rounded-lg bg-secondary/30 border border-border">
-                            <RenderizadorHtml 
-                              contenido={paciente_seleccionado.notas_medicas}
-                              modoDocumento
-                              tamanoPersonalizado={{
-                                widthMm: (paciente_seleccionado as any).notas_medicas_config?.widthMm ?? 216,
-                                heightMm: (paciente_seleccionado as any).notas_medicas_config?.heightMm ?? 279,
-                              }}
-                              margenes={(paciente_seleccionado as any).notas_medicas_config?.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 }}
-                            />
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="space-y-1">
+                              <Label className="text-muted-foreground">Historia Clínica</Label>
+                              <p className="text-xs text-muted-foreground">Selecciona una versión para visualizarla. Solo el nombre puede modificarse aquí.</p>
+                            </div>
+                            {!version_visualizada && paciente_seleccionado && (
+                              <Button onClick={() => crearPrimeraHistoria(paciente_seleccionado.id, false)} disabled={creando_historia}>
+                                {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Crear primera versión
+                              </Button>
+                            )}
                           </div>
+
+                          {cargando_historias ? (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" /> Cargando versiones...
+                            </div>
+                          ) : version_visualizada ? (
+                            <div className="space-y-3">
+                              <div className="grid md:grid-cols-3 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-sm">Seleccionar versión</Label>
+                                  <select
+                                    className="w-full border rounded-md h-10 bg-background"
+                                    value={version_visualizada?.id ?? ''}
+                                    onChange={(e) => seleccionarVersionHistoria(Number(e.target.value))}
+                                  >
+                                    {versiones_historia.map((v) => (
+                                      <option key={v.id} value={v.id}>
+                                        Versión {v.numero_version}: {v.nombre || 'Sin nombre'}{v.id === version_activa?.id ? ' (actual)' : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <p className="text-xs text-muted-foreground">
+                                    {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
+                                  </p>
+                                </div>
+                                <div className="space-y-1 md:col-span-2">
+                                  <Label className="text-sm">Nombre de la versión</Label>
+                                  <Input
+                                    value={version_visualizada?.nombre || ''}
+                                    onChange={(e) => {
+                                      if (!version_visualizada) return;
+                                      const nuevoNombre = e.target.value;
+                                      setVersionVisualizada({ ...version_visualizada, nombre: nuevoNombre });
+                                      setVersionesHistoria((prev) => prev.map((v) => (v.id === version_visualizada.id ? { ...v, nombre: nuevoNombre } : v)));
+                                      setVersionActiva((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
+                                    }}
+                                    disabled={guardando_historia}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="mt-1"
+                                    onClick={async () => {
+                                      if (!paciente_seleccionado || !version_visualizada) return;
+                                      setGuardandoHistoria(true);
+                                      try {
+                                        await historiasClinicasApi.actualizar(paciente_seleccionado.id, version_visualizada.id, {
+                                          nombre: version_visualizada.nombre,
+                                          contenido_html: version_visualizada.contenido_html,
+                                          config: (version_visualizada as any)?.config,
+                                        });
+                                        await cargarHistoriasClinicas(paciente_seleccionado.id);
+                                        seleccionarVersionHistoria(version_visualizada.id);
+                                        toast({ title: 'Nombre actualizado', description: 'La versión se renombró correctamente.' });
+                                      } catch (error: any) {
+                                        toast({
+                                          title: 'Error',
+                                          description: error.response?.data?.message || 'No se pudo actualizar el nombre de la versión',
+                                          variant: 'destructive',
+                                        });
+                                      }
+                                      setGuardandoHistoria(false);
+                                    }}
+                                    disabled={guardando_historia}
+                                  >
+                                    {guardando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Guardar nombre
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div className="p-3 rounded-lg bg-secondary/30 border border-border">
+                                <RenderizadorHtml
+                                  contenido={version_visualizada.contenido_html || ''}
+                                  modoDocumento
+                                  tamanoPersonalizado={{
+                                    widthMm: (version_visualizada as any).config?.widthMm ?? 216,
+                                    heightMm: (version_visualizada as any).config?.heightMm ?? 279,
+                                  }}
+                                  margenes={(version_visualizada as any).config?.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-3 rounded-lg bg-secondary/30 border border-dashed text-sm text-muted-foreground">
+                              Crea la primera versión para registrar la historia clínica.
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                       
                       {(!paciente_seleccionado.alergias || paciente_seleccionado.alergias.length === 0) &&
                        (!paciente_seleccionado.enfermedades || paciente_seleccionado.enfermedades.length === 0) &&

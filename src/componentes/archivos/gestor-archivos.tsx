@@ -22,6 +22,7 @@ import { VisualizadorArchivos } from '@/componentes/archivos/visualizador-archiv
 import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { MultiSelect } from '@/componentes/ui/mulit-select';
+import { EditorRecetas } from '@/componentes/pacientes/editor-recetas';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -642,15 +643,23 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
             Subir Archivo
           </Button>
           {paciente && (
-            <Button
-              onClick={abrirDialogoConsentimiento}
-              size="sm"
-              variant="outline"
-              className="hover:scale-105 transition-all duration-200"
-            >
-              <FileSignature className="h-4 w-4 mr-2" />
-              Consentimiento
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={abrirDialogoConsentimiento}
+                size="sm"
+                variant="outline"
+                className="hover:scale-105 transition-all duration-200"
+              >
+                <FileSignature className="h-4 w-4 mr-2" />
+                Consentimiento
+              </Button>
+              <EditorRecetas
+                paciente_id={paciente_id}
+                paciente_nombre={paciente.nombre}
+                paciente_apellidos={paciente.apellidos}
+                onRecetaGenerada={cargarArchivos}
+              />
+            </div>
           )}
         </div>
       </div>
