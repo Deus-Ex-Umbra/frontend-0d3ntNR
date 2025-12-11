@@ -595,8 +595,6 @@ export function GestionPlantillasRecetas() {
           })}
         </div>
       )}
-
-      {/* Dialogo Crear */}
       <Dialog open={dialogoCrear} onOpenChange={setDialogoCrear}>
         <DialogContent className="max-w-6xl w-[95vw] h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -612,8 +610,6 @@ export function GestionPlantillasRecetas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Dialogo Editar */}
       <Dialog open={dialogoEditar} onOpenChange={setDialogoEditar}>
         <DialogContent className="max-w-6xl w-[95vw] h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -629,8 +625,6 @@ export function GestionPlantillasRecetas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Dialogo Vista Previa */}
       <Dialog open={dialogoVista} onOpenChange={setDialogoVista}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
@@ -658,8 +652,6 @@ export function GestionPlantillasRecetas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Dialogo Nuevo Medicamento */}
       <Dialog open={dialogoNuevoMedicamento} onOpenChange={setDialogoNuevoMedicamento}>
         <DialogContent className="max-w-md">
           <DialogHeader>

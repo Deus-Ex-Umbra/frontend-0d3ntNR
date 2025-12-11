@@ -209,7 +209,6 @@ const CustomTableCell = TableCell.extend({
     } as any;
   },
   renderHTML({ node, HTMLAttributes }) {
-    // Usa los atributos del nodo para reflejar cambios realizados con setCellAttribute.
     const { borderStyle = 'solid', borderWidth = 1, borderColor = '#cbd5e1', backgroundColor = null } = node.attrs as any;
     const existingStyle = (HTMLAttributes as any).style || '';
     const borderCss = `border: ${borderWidth}px ${borderStyle} ${borderColor};`;
@@ -256,7 +255,6 @@ const CustomTableHeader = TableHeader.extend({
     } as any;
   },
   renderHTML({ node, HTMLAttributes }) {
-    // Igual que en la celda, tomamos los valores reales del nodo.
     const { borderStyle = 'solid', borderWidth = 1, borderColor = '#cbd5e1', backgroundColor = '#f8fafc' } = node.attrs as any;
     const existingStyle = (HTMLAttributes as any).style || '';
     const borderCss = `border: ${borderWidth}px ${borderStyle} ${borderColor};`;
@@ -286,7 +284,6 @@ const CustomTable = TableExtension.extend({
     };
   },
   renderHTML({ node, HTMLAttributes }) {
-    // Usa el atributo interno tableMode para forzar el render correcto.
     const mode = (node.attrs as any).tableMode === 'full' ? 'full' : 'auto';
     const columns = Math.max(1, node.child(0)?.childCount ?? 1);
     const common = `--table-cols: ${columns};`;
@@ -394,7 +391,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
         heading: false,
       }),
       CustomTable.configure({
-        // Deshabilitamos el resize manual para evitar anchos personalizados problemáticos.
         resizable: false,
         HTMLAttributes: {
           class: 'editor-table',
@@ -739,13 +735,11 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     const cols = clampTableDimension(tableCols);
     setTableRows(rows);
     setTableCols(cols);
-    // El cast a any evita el error de tipos en comandos de tabla; la extensión los provee en runtime
     (editor.chain() as any)
       .focus()
       .insertTable({ rows, cols, withHeaderRow: false })
       .updateAttributes('table', { tableMode })
       .run();
-    // Asegura estilos inmediatos post-inserción
     cambiarModoTabla(tableMode);
     setTablePopoverAbierto(false);
   };
@@ -756,7 +750,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     (editor.chain() as any)
       .focus()
       .updateAttributes('table', { tableMode: mode })
-      // Al cambiar modo, quitamos colwidth para permitir que el ancho se redistribuya.
       .setCellAttribute('colwidth', null)
       .run();
   };
@@ -807,13 +800,11 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     setDraftBorderWidth(newWidth);
     setDraftBorderStyle(newStyle);
     setDraftBorderColor(newColor);
-    // Aplica a todas las celdas seleccionadas (o celda actual)
         (editor.chain() as any).focus()
             .setCellAttribute('borderWidth', newWidth)
             .setCellAttribute('borderStyle', newStyle)
             .setCellAttribute('borderColor', newColor)
-            // Limpiamos colwidth para que el layout fijo reparta el ancho de forma uniforme.
-              .setCellAttribute('colwidth', null)
+            .setCellAttribute('colwidth', null)
             .run();
   };
   const aplicarFondoCelda = (color?: string) => {
@@ -1481,7 +1472,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
             height: alturaCajaDocumento,
             maxHeight: alturaCajaDocumento,
             overflowY: 'auto',
-            // Permitimos scroll horizontal para que tablas autoajustables no se corten si el contenido es más ancho que el área útil.
             overflowX: 'auto',
             display: 'block',
             padding: '12px',

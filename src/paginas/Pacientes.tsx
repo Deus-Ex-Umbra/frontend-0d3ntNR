@@ -645,7 +645,6 @@ export default function Pacientes() {
     }
     setCreandoHistoria(true);
     try {
-      // Guardar la versión editable antes de clonar para no perder cambios
       if (versionSeleccionadaEditable && historia_en_edicion) {
         await historiasClinicasApi.actualizar(paciente_seleccionado.id, historia_en_edicion.id, {
           nombre: historia_en_edicion.nombre,
