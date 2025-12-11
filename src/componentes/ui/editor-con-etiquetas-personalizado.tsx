@@ -1669,7 +1669,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
           }
           .ProseMirror:focus {
             outline: none;
-            padding: 2px 4px;
           }
           .ProseMirror p {
             margin: 0.5em 0;
