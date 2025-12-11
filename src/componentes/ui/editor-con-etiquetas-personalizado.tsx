@@ -53,6 +53,13 @@ const EtiquetaNode = Node.create({
           };
         },
       },
+      texto: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-texto'),
+        renderHTML: attributes => ({
+          'data-texto': attributes.texto,
+        }),
+      },
       eliminada: {
         default: false,
         parseHTML: element => element.getAttribute('data-eliminada') === 'true',
@@ -74,7 +81,7 @@ const EtiquetaNode = Node.create({
   },
 
   renderHTML({ node, HTMLAttributes }) {
-    const { codigo, eliminada } = node.attrs;
+    const { codigo, texto, eliminada } = node.attrs;
     const existingStyle = HTMLAttributes.style || '';
     const baseStyle = eliminada
       ? 'display: inline-flex; align-items: center; padding: 2px 8px; margin: 0 2px; border-radius: 0.375rem; background-color: #fee2e2; border: 1px solid #fca5a5;'
@@ -86,22 +93,23 @@ const EtiquetaNode = Node.create({
       mergeAttributes(HTMLAttributes, {
         'data-etiqueta': codigo,
         'data-codigo': codigo,
+        'data-texto': texto,
         'data-eliminada': eliminada,
         class: eliminada 
           ? 'etiqueta-plantilla etiqueta-eliminada' 
           : 'etiqueta-plantilla',
         style: combinedStyle,
       }),
-      codigo,
+      texto || codigo,
     ];
   },
 
   addCommands() {
     return {
-      insertarEtiqueta: (codigo: string) => ({ commands }: any) => {
+      insertarEtiqueta: (codigo: string, texto?: string) => ({ commands }: any) => {
         return commands.insertContent({
           type: this.name,
-          attrs: { codigo, eliminada: false },
+          attrs: { codigo, texto: texto || codigo, eliminada: false },
         });
       },
     } as any;

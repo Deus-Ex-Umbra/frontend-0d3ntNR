@@ -190,6 +190,31 @@ export function GestionPlantillasRecetas() {
     return encontrados;
   }
 
+  const enriquecerContenidoConNombres = (html: string) => {
+    if (!html) return html;
+    if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return html;
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const spans = doc.querySelectorAll('span[data-etiqueta^="MED_"]');
+
+      spans.forEach((span) => {
+        const codigo = span.getAttribute('data-etiqueta') || '';
+        const id = codigo.replace('MED_', '');
+        const med = medicamentos.find((m) => String(m.id) === id);
+        if (!med) return;
+        span.setAttribute('data-texto', med.nombre);
+        span.textContent = med.nombre;
+      });
+
+      return doc.body.innerHTML;
+    } catch (error) {
+      console.error('No se pudo enriquecer el contenido con nombres de medicamentos', error);
+      return html;
+    }
+  };
+
   const crearTamanoHoja = async (datos: { nombre: string; anchoCm: number; altoCm: number; descripcion?: string }) => {
     const creado = await (catalogoApi as any).crearTamanoHoja?.({ nombre: datos.nombre, ancho: datos.anchoCm, alto: datos.altoCm, descripcion: datos.descripcion });
     await cargarTamanosHoja();
@@ -235,7 +260,7 @@ export function GestionPlantillasRecetas() {
   const abrirEdicion = (plantilla: PlantillaReceta) => {
     setPlantillaSeleccionada(plantilla);
     setNombre(plantilla.nombre);
-    setContenido(plantilla.contenido);
+    setContenido(enriquecerContenidoConNombres(plantilla.contenido));
     setTamanoPapel(plantilla.tamano_papel || 'carta');
     setTamanoHojaId(plantilla.tamano_hoja_id ?? null);
     setMargenes({
@@ -317,7 +342,7 @@ export function GestionPlantillasRecetas() {
 
   const insertarMedicamentoEnEditor = (med: ItemCatalogo) => {
     const codigo = `MED_${med.id}`;
-    editorRef.current?.chain()?.focus()?.insertarEtiqueta(codigo)?.run();
+    editorRef.current?.chain()?.focus()?.insertarEtiqueta(codigo, med.nombre)?.run();
   };
 
   const crearNuevoMedicamento = async () => {
@@ -501,6 +526,10 @@ export function GestionPlantillasRecetas() {
     </div>
   );
 
+  const contenidoVista = plantillaVisualizando
+    ? enriquecerContenidoConNombres(plantillaVisualizando.contenido)
+    : '';
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -537,7 +566,7 @@ export function GestionPlantillasRecetas() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-4">
           {plantillasFiltradas.map((plantilla) => {
             const etiquetas = extraerEtiquetasDelContenido(plantilla.contenido);
             const nombresMeds = etiquetas.map(tag => {
@@ -548,7 +577,7 @@ export function GestionPlantillasRecetas() {
             const mostrados = expandido ? nombresMeds : nombresMeds.slice(0, 3);
 
             return (
-              <Card key={plantilla.id} className="overflow-hidden hover:shadow-md transition-all">
+              <Card key={plantilla.id} className="overflow-hidden">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-2 flex-1 overflow-hidden">
@@ -556,7 +585,7 @@ export function GestionPlantillasRecetas() {
                         <Pill className="h-5 w-5 flex-shrink-0" />
                         <span className="truncate" title={plantilla.nombre}>{plantilla.nombre}</span>
                       </CardTitle>
-                      
+
                       {nombresMeds.length > 0 && (
                         <div className="space-y-2">
                           <div className="flex flex-wrap gap-1.5">
@@ -574,22 +603,19 @@ export function GestionPlantillasRecetas() {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Button variant="ghost" size="icon" onClick={() => { setPlantillaVisualizando(plantilla); setDialogoVista(true); }}>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Button variant="outline" size="icon" onClick={() => { setPlantillaVisualizando(plantilla); setDialogoVista(true); }}>
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => abrirEdicion(plantilla)}>
+                      <Button variant="outline" size="icon" onClick={() => abrirEdicion(plantilla)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => manejarEliminar(plantilla.id)}>
+                      <Button variant="outline" size="icon" className="text-destructive" onClick={() => manejarEliminar(plantilla.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0 pb-3 text-xs text-muted-foreground">
-                  Actualizado: {new Date(plantilla.fecha_actualizacion || plantilla.fecha_creacion).toLocaleDateString('es-BO')}
-                </CardContent>
               </Card>
             );
           })}
@@ -635,7 +661,7 @@ export function GestionPlantillasRecetas() {
           <ScrollArea className="flex-1 pr-4">
             <div className="p-4 bg-muted/20 rounded-lg border">
               <RenderizadorHtml
-                contenido={plantillaVisualizando?.contenido || ''}
+                contenido={contenidoVista}
                 modoDocumento
                 tamanoPersonalizado={plantillaVisualizando ? obtenerTamanoPlantilla(plantillaVisualizando.tamano_hoja_id, plantillaVisualizando.ancho_mm, plantillaVisualizando.alto_mm) : undefined}
                 margenes={plantillaVisualizando ? {

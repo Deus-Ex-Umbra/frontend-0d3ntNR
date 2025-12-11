@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
 import { Input } from '@/componentes/ui/input';
@@ -6,11 +6,11 @@ import { Label } from '@/componentes/ui/label';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { SelectConAgregar } from '@/componentes/ui/select-with-add';
 import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
-import { EditorConEtiquetasPersonalizado, EditorHandle } from '@/componentes/ui/editor-con-etiquetas-personalizado';
+import { EditorDocumento, DocumentoConfig } from '@/componentes/ui/editor-documento';
 import { plantillasRecetasApi, archivosApi, catalogoApi } from '@/lib/api';
 import { PlantillaReceta, ItemCatalogo } from '@/tipos';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, Loader2, Pill, Settings, Sparkles, X } from 'lucide-react';
+import { FileText, Loader2, Pill, Settings, Sparkles, X, ArrowLeft, Search, Eye, EyeOff } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -29,23 +29,46 @@ interface ValorMedicamento {
 
 export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos, onRecetaGenerada }: EditorRecetasProps) {
   const { toast } = useToast();
-  const editorRef = useRef<EditorHandle | null>(null);
-  const [contenidoPersonalizado, setContenidoPersonalizado] = useState('');
-
+  
+  // Estados principales
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
-  const [dialogoPersonalizar, setDialogoPersonalizar] = useState(false);
+  const [fase, setFase] = useState<'seleccion' | 'creacion' | 'edicion'>('seleccion');
+  
+  // Datos
   const [plantillas, setPlantillas] = useState<PlantillaReceta[]>([]);
   const [plantillasFiltradas, setPlantillasFiltradas] = useState<PlantillaReceta[]>([]);
+  const [medicamentos, setMedicamentos] = useState<ItemCatalogo[]>([]);
+  
+  // Selección
   const [filtro, setFiltro] = useState('');
   const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<PlantillaReceta | null>(null);
-  const [medicamentos, setMedicamentos] = useState<ItemCatalogo[]>([]);
+  
+  // Creación
   const [valoresMedicamentos, setValoresMedicamentos] = useState<ValorMedicamento[]>([]);
   const [medicamentoParaAgregar, setMedicamentoParaAgregar] = useState<string>('');
+  const [vistaPrevia, setVistaPrevia] = useState(false);
+  
+  // Edición
+  const [contenidoEditado, setContenidoEditado] = useState('');
+  const [configuracionDocumento, setConfiguracionDocumento] = useState<DocumentoConfig>({
+    widthMm: 216,
+    heightMm: 279,
+    margenes: { top: 20, right: 20, bottom: 20, left: 20 },
+    nombre_tamano: 'Carta'
+  });
+
+  // Estados de carga
   const [cargando, setCargando] = useState(false);
   const [cargandoPlantillas, setCargandoPlantillas] = useState(false);
 
+  // Efectos
   useEffect(() => {
     if (dialogoAbierto) {
+      setFase('seleccion');
+      setPlantillaSeleccionada(null);
+      setValoresMedicamentos([]);
+      setFiltro('');
+      setVistaPrevia(false);
       cargarPlantillas();
       cargarMedicamentos();
     }
@@ -62,6 +85,7 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     );
   }, [filtro, plantillas]);
 
+  // Carga de datos
   const cargarPlantillas = async () => {
     setCargandoPlantillas(true);
     try {
@@ -85,6 +109,36 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     }
   };
 
+  // Lógica de procesamiento de contenido
+  const procesarContenido = useCallback((): string => {
+    if (!plantillaSeleccionada) return '';
+    const html = plantillaSeleccionada.contenido;
+    
+    // Procesamiento simple con regex para reemplazar etiquetas
+    const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]{}\\]/g, '\\$&');
+    let contenido = html;
+    
+    valoresMedicamentos.forEach(({ codigo, nombre, indicaciones }) => {
+      const texto = indicaciones.trim() ? `${nombre}: ${indicaciones}` : nombre;
+      const escapedCodigo = escapeRegExp(codigo);
+      
+      // Reemplazar spans con data-etiqueta
+      const tagRegex = new RegExp(`<span[^>]*data-etiqueta="${escapedCodigo}"[^>]*>([\\s\\S]*?)<\\/span>`, 'g');
+      contenido = contenido.replace(tagRegex, () => `<span>${texto}</span>`);
+      
+      // Reemplazar texto plano del código
+      const simpleRegex = new RegExp(escapedCodigo, 'g');
+      contenido = contenido.replace(simpleRegex, texto);
+    });
+    
+    // Limpiar etiquetas restantes no encontradas
+    contenido = contenido.replace(/data-etiqueta="[^"]*"/g, '');
+    return contenido;
+  }, [plantillaSeleccionada, valoresMedicamentos]);
+
+  const contenidoProcesado = useMemo(() => procesarContenido(), [procesarContenido]);
+
+  // Helpers
   const opcionesMedicamentos = useMemo(
     () => medicamentos.map((m) => ({ value: `MED_${m.id}`, label: m.nombre })),
     [medicamentos]
@@ -109,9 +163,11 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     setValoresMedicamentos(nuevos);
   };
 
+  // Acciones
   const seleccionarPlantilla = (plantilla: PlantillaReceta) => {
     setPlantillaSeleccionada(plantilla);
     prepararMedicamentos(plantilla.contenido);
+    setFase('creacion');
   };
 
   const actualizarIndicacion = (codigo: string, valor: string) => {
@@ -142,31 +198,6 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     }
   };
 
-  const procesarContenido = (): string => {
-    if (!plantillaSeleccionada) return '';
-    let contenido = plantillaSeleccionada.contenido;
-
-    valoresMedicamentos.forEach(({ codigo, nombre, indicaciones }) => {
-      const texto = indicaciones.trim() ? `${nombre}: ${indicaciones}` : nombre;
-      const escapedCodigo = codigo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp('<span[^>]*data-etiqueta="' + escapedCodigo + '"[^>]*>([^<]*)<\\/span>', 'g');
-      contenido = contenido.replace(regex, (match) => {
-        const limpio = match
-          .replace(/data-etiqueta="[^"]*"/g, '')
-          .replace(/data-codigo="[^"]*"/g, '')
-          .replace(/data-eliminada="[^"]*"/g, '')
-          .replace(/class="[^"]*"/g, '')
-          .replace(/style="[^"]*"/g, '');
-        return limpio.replace(/>([^<]*)<\/span>/, '>' + texto + '</span>');
-      });
-      const simpleRegex = new RegExp(escapedCodigo, 'g');
-      contenido = contenido.replace(simpleRegex, texto);
-    });
-
-    contenido = contenido.replace(/data-etiqueta="[^\"]*"/g, '');
-    return contenido;
-  };
-
   const generarNombreArchivo = () => {
     const ahora = new Date();
     const fecha = ahora.toLocaleDateString('es-BO').replace(/\//g, '-');
@@ -174,35 +205,73 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     return 'Receta-' + fecha + '_' + hora + '.pdf';
   };
 
-  const generarPdf = async (contenidoHtml: string) => {
+  const generarPdf = async (contenidoHtml: string, config?: DocumentoConfig) => {
     if (!plantillaSeleccionada) return;
     setCargando(true);
     try {
       const contenedor = document.createElement('div');
-      contenedor.style.cssText = 'position:absolute; left:-9999px; top:0; width:800px; background:white; padding:32px; font-family: "Times New Roman", Times, serif;';
+      
+      // Configuración de dimensiones y márgenes
+      const widthMm = config?.widthMm || 216; // Carta por defecto
+      const heightMm = config?.heightMm || 279;
+      const margenes = config?.margenes || { top: 20, right: 20, bottom: 20, left: 20 };
+      
+      // Convertir mm a px (aprox 3.78 px por mm)
+      const mmToPx = 3.78;
+      const widthPx = widthMm * mmToPx;
+      
+      contenedor.style.cssText = `
+        position: fixed; 
+        left: -9999px; 
+        top: 0; 
+        width: ${widthPx}px; 
+        background: white; 
+        padding: ${margenes.top}mm ${margenes.right}mm ${margenes.bottom}mm ${margenes.left}mm; 
+        font-family: "Times New Roman", Times, serif;
+        box-sizing: border-box;
+        z-index: -1000;
+      `;
+      
       contenedor.innerHTML = contenidoHtml;
       document.body.appendChild(contenedor);
+
+      // Esperar un momento para asegurar renderizado
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       const canvas = await html2canvas(contenedor, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
+        windowWidth: widthPx,
       });
 
       document.body.removeChild(contenedor);
 
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const imgWidth = 210;
+      const pdf = new jsPDF({ 
+        orientation: widthMm > heightMm ? 'landscape' : 'portrait', 
+        unit: 'mm', 
+        format: [widthMm, heightMm] 
+      });
+      
+      const imgWidth = widthMm;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
       let alturaRestante = imgHeight;
       let posicion = 0;
+      
+      // Primera página
+      pdf.addImage(imgData, 'PNG', 0, posicion, imgWidth, imgHeight);
+      alturaRestante -= heightMm;
+      posicion -= heightMm;
+      
+      // Páginas adicionales si es necesario
       while (alturaRestante > 0) {
+        pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, posicion, imgWidth, imgHeight);
-        alturaRestante -= 297;
-        posicion -= 297;
-        if (alturaRestante > 0) pdf.addPage();
+        alturaRestante -= heightMm;
+        posicion -= heightMm;
       }
 
       const base64 = pdf.output('dataurlstring').split(',')[1];
@@ -218,9 +287,6 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
 
       toast({ title: 'Receta guardada', description: 'Se generó y almacenó el PDF en archivos del paciente.' });
       setDialogoAbierto(false);
-      setDialogoPersonalizar(false);
-      setPlantillaSeleccionada(null);
-      setValoresMedicamentos([]);
       if (onRecetaGenerada) onRecetaGenerada();
     } catch (error) {
       console.error('Error al generar receta:', error);
@@ -230,191 +296,192 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     }
   };
 
-  const manejarGuardarPdf = () => {
-    if (!plantillaSeleccionada) {
-      toast({ title: 'Selecciona una plantilla', description: 'Elige una plantilla para continuar', variant: 'destructive' });
-      return;
-    }
-    const vacios = valoresMedicamentos.filter((m) => !m.indicaciones.trim());
-    if (vacios.length > 0) {
-      toast({ title: 'Faltan indicaciones', description: 'Completa las indicaciones de todos los medicamentos.', variant: 'destructive' });
-      return;
-    }
-    const contenido = procesarContenido();
-    generarPdf(contenido);
-  };
-
-  const abrirPersonalizar = () => {
-    if (!plantillaSeleccionada) return;
-    const contenido = procesarContenido();
-    setContenidoPersonalizado(contenido);
-    setDialogoPersonalizar(true);
-  };
-
-  const guardarPersonalizado = () => {
-    if (!plantillaSeleccionada) return;
-    const contenidoFinal = contenidoPersonalizado;
-    if (!contenidoFinal.trim()) {
-      toast({ title: 'Contenido vacío', description: 'El contenido personalizado no puede estar vacío', variant: 'destructive' });
-      return;
-    }
-    generarPdf(contenidoFinal);
+  const irAEdicion = () => {
+    setContenidoEditado(contenidoProcesado);
+    setFase('edicion');
   };
 
   return (
     <>
-      <Button onClick={() => setDialogoAbierto(true)} variant="outline" className="gap-2">
-        <Pill className="h-4 w-4" />
+      <Button 
+        onClick={() => setDialogoAbierto(true)} 
+        variant="outline" 
+        size="sm" 
+        className="hover:scale-105 transition-all duration-200"
+      >
+        <Pill className="h-4 w-4 mr-2" />
         Recetar
       </Button>
 
       <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent
+          className={`max-w-5xl max-h-[90vh] overflow-hidden flex flex-col ${
+            fase === 'edicion' || (fase === 'creacion' && vistaPrevia) ? 'h-[90vh]' : ''
+          }`}
+        >
           <DialogHeader>
-            <DialogTitle>Generar receta</DialogTitle>
-            <DialogDescription>Para {paciente_nombre} {paciente_apellidos}</DialogDescription>
+            <DialogTitle>
+              {fase === 'seleccion' && 'Seleccionar Plantilla de Receta'}
+              {fase === 'creacion' && 'Generar Receta'}
+              {fase === 'edicion' && 'Editar y Generar Receta'}
+            </DialogTitle>
+            <DialogDescription>
+              {fase === 'seleccion' && 'Elige una plantilla para comenzar.'}
+              {fase === 'creacion' && `Para ${paciente_nombre} ${paciente_apellidos}`}
+              {fase === 'edicion' && 'Personaliza el documento antes de generar.'}
+            </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 grid gap-4 md:grid-cols-[1.2fr_1fr]">
-            <ScrollArea className="pr-3">
-              {!plantillaSeleccionada ? (
-                <div className="space-y-3">
-                  <Input placeholder="Buscar plantilla" value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            {fase === 'seleccion' && (
+              <div className="flex flex-col gap-4 h-full">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Buscar plantilla por nombre..." 
+                    value={filtro} 
+                    onChange={(e) => setFiltro(e.target.value)} 
+                    className="pl-8"
+                  />
+                </div>
+                <ScrollArea className="flex-1 border rounded-md p-2">
                   {cargandoPlantillas ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Cargando plantillas...
+                    <div className="flex items-center justify-center p-8 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" /> Cargando plantillas...
                     </div>
                   ) : plantillasFiltradas.length === 0 ? (
-                    <div className="border rounded-lg p-6 text-center text-muted-foreground">
-                      No hay plantillas disponibles
+                    <div className="text-center p-8 text-muted-foreground">
+                      No se encontraron plantillas.
                     </div>
                   ) : (
-                    <div className="grid gap-2">
+                    <div className="grid grid-cols-1 gap-2">
                       {plantillasFiltradas.map((plantilla) => (
                         <Button
                           key={plantilla.id}
                           variant="outline"
-                          className="justify-start h-auto py-3"
+                          className="h-auto p-3 flex flex-col items-start gap-1 hover:border-primary hover:bg-primary/5 w-full"
                           onClick={() => seleccionarPlantilla(plantilla)}
                         >
-                          <div className="flex flex-col items-start">
-                            <span className="font-semibold">{plantilla.nombre}</span>
-                            <span className="text-xs text-muted-foreground">
-                              Última edición: {new Date(plantilla.fecha_actualizacion || plantilla.fecha_creacion).toLocaleDateString('es-BO')}
-                            </span>
-                          </div>
+                          <span className="font-semibold text-base">{plantilla.nombre}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(plantilla.fecha_actualizacion || plantilla.fecha_creacion).toLocaleDateString('es-BO')}
+                          </span>
                         </Button>
                       ))}
                     </div>
                   )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="text-sm">Plantilla seleccionada</Label>
-                      <p className="font-semibold">{plantillaSeleccionada.nombre}</p>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => { setPlantillaSeleccionada(null); setValoresMedicamentos([]); }}>
-                      Cambiar plantilla
-                    </Button>
-                  </div>
+                </ScrollArea>
+              </div>
+            )}
 
-                  <div className="rounded-lg border p-3 space-y-2 bg-secondary/30">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-primary" />
-                      <p className="text-sm font-semibold">Medicamentos</p>
-                    </div>
-                    {valoresMedicamentos.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Esta plantilla no tiene etiquetas de medicamentos.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {valoresMedicamentos.map((med) => (
-                          <div key={med.codigo} className="space-y-1">
-                            <Label>{med.nombre}</Label>
-                            <Input
-                              value={med.indicaciones}
-                              onChange={(e) => actualizarIndicacion(med.codigo, e.target.value)}
-                              placeholder="Dosis, frecuencia, notas"
-                            />
-                          </div>
-                        ))}
+            {fase === 'creacion' && plantillaSeleccionada && (
+              <div
+                className={`flex flex-col overflow-hidden min-h-0 ${
+                  vistaPrevia ? 'max-h-[70vh]' : ''
+                }`}
+              >
+                <ScrollArea className="flex-1 pr-3 h-full min-h-0">
+                  <div className="space-y-4 p-1">
+                    <div className="flex items-center justify-between bg-secondary/20 p-3 rounded-lg border">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Plantilla</Label>
+                        <p className="font-semibold">{plantillaSeleccionada.nombre}</p>
                       </div>
-                    )}
-                    <div className="space-y-2 pt-2 border-t">
-                      <Label>Agregar medicamento</Label>
-                      <div className="flex flex-col gap-2">
-                        <SelectConAgregar
-                          opciones={opcionesMedicamentos.map((m) => ({ valor: m.value, etiqueta: m.label }))}
-                          valor={medicamentoParaAgregar}
-                          onChange={setMedicamentoParaAgregar}
-                          onAgregarNuevo={crearMedicamento}
-                          placeholder="Seleccionar"
-                          textoAgregar="Agregar medicamento"
-                        />
-                        <div className="flex gap-2">
-                          <Button variant="outline" className="flex-1" onClick={agregarMedicamentoManual} disabled={!medicamentoParaAgregar}>
-                            Añadir a la receta
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setMedicamentoParaAgregar('')} aria-label="Limpiar">
-                            <X className="h-4 w-4" />
-                          </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setFase('seleccion')} className="gap-2">
+                        <ArrowLeft className="h-4 w-4" /> Cambiar
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <Pill className="h-4 w-4" /> Medicamentos de la receta
+                      </Label>
+                      {valoresMedicamentos.length === 0 ? (
+                        <div className="text-sm text-muted-foreground p-4 border border-dashed rounded-lg text-center">
+                          No hay medicamentos en esta plantilla.
                         </div>
+                      ) : (
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {valoresMedicamentos.map((med) => (
+                            <div key={med.codigo} className="space-y-1.5 p-3 rounded-md border bg-card shadow-sm">
+                              <div className="font-medium text-sm">{med.nombre}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 pt-4">
+                      <div className="flex items-center justify-between">
+                        <Label>Vista Previa</Label>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setVistaPrevia(!vistaPrevia)}
+                          className="h-8 gap-2"
+                        >
+                          {vistaPrevia ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {vistaPrevia ? 'Ocultar' : 'Mostrar'}
+                        </Button>
                       </div>
+                      
+                      {vistaPrevia && (
+                        <div className="border rounded-lg p-4 bg-white shadow-sm min-h-[200px]">
+                          <RenderizadorHtml contenido={contenidoProcesado} modoDocumento />
+                        </div>
+                      )}
                     </div>
                   </div>
+                </ScrollArea>
 
-                  <div className="space-y-2">
-                    <Label>Vista previa</Label>
-                    <div className="border rounded-lg p-3 bg-background">
-                      <RenderizadorHtml contenido={procesarContenido()} modoDocumento />
+                <DialogFooter className="mt-4 border-t pt-4">
+                  <Button variant="outline" onClick={() => setDialogoAbierto(false)}>
+                    Cancelar
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    onClick={irAEdicion}
+                  >
+                    <Settings className="h-4 w-4 mr-2" /> Editar y Generar
+                  </Button>
+                  <Button 
+                    onClick={() => generarPdf(contenidoProcesado)}
+                    disabled={cargando}
+                  >
+                    {cargando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                    Generar y Guardar
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
+
+            {fase === 'edicion' && (
+              <div className="flex-1 overflow-hidden min-h-0">
+                <ScrollArea className="h-full min-h-0 -mr-6 pr-6">
+                  <div className="flex flex-col gap-4 min-h-[500px] pb-4">
+                    <div className="flex-1 border rounded-lg overflow-hidden">
+                      <EditorDocumento
+                        valorHtml={contenidoEditado}
+                        onChangeHtml={setContenidoEditado}
+                        config={configuracionDocumento}
+                        onChangeConfig={setConfiguracionDocumento}
+                        className="h-full border-0 min-h-[600px]"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4 border-t mt-auto">
+                      <Button variant="outline" onClick={() => setFase('creacion')}>
+                        Cancelar
+                      </Button>
+                      <Button onClick={() => generarPdf(contenidoEditado, configuracionDocumento)} disabled={cargando}>
+                        {cargando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        Generar PDF
+                      </Button>
                     </div>
                   </div>
-                </div>
-              )}
-            </ScrollArea>
-
-            <div className="space-y-4">
-              <div className="rounded-lg border bg-secondary/40 p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-semibold">Acciones</p>
-                </div>
-                <Button onClick={manejarGuardarPdf} disabled={cargando || !plantillaSeleccionada} className="w-full">
-                  {cargando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Guardar PDF
-                </Button>
-                <Button onClick={abrirPersonalizar} variant="outline" disabled={!plantillaSeleccionada} className="w-full gap-2">
-                  <Settings className="h-4 w-4" /> Personalizar antes de guardar
-                </Button>
+                </ScrollArea>
               </div>
-              <div className="rounded-lg border p-3 text-xs text-muted-foreground">
-                Completa las indicaciones para cada medicamento y luego genera el PDF. El archivo se guarda automáticamente en Archivos del paciente con un nombre basado en la fecha y hora local.
-              </div>
-            </div>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={dialogoPersonalizar} onOpenChange={setDialogoPersonalizar}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>Personalizar receta</DialogTitle>
-            <DialogDescription>Edita libremente antes de generar el PDF.</DialogDescription>
-          </DialogHeader>
-          <div className="border rounded-lg">
-            <EditorConEtiquetasPersonalizado
-              ref={editorRef}
-              contenido={contenidoPersonalizado}
-              onChange={(html) => setContenidoPersonalizado(html)}
-              habilitarEtiquetas={false}
-              soloLectura={false}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialogoPersonalizar(false)}>Cancelar</Button>
-            <Button onClick={guardarPersonalizado} disabled={cargando}>
-              {cargando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Guardar PDF
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
