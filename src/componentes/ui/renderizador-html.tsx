@@ -159,15 +159,9 @@ export function RenderizadorHtml({
       if (modoDocumento) {
         const totalHeight = container.scrollHeight;
         const effectivePageHeight = contentAreaHeight;
-
-        // Calcular número de páginas basado en altura total del contenido
         const numPages = Math.max(1, Math.ceil(totalHeight / effectivePageHeight));
-
-        // Crear un array con el número de páginas (usaremos el HTML completo con offset)
         const pageArray = Array.from({ length: numPages }, (_, i) => i);
         setPaginas(pageArray.map(String));
-
-        // Guardar el HTML completo y la altura por página para usar en el render
         setHtmlParaMostrar(container.innerHTML);
       }
     };

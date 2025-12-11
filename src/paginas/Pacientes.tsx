@@ -1897,16 +1897,19 @@ export default function Pacientes() {
                                 </div>
                               </div>
 
-                              <div className="p-3 rounded-lg bg-secondary/30 border border-border overflow-x-auto">
-                                <RenderizadorHtml
-                                  contenido={version_visualizada.contenido_html || ''}
-                                  modoDocumento
-                                  tamanoPersonalizado={{
-                                    widthMm: (version_visualizada as any).config?.widthMm ?? 216,
-                                    heightMm: (version_visualizada as any).config?.heightMm ?? 279,
-                                  }}
-                                  margenes={(version_visualizada as any).config?.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 }}
-                                />
+                              <div className="p-3 rounded-lg bg-secondary/30 border border-border overflow-hidden">
+                                <div className="max-w-4xl mx-auto w-full">
+                                  <RenderizadorHtml
+                                    contenido={version_visualizada.contenido_html || ''}
+                                    modoDocumento
+                                    escala={0.92}
+                                    tamanoPersonalizado={{
+                                      widthMm: (version_visualizada as any).config?.widthMm ?? 216,
+                                      heightMm: (version_visualizada as any).config?.heightMm ?? 279,
+                                    }}
+                                    margenes={(version_visualizada as any).config?.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 }}
+                                  />
+                                </div>
                               </div>
                             </div>
                           ) : (

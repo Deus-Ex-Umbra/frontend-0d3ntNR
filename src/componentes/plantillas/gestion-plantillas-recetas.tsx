@@ -668,19 +668,22 @@ export function GestionPlantillasRecetas() {
               <Eye className="h-5 w-5" /> Vista Previa
             </DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-4">
-            <div className="p-4 bg-muted/20 rounded-lg border">
-              <RenderizadorHtml
-                contenido={contenidoVista}
-                modoDocumento
-                tamanoPersonalizado={plantillaVisualizando ? obtenerTamanoPlantilla(plantillaVisualizando.tamano_hoja_id, plantillaVisualizando.ancho_mm, plantillaVisualizando.alto_mm) : undefined}
-                margenes={plantillaVisualizando ? {
-                  top: plantillaVisualizando.margen_superior,
-                  bottom: plantillaVisualizando.margen_inferior,
-                  left: plantillaVisualizando.margen_izquierdo,
-                  right: plantillaVisualizando.margen_derecho,
-                } : undefined}
-              />
+          <ScrollArea className="flex-1 pr-4 max-h-[calc(90vh-160px)]">
+            <div className="p-4 bg-muted/20 rounded-lg border overflow-hidden">
+              <div className="max-w-4xl mx-auto w-full">
+                <RenderizadorHtml
+                  contenido={contenidoVista}
+                  modoDocumento
+                  escala={0.92}
+                  tamanoPersonalizado={plantillaVisualizando ? obtenerTamanoPlantilla(plantillaVisualizando.tamano_hoja_id, plantillaVisualizando.ancho_mm, plantillaVisualizando.alto_mm) : undefined}
+                  margenes={plantillaVisualizando ? {
+                    top: plantillaVisualizando.margen_superior,
+                    bottom: plantillaVisualizando.margen_inferior,
+                    left: plantillaVisualizando.margen_izquierdo,
+                    right: plantillaVisualizando.margen_derecho,
+                  } : undefined}
+                />
+              </div>
             </div>
           </ScrollArea>
           <DialogFooter>

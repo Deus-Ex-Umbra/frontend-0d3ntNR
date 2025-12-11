@@ -1290,24 +1290,27 @@ export function GestionPlantillasConsentimiento() {
                     Vista previa del documento
                   </p>
                 </div>
-                <div className="p-8 overflow-x-auto">
-                  <RenderizadorHtml 
-                    contenido={plantilla_visualizando?.contenido || ''}
-                    modoDocumento
-                    tamanoPapel={(plantilla_visualizando as any)?.tamano_papel || 'carta'}
-                    tamanoPersonalizado={plantilla_visualizando ? obtenerTamanoPlantilla(
-                      (plantilla_visualizando as any)?.tamano_hoja_id ?? null,
-                      (plantilla_visualizando as any)?.ancho_mm ?? null,
-                      (plantilla_visualizando as any)?.alto_mm ?? null,
-                    ) : undefined as any}
-                    margenes={{
-                      top: plantilla_visualizando?.margen_superior ?? 20,
-                      bottom: plantilla_visualizando?.margen_inferior ?? 20,
-                      left: plantilla_visualizando?.margen_izquierdo ?? 20,
-                      right: plantilla_visualizando?.margen_derecho ?? 20,
-                    }}
-                    className="[&_span[data-etiqueta]]:bg-yellow-100 [&_span[data-etiqueta]]:px-2 [&_span[data-etiqueta]]:py-0.5 [&_span[data-etiqueta]]:rounded [&_span[data-etiqueta]]:font-medium [&_span[data-etiqueta]]:text-yellow-900"
-                  />
+                <div className="p-6 md:p-8 overflow-hidden">
+                  <div className="max-w-4xl mx-auto w-full">
+                    <RenderizadorHtml 
+                      contenido={plantilla_visualizando?.contenido || ''}
+                      modoDocumento
+                      escala={0.92}
+                      tamanoPapel={(plantilla_visualizando as any)?.tamano_papel || 'carta'}
+                      tamanoPersonalizado={plantilla_visualizando ? obtenerTamanoPlantilla(
+                        (plantilla_visualizando as any)?.tamano_hoja_id ?? null,
+                        (plantilla_visualizando as any)?.ancho_mm ?? null,
+                        (plantilla_visualizando as any)?.alto_mm ?? null,
+                      ) : undefined as any}
+                      margenes={{
+                        top: plantilla_visualizando?.margen_superior ?? 20,
+                        bottom: plantilla_visualizando?.margen_inferior ?? 20,
+                        left: plantilla_visualizando?.margen_izquierdo ?? 20,
+                        right: plantilla_visualizando?.margen_derecho ?? 20,
+                      }}
+                      className="[&_span[data-etiqueta]]:bg-yellow-100 [&_span[data-etiqueta]]:px-2 [&_span[data-etiqueta]]:py-0.5 [&_span[data-etiqueta]]:rounded [&_span[data-etiqueta]]:font-medium [&_span[data-etiqueta]]:text-yellow-900"
+                    />
+                  </div>
                 </div>
               </div>
               <Card className="bg-blue-50 border-blue-200">
