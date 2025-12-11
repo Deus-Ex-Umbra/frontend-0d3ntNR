@@ -1897,7 +1897,7 @@ export default function Pacientes() {
                                 </div>
                               </div>
 
-                              <div className="p-3 rounded-lg bg-secondary/30 border border-border">
+                              <div className="p-3 rounded-lg bg-secondary/30 border border-border overflow-x-auto">
                                 <RenderizadorHtml
                                   contenido={version_visualizada.contenido_html || ''}
                                   modoDocumento

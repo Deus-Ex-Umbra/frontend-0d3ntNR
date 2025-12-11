@@ -617,8 +617,37 @@ export function GeneradorConsentimientoPaciente({
                       </div>
                       
                       {vista_previa && (
-                        <div className="border rounded-lg p-4 max-h-96 overflow-auto bg-white">
-                          <RenderizadorHtml contenido={procesarContenidoConValores()} />
+                        <div className="border rounded-lg overflow-hidden h-[800px] flex flex-col bg-gray-100 mt-4">
+                          <RenderizadorHtml 
+                            contenido={plantilla_seleccionada.contenido}
+                            modoPlantilla={true}
+                            valoresEtiquetas={valores_etiquetas.map(v => ({
+                                codigo: v.codigo,
+                                valor: v.valor,
+                                color: usar_colores_individuales ? (v.color_caja || '#dbeafe') : color_cajas_global,
+                                mostrar_caja: usar_colores_individuales ? (v.mostrar_caja !== false) : mostrar_cajas_etiquetas
+                            }))}
+                            modoDocumento={true}
+                            modoInteractivo={true}
+                            tamanoPapel="carta"
+                            margenes={{
+                              top: margenes.superior,
+                              right: margenes.derecho,
+                              bottom: margenes.inferior,
+                              left: margenes.izquierdo
+                            }}
+                            onEstablecerEtiqueta={(codigo) => {
+                                const input = document.getElementById(codigo);
+                                if (input) {
+                                    input.focus();
+                                    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    toast({
+                                        description: `Ingresa el valor para ${codigo}`,
+                                        duration: 2000
+                                    });
+                                }
+                            }}
+                          />
                         </div>
                       )}
                     </div>
