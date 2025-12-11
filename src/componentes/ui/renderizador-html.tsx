@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utilidades';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import {
@@ -31,6 +31,10 @@ interface RenderizadorHtmlProps {
   onEstablecerEtiqueta?: (codigo: string) => void;
   modoPlantilla?: boolean;
   valoresEtiquetas?: ValorEtiqueta[];
+  /** Altura fija del contenedor (CSS value). Default: '500px' */
+  altura?: string;
+  /** Si es true, ajusta automáticamente la escala para no exceder el ancho disponible */
+  ajustarAncho?: boolean;
 }
 
 export function RenderizadorHtml({
@@ -44,7 +48,9 @@ export function RenderizadorHtml({
   modoInteractivo = false,
   onEstablecerEtiqueta,
   modoPlantilla = false,
-  valoresEtiquetas = []
+  valoresEtiquetas = [],
+  altura = '500px',
+  ajustarAncho = false
 }: RenderizadorHtmlProps) {
 
   const [contenidoLocal, setContenidoLocal] = useState(contenido);
@@ -52,10 +58,14 @@ export function RenderizadorHtml({
   const [htmlParaMostrar, setHtmlParaMostrar] = useState(contenido);
   const measurerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(escalaInicial || 0.6);
   const [mostrarMargenes, setMostrarMargenes] = useState(false);
   const [paginaActual, setPaginaActual] = useState(1);
   const [colorEtiquetas, setColorEtiquetas] = useState('#dbeafe');
+  const [barraTranslucida, setBarraTranslucida] = useState(false);
+  const [anchoContenedor, setAnchoContenedor] = useState(0);
+  const [zoomManual, setZoomManual] = useState(false); // Si el usuario cambió zoom manualmente
 
   useEffect(() => {
     let nuevoContenido = contenido;
@@ -99,6 +109,7 @@ export function RenderizadorHtml({
   }, [escalaInicial]);
 
   const mmToPx = (mm: number) => (mm / 25.4) * 96;
+  const PAGE_GAP = 24; // espacio entre páginas en px
 
   const PAGE = useMemo(() => {
     const base = tamanoPersonalizado
@@ -130,6 +141,34 @@ export function RenderizadorHtml({
 
   const contentAreaHeight = pageHeightPx - PAGE.paddingTop - PAGE.paddingBottom;
   const contentAreaWidth = pageWidthPx - PAGE.paddingLeft - PAGE.paddingRight;
+
+  // Límites de zoom
+  const ZOOM_MIN = 0.3;
+  const ZOOM_MAX = 2.0;
+
+  // Calcular escala automática para ajustar al ancho
+  const escalaCalculada = useMemo(() => {
+    if (!ajustarAncho || zoomManual || anchoContenedor <= 0) return zoom;
+    const padding = 32; // padding del contenedor
+    const disponible = anchoContenedor - padding;
+    const escalaAuto = disponible / pageWidthPx;
+    // Limitar entre 0.3 y escalaInicial
+    return Math.min(Math.max(escalaAuto, ZOOM_MIN), escalaInicial || 1);
+  }, [ajustarAncho, zoomManual, anchoContenedor, pageWidthPx, zoom, escalaInicial, ZOOM_MIN]);
+
+  const escalaFinal = (ajustarAncho && !zoomManual) ? escalaCalculada : zoom;
+
+  // Observer para detectar el ancho del contenedor
+  useEffect(() => {
+    if (!scrollContainerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setAnchoContenedor(entry.contentRect.width);
+      }
+    });
+    ro.observe(scrollContainerRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!measurerRef.current) return;
@@ -211,12 +250,26 @@ export function RenderizadorHtml({
   const irAPagina = (pagina: number) => {
     if (pagina >= 1 && pagina <= paginas.length) {
       setPaginaActual(pagina);
-      const el = document.getElementById(`pagina-${pagina - 1}`);
+      const el = document.getElementById(`pagina-render-${pagina - 1}`);
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
   };
+
+  // Manejar el scroll para la barra translúcida
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return;
+    const scrollTop = scrollContainerRef.current.scrollTop;
+    setBarraTranslucida(scrollTop > 10);
+  }, []);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
   const contentStyle: React.CSSProperties = {
     whiteSpace: 'pre-wrap',
@@ -231,22 +284,53 @@ export function RenderizadorHtml({
     textAlign: 'left'
   };
 
+
   return (
     <div
+      ref={containerRef}
       className={cn(
-        'flex flex-col w-full h-full',
+        'flex flex-col w-full border rounded-lg bg-background shadow-sm overflow-hidden',
         className
       )}
+      style={{ height: modoDocumento ? altura : 'auto' }}
       onClick={handleContainerClick}
     >
+      {/* Barra de herramientas */}
       {modoDocumento && (
-        <div className="flex items-center justify-between mb-0 p-2 bg-background/80 backdrop-blur border-b shadow-sm z-10">
+        <div
+          className={cn(
+            "flex items-center justify-between p-2 border-b z-10 transition-all duration-200",
+            barraTranslucida
+              ? "bg-background/70 backdrop-blur-md shadow-sm"
+              : "bg-background/95 backdrop-blur-sm"
+          )}
+        >
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))} title="Reducir Zoom">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setZoomManual(true);
+                setZoom(z => Math.max(ZOOM_MIN, z - 0.1));
+              }}
+              title="Reducir Zoom"
+              disabled={escalaFinal <= ZOOM_MIN}
+            >
               <ZoomOut className="h-4 w-4" />
             </Button>
-            <span className="text-xs font-medium w-12 text-center">{Math.round(zoom * 100)}%</span>
-            <Button variant="ghost" size="sm" onClick={() => setZoom(z => Math.min(2.0, z + 0.1))} title="Aumentar Zoom">
+            <span className="text-xs font-medium w-12 text-center">
+              {Math.round(escalaFinal * 100)}%
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setZoomManual(true);
+                setZoom(z => Math.min(ZOOM_MAX, z + 0.1));
+              }}
+              title="Aumentar Zoom"
+              disabled={escalaFinal >= ZOOM_MAX}
+            >
               <ZoomIn className="h-4 w-4" />
             </Button>
             <div className="h-4 w-px bg-border mx-2" />
@@ -256,7 +340,7 @@ export function RenderizadorHtml({
               onClick={() => setMostrarMargenes(!mostrarMargenes)}
               title={mostrarMargenes ? "Ocultar Márgenes" : "Mostrar Márgenes"}
             >
-              {mostrarMargenes ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+              {mostrarMargenes ? <EyeOff className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
               <span className="text-xs hidden sm:inline">Márgenes</span>
             </Button>
           </div>
@@ -265,26 +349,28 @@ export function RenderizadorHtml({
             <Button
               variant="ghost"
               size="icon"
+              className="h-8 w-8"
               disabled={paginaActual <= 1}
               onClick={() => irAPagina(paginaActual - 1)}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-1">
-              <span className="text-xs">Página</span>
+              <span className="text-xs">Pág.</span>
               <Input
-                className="h-6 w-12 text-center px-1"
+                className="h-6 w-10 text-center px-1 text-xs"
                 value={paginaActual}
                 onChange={(e) => {
                   const val = parseInt(e.target.value);
                   if (!isNaN(val)) irAPagina(val);
                 }}
               />
-              <span className="text-xs">de {paginas.length}</span>
+              <span className="text-xs">/ {paginas.length}</span>
             </div>
             <Button
               variant="ghost"
               size="icon"
+              className="h-8 w-8"
               disabled={paginaActual >= paginas.length}
               onClick={() => irAPagina(paginaActual + 1)}
             >
@@ -293,6 +379,7 @@ export function RenderizadorHtml({
           </div>
         </div>
       )}
+
       {modoInteractivo && (
         <div className="flex items-center gap-4 p-3 bg-blue-50/50 border-b border-blue-100">
           <div className="flex items-center gap-2">
@@ -321,6 +408,8 @@ export function RenderizadorHtml({
           </div>
         </div>
       )}
+
+      {/* Contenedor oculto para medir */}
       <div
         style={{
           ...contentStyle,
@@ -454,98 +543,124 @@ export function RenderizadorHtml({
 
       {!modoDocumento ? (
         <div
-          className="renderizador-contenido"
+          className="renderizador-contenido flex-1 overflow-auto"
           style={{
             ...contentStyle,
             maxWidth: '800px',
             margin: '0 auto',
-            padding: '0 1rem'
+            padding: '1rem'
           }}
           dangerouslySetInnerHTML={{ __html: htmlParaMostrar }}
         />
       ) : (
         <div
-          ref={containerRef}
-          className="flex-1 overflow-auto bg-gray-100/50 w-full relative flex flex-col items-center p-8"
-          onScroll={() => {
-          }}
+          ref={scrollContainerRef}
+          className="flex-1 overflow-auto bg-gray-100/50 w-full"
+          style={{ position: 'relative' }}
         >
-          <div
-            className="flex flex-col items-center gap-8"
-            style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: 'top center',
-            }}
-          >
-            {paginas.length > 0 ? paginas.map((_, pageIndex) => {
-              // Calcular el offset vertical para esta página
-              const offsetY = pageIndex * contentAreaHeight;
+          <div className="flex flex-col items-center p-4">
+            {(() => {
+              const stackHeightPx = paginas.length > 0
+                ? paginas.length * pageHeightPx + (paginas.length - 1) * PAGE_GAP
+                : pageHeightPx;
+              const scaledStackHeight = stackHeightPx * escalaFinal;
+              const scaledWidth = pageWidthPx * escalaFinal;
 
               return (
                 <div
-                  key={pageIndex}
-                  id={`pagina-${pageIndex}`}
-                  className="bg-white shadow-xl transition-shadow hover:shadow-2xl"
                   style={{
-                    width: pageWidthPx,
-                    height: pageHeightPx,
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                    position: 'relative'
+                    position: 'relative',
+                    width: scaledWidth,
+                    height: scaledStackHeight,
+                    overflow: 'hidden'
                   }}
                 >
-                  {mostrarMargenes && (
-                    <div
-                      className="absolute border border-dashed border-gray-300 pointer-events-none"
-                      style={{
-                        top: PAGE.paddingTop,
-                        left: PAGE.paddingLeft,
-                        width: contentAreaWidth,
-                        height: contentAreaHeight,
-                        zIndex: 5
-                      }}
-                    />
-                  )}
-
                   <div
                     style={{
                       position: 'absolute',
-                      top: PAGE.paddingTop,
-                      left: PAGE.paddingLeft,
-                      width: contentAreaWidth,
-                      height: contentAreaHeight,
-                      overflow: 'hidden'
+                      top: 0,
+                      left: 0,
+                      transform: `scale(${escalaFinal})`,
+                      transformOrigin: 'top left',
+                      width: pageWidthPx,
+                      height: stackHeightPx,
+                      overflow: 'visible'
                     }}
                   >
-                    <div
-                      className="renderizador-contenido"
-                      style={{
-                        ...contentStyle,
-                        transform: `translateY(-${offsetY}px)`,
-                      }}
-                      dangerouslySetInnerHTML={{ __html: htmlParaMostrar }}
-                    />
-                  </div>
+                    <div className="flex flex-col items-center" style={{ gap: PAGE_GAP }}>
+                      {paginas.length > 0 ? paginas.map((_, pageIndex) => {
+                        const offsetY = pageIndex * contentAreaHeight;
 
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '10px',
-                      right: '20px',
-                      fontSize: '10px',
-                      color: '#aaa',
-                      userSelect: 'none'
-                    }}
-                  >
-                    Página {pageIndex + 1} de {paginas.length}
+                        return (
+                          <div
+                            key={pageIndex}
+                            id={`pagina-render-${pageIndex}`}
+                            className="bg-white shadow-xl transition-shadow hover:shadow-2xl"
+                            style={{
+                              width: pageWidthPx,
+                              height: pageHeightPx,
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                              position: 'relative'
+                            }}
+                          >
+                            {mostrarMargenes && (
+                              <div
+                                className="absolute border border-dashed border-blue-300 pointer-events-none"
+                                style={{
+                                  top: PAGE.paddingTop,
+                                  left: PAGE.paddingLeft,
+                                  width: contentAreaWidth,
+                                  height: contentAreaHeight,
+                                  zIndex: 5
+                                }}
+                              />
+                            )}
+
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: PAGE.paddingTop,
+                                left: PAGE.paddingLeft,
+                                width: contentAreaWidth,
+                                height: contentAreaHeight,
+                                overflow: 'hidden'
+                              }}
+                            >
+                              <div
+                                className="renderizador-contenido"
+                                style={{
+                                  ...contentStyle,
+                                  transform: `translateY(-${offsetY}px)`,
+                                }}
+                                dangerouslySetInnerHTML={{ __html: htmlParaMostrar }}
+                              />
+                            </div>
+
+                            <div
+                              style={{
+                                position: 'absolute',
+                                bottom: '10px',
+                                right: '20px',
+                                fontSize: '10px',
+                                color: '#aaa',
+                                userSelect: 'none'
+                              }}
+                            >
+                              Página {pageIndex + 1} de {paginas.length}
+                            </div>
+                          </div>
+                        );
+                      }) : (
+                        <div className="flex items-center justify-center text-muted-foreground p-4">
+                          Procesando vista previa...
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
-            }) : (
-              <div className="flex items-center justify-center text-muted-foreground p-4">
-                Procesando vista previa...
-              </div>
-            )}
+            })()}
           </div>
         </div>
       )}

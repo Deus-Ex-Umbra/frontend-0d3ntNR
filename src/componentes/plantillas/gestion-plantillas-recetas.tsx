@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { MultiSelect } from '@/componentes/ui/mulit-select';
-import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/componentes/ui/command';
 import { SelectConAgregar, OpcionSelectConAgregar } from '@/componentes/ui/select-with-add';
@@ -33,12 +32,12 @@ export function GestionPlantillasRecetas() {
   const [plantillas, setPlantillas] = useState<PlantillaReceta[]>([]);
   const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<PlantillaReceta | null>(null);
   const [plantillaVisualizando, setPlantillaVisualizando] = useState<PlantillaReceta | null>(null);
-  
+
   const [dialogoCrear, setDialogoCrear] = useState(false);
   const [dialogoEditar, setDialogoEditar] = useState(false);
   const [dialogoVista, setDialogoVista] = useState(false);
   const [dialogoNuevoMedicamento, setDialogoNuevoMedicamento] = useState(false);
-  
+
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [guardandoMedicamento, setGuardandoMedicamento] = useState(false);
@@ -47,13 +46,13 @@ export function GestionPlantillasRecetas() {
   const [contenido, setContenido] = useState('');
   const [tamanoPapel, setTamanoPapel] = useState<'carta' | 'legal' | 'a4'>('carta');
   const [tamanoHojaId, setTamanoHojaId] = useState<number | null>(null);
-  const [tamanosHoja, setTamanosHoja] = useState<Array<{ id:number; nombre:string; ancho:number; alto:number; descripcion?:string; protegido:boolean }>>([]);
+  const [tamanosHoja, setTamanosHoja] = useState<Array<{ id: number; nombre: string; ancho: number; alto: number; descripcion?: string; protegido: boolean }>>([]);
   const [margenes, setMargenes] = useState<Margenes>({ ...DEFAULT_MARGENES });
 
   const [filtroNombre, setFiltroNombre] = useState('');
   const [filtroMedicamentos, setFiltroMedicamentos] = useState<string[]>([]);
   const [medicamentos, setMedicamentos] = useState<ItemCatalogo[]>([]);
-  
+
   const [medicamentosPaleta, setMedicamentosPaleta] = useState<ItemCatalogo[]>([]);
   const [comboboxMedicamentosAbierto, setComboboxMedicamentosAbierto] = useState(false);
   const [nuevoMedicamentoNombre, setNuevoMedicamentoNombre] = useState('');
@@ -113,7 +112,7 @@ export function GestionPlantillasRecetas() {
     }
   };
 
-  const buscarCartaPorDefecto = (lista: Array<{ id:number; nombre:string; ancho:number; alto:number }>) => {
+  const buscarCartaPorDefecto = (lista: Array<{ id: number; nombre: string; ancho: number; alto: number }>) => {
     const porNombre = lista.find(t => t.nombre?.toLowerCase().includes('carta'));
     if (porNombre) return porNombre;
     return lista.find(t => Math.round(t.ancho) === 216 && Math.round(t.alto) === 279);
@@ -140,7 +139,7 @@ export function GestionPlantillasRecetas() {
   };
 
   const tamanoSeleccionado = tamanoHojaId ? tamanosHoja.find(t => t.id === tamanoHojaId) : undefined;
-  
+
   const obtenerTamanoPlantilla = (id?: number | null, ancho?: number | null, alto?: number | null) => {
     const encontrado = id ? tamanosHoja.find(t => t.id === id) : undefined;
     if (encontrado) return { widthMm: Math.round(encontrado.ancho), heightMm: Math.round(encontrado.alto) };
@@ -163,7 +162,7 @@ export function GestionPlantillasRecetas() {
   const maxRight = Math.max(0, margenesAjustados.limiteHorizontal - margenesAjustados.left);
   const maxTop = Math.max(0, margenesAjustados.limiteVertical - margenesAjustados.bottom);
   const maxBottom = Math.max(0, margenesAjustados.limiteVertical - margenesAjustados.top);
-  
+
   const horizontalZero = margenesAjustados.left + margenesAjustados.right >= margenesAjustados.limiteHorizontal;
   const verticalZero = margenesAjustados.top + margenesAjustados.bottom >= margenesAjustados.limiteVertical;
   const anchoEscritura = pageBase.width - margenesAjustados.left - margenesAjustados.right;
@@ -258,7 +257,7 @@ export function GestionPlantillasRecetas() {
     setTamanoHojaId(null);
     setMargenes({ ...DEFAULT_MARGENES });
     setMedicamentosPaleta([]);
-    
+
     const carta = buscarCartaPorDefecto(tamanosHoja);
     if (carta) {
       setTamanoHojaId(carta.id);
@@ -279,13 +278,13 @@ export function GestionPlantillasRecetas() {
       left: plantilla.margen_izquierdo || 20,
       right: plantilla.margen_derecho || 20,
     });
-    
+
     const etiquetas = extraerEtiquetasDelContenido(plantilla.contenido);
     const medsEnUso = etiquetas.map(tag => {
       const id = tag.replace('MED_', '');
       return medicamentos.find(m => String(m.id) === id);
     }).filter((m): m is ItemCatalogo => !!m);
-    
+
     setMedicamentosPaleta(medsEnUso);
     setDialogoEditar(true);
   };
@@ -397,7 +396,7 @@ export function GestionPlantillasRecetas() {
               <p className="text-xs text-muted-foreground">Configura la página tal como se imprimirá o generará en PDF.</p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
             <div className="space-y-1">
               <Label className="text-xs">Tamaño de papel</Label>
@@ -668,24 +667,22 @@ export function GestionPlantillasRecetas() {
               <Eye className="h-5 w-5" /> Vista Previa
             </DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-4 max-h-[calc(90vh-160px)]">
-            <div className="p-4 bg-muted/20 rounded-lg border overflow-hidden">
-              <div className="max-w-4xl mx-auto w-full">
-                <RenderizadorHtml
-                  contenido={contenidoVista}
-                  modoDocumento
-                  escala={0.92}
-                  tamanoPersonalizado={plantillaVisualizando ? obtenerTamanoPlantilla(plantillaVisualizando.tamano_hoja_id, plantillaVisualizando.ancho_mm, plantillaVisualizando.alto_mm) : undefined}
-                  margenes={plantillaVisualizando ? {
-                    top: plantillaVisualizando.margen_superior,
-                    bottom: plantillaVisualizando.margen_inferior,
-                    left: plantillaVisualizando.margen_izquierdo,
-                    right: plantillaVisualizando.margen_derecho,
-                  } : undefined}
-                />
-              </div>
-            </div>
-          </ScrollArea>
+          <div className="flex-1 overflow-hidden">
+            <RenderizadorHtml
+              contenido={contenidoVista}
+              modoDocumento
+              escala={0.8}
+              altura="calc(90vh - 180px)"
+              ajustarAncho
+              tamanoPersonalizado={plantillaVisualizando ? obtenerTamanoPlantilla(plantillaVisualizando.tamano_hoja_id, plantillaVisualizando.ancho_mm, plantillaVisualizando.alto_mm) : undefined}
+              margenes={plantillaVisualizando ? {
+                top: plantillaVisualizando.margen_superior,
+                bottom: plantillaVisualizando.margen_inferior,
+                left: plantillaVisualizando.margen_izquierdo,
+                right: plantillaVisualizando.margen_derecho,
+              } : undefined}
+            />
+          </div>
           <DialogFooter>
             <Button onClick={() => setDialogoVista(false)}>Cerrar</Button>
           </DialogFooter>

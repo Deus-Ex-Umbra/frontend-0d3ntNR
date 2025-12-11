@@ -11,7 +11,6 @@ import { FileText, Edit, Trash2, Plus, Loader2, X, ChevronsUpDown, Eye, Tag, Che
 import { useToast } from '@/hooks/use-toast';
 import { EditorConEtiquetasPersonalizado } from '@/componentes/ui/editor-con-etiquetas-personalizado';
 import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
-import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/componentes/ui/command';
 import { SelectConAgregar, OpcionSelectConAgregar } from '@/componentes/ui/select-with-add';
@@ -33,8 +32,8 @@ export function GestionPlantillasConsentimiento() {
   const [nombre_plantilla, setNombrePlantilla] = useState('');
   const [contenido_plantilla, setContenidoPlantilla] = useState('');
   const [tamano_papel, setTamanoPapel] = useState<'carta' | 'legal' | 'a4'>('carta');
-    const [tamanos_hoja, setTamanosHoja] = useState<Array<{ id:number; nombre:string; ancho:number; alto:number; descripcion?:string; protegido:boolean }>>([]);
-    const [tamano_hoja_id, setTamanoHojaId] = useState<number | null>(null);
+  const [tamanos_hoja, setTamanosHoja] = useState<Array<{ id: number; nombre: string; ancho: number; alto: number; descripcion?: string; protegido: boolean }>>([]);
+  const [tamano_hoja_id, setTamanoHojaId] = useState<number | null>(null);
   const [margenes_plantilla, setMargenesPlantilla] = useState({
     superior: 20,
     inferior: 20,
@@ -77,13 +76,13 @@ export function GestionPlantillasConsentimiento() {
   const editorRef = useRef<any>(null);
 
   const { toast } = useToast();
-  const todas_las_etiquetas = etiquetas_personalizadas.map(e => ({ 
-    codigo: e.codigo, 
-    nombre: e.nombre, 
-    descripcion: e.descripcion || '' 
+  const todas_las_etiquetas = etiquetas_personalizadas.map(e => ({
+    codigo: e.codigo,
+    nombre: e.nombre,
+    descripcion: e.descripcion || '',
   }));
   const etiquetas_disponibles_para_agregar = todas_las_etiquetas.filter(
-    etiqueta => !botones_etiquetas.some(boton => boton.codigo === etiqueta.codigo)
+    etiqueta => !botones_etiquetas.some(boton => boton.codigo === etiqueta.codigo),
   );
 
   useEffect(() => {
@@ -138,7 +137,7 @@ export function GestionPlantillasConsentimiento() {
     return undefined;
   };
 
-  const buscarCartaPorDefecto = (lista: Array<{ id:number; nombre:string; ancho:number; alto:number }>) => {
+  const buscarCartaPorDefecto = (lista: Array<{ id: number; nombre: string; ancho: number; alto: number }>) => {
     const porNombre = lista.find(t => t.nombre?.toLowerCase().includes('carta'));
     if (porNombre) return porNombre;
     return lista.find(t => Math.round(t.ancho) === 216 && Math.round(t.alto) === 279);
@@ -193,7 +192,7 @@ export function GestionPlantillasConsentimiento() {
 
   useEffect(() => {
     const mapCodigoNombre = new Map<string, string>(
-      etiquetas_personalizadas.map((e) => [e.codigo, e.nombre])
+      etiquetas_personalizadas.map((e) => [e.codigo, e.nombre]),
     );
     const usados = new Set<string>();
     plantillas.forEach((p) => {
@@ -392,7 +391,7 @@ export function GestionPlantillasConsentimiento() {
       };
     });
     setBotonesEtiquetas(botones);
-    
+
     setDialogoEdicion(true);
   };
 
@@ -405,13 +404,13 @@ export function GestionPlantillasConsentimiento() {
     const regex = /data-etiqueta="([^"]+)"/g;
     const etiquetas: string[] = [];
     let match;
-    
+
     while ((match = regex.exec(contenido)) !== null) {
       if (!etiquetas.includes(match[1])) {
         etiquetas.push(match[1]);
       }
     }
-    
+
     return etiquetas;
   };
 
@@ -465,7 +464,7 @@ export function GestionPlantillasConsentimiento() {
       return;
     }
 
-    if (!nueva_etiqueta.codigo.startsWith('[') || !nueva_etiqueta.codigo.endsWith(']')) {
+    if (!nueva_etiqueta.codigo.startsWith("[") || !nueva_etiqueta.codigo.endsWith("]")) {
       toast({
         title: 'Error',
         description: 'El código debe estar entre corchetes, ej: [MI_ETIQUETA]',
@@ -484,7 +483,7 @@ export function GestionPlantillasConsentimiento() {
       });
 
       await cargarEtiquetasPersonalizadas();
-      
+
       toast({
         title: 'Éxito',
         description: 'Etiqueta creada correctamente',
@@ -591,8 +590,8 @@ export function GestionPlantillasConsentimiento() {
                         setMargenesPlantilla(prev => ({ ...prev, superior: nuevo }));
                       }}
                       className={cn(
-                        "h-8",
-                        (margenesAjustados.superior > 999 || verticalZero) && "border-yellow-400"
+                        'h-8',
+                        (margenesAjustados.superior > 999 || verticalZero) && 'border-yellow-400',
                       )}
                       title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.superior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
@@ -610,8 +609,8 @@ export function GestionPlantillasConsentimiento() {
                         setMargenesPlantilla(prev => ({ ...prev, inferior: nuevo }));
                       }}
                       className={cn(
-                        "h-8",
-                        (margenesAjustados.inferior > 999 || verticalZero) && "border-yellow-400"
+                        'h-8',
+                        (margenesAjustados.inferior > 999 || verticalZero) && 'border-yellow-400',
                       )}
                       title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.inferior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
@@ -629,8 +628,8 @@ export function GestionPlantillasConsentimiento() {
                         setMargenesPlantilla(prev => ({ ...prev, izquierdo: nuevo }));
                       }}
                       className={cn(
-                        "h-8",
-                        (margenesAjustados.izquierdo > 999 || horizontalZero) && "border-yellow-400"
+                        'h-8',
+                        (margenesAjustados.izquierdo > 999 || horizontalZero) && 'border-yellow-400',
                       )}
                       title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.izquierdo > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
@@ -648,8 +647,8 @@ export function GestionPlantillasConsentimiento() {
                         setMargenesPlantilla(prev => ({ ...prev, derecho: nuevo }));
                       }}
                       className={cn(
-                        "h-8",
-                        (margenesAjustados.derecho > 999 || horizontalZero) && "border-yellow-400"
+                        'h-8',
+                        (margenesAjustados.derecho > 999 || horizontalZero) && 'border-yellow-400',
                       )}
                       title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.derecho > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
@@ -670,9 +669,9 @@ export function GestionPlantillasConsentimiento() {
                   <Label>Etiquetas disponibles</Label>
                   <Popover open={combobox_etiquetas_abierto} onOpenChange={setComboboxEtiquetasAbierto}>
                     <PopoverTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         role="combobox"
                         aria-expanded={combobox_etiquetas_abierto}
                         className="gap-2"
@@ -706,92 +705,92 @@ export function GestionPlantillasConsentimiento() {
                                   )}
                                 </div>
                               </CommandItem>
-                              ))}
-                              <CommandItem
-                                onSelect={() => {
-                                  setComboboxEtiquetasAbierto(false);
-                                  setDialogoNuevaEtiqueta(true);
-                                }}
-                                className="text-primary font-medium"
-                              >
-                                <Plus className="mr-2 h-4 w-4" />
-                                Crear Nueva Etiqueta
-                              </CommandItem>
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  
-                  {botones_etiquetas.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground">
-                        Haz clic en una etiqueta para insertarla en el editor
-                      </p>
-                      <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-muted/30">
-                        {botones_etiquetas.map((etiqueta) => (
-                          <div key={etiqueta.codigo} className="flex items-center gap-1">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => insertarEtiquetaEnEditor(etiqueta.codigo)}
-                              className="gap-2"
+                            ))}
+                            <CommandItem
+                              onSelect={() => {
+                                setComboboxEtiquetasAbierto(false);
+                                setDialogoNuevaEtiqueta(true);
+                              }}
+                              className="text-primary font-medium"
                             >
-                              <Plus className="h-3 w-3" />
-                              {etiqueta.nombre}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => eliminarBotonEtiqueta(etiqueta.codigo)}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                              <Plus className="mr-2 h-4 w-4" />
+                              Crear Nueva Etiqueta
+                            </CommandItem>
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Contenido de la plantilla</Label>
-                  <EditorConEtiquetasPersonalizado
-                    ref={editorRef}
-                    contenido={contenido_plantilla}
-                    onChange={setContenidoPlantilla}
-                    minHeight="400px"
-                    tamanoPapel={tamano_papel}
-                    tamanoPersonalizado={tamanoActual ? { widthMm: tamanoActual.widthMm, heightMm: tamanoActual.heightMm } : undefined as any}
-                    margenes={{ top: margenesAjustados.superior, right: margenesAjustados.derecho, bottom: margenesAjustados.inferior, left: margenesAjustados.izquierdo }}
-                  />
-                </div>
+                {botones_etiquetas.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Haz clic en una etiqueta para insertarla en el editor
+                    </p>
+                    <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-muted/30">
+                      {botones_etiquetas.map((etiqueta) => (
+                        <div key={etiqueta.codigo} className="flex items-center gap-1">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => insertarEtiquetaEnEditor(etiqueta.codigo)}
+                            className="gap-2"
+                          >
+                            <Plus className="h-3 w-3" />
+                            {etiqueta.nombre}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => eliminarBotonEtiqueta(etiqueta.codigo)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+
+              <div className="space-y-2">
+                <Label>Contenido de la plantilla</Label>
+                <EditorConEtiquetasPersonalizado
+                  ref={editorRef}
+                  contenido={contenido_plantilla}
+                  onChange={setContenidoPlantilla}
+                  minHeight="400px"
+                  tamanoPapel={tamano_papel}
+                  tamanoPersonalizado={tamanoActual ? { widthMm: tamanoActual.widthMm, heightMm: tamanoActual.heightMm } : undefined as any}
+                  margenes={{ top: margenesAjustados.superior, right: margenesAjustados.derecho, bottom: margenesAjustados.inferior, left: margenesAjustados.izquierdo }}
+                />
+              </div>
+            </div>
           </div>
 
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setDialogoAbierto(false);
-                  setNombrePlantilla('');
-                  setContenidoPlantilla('');
-                  setTamanoPapel('carta');
-                  setMargenesPlantilla({ superior: 20, inferior: 20, izquierdo: 20, derecho: 20 });
-                  setBotonesEtiquetas([]);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={crearPlantilla} disabled={cargando}>
-                {cargando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Crear Plantilla
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoAbierto(false);
+                setNombrePlantilla('');
+                setContenidoPlantilla('');
+                setTamanoPapel('carta');
+                setMargenesPlantilla({ superior: 20, inferior: 20, izquierdo: 20, derecho: 20 });
+                setBotonesEtiquetas([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={crearPlantilla} disabled={cargando}>
+              {cargando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Crear Plantilla
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Plantillas de Consentimiento Informado</h2>
@@ -799,14 +798,14 @@ export function GestionPlantillasConsentimiento() {
             Gestiona tus plantillas de consentimiento. Para generar un consentimiento, ve a la sección de Pacientes.
           </p>
         </div>
-        <Button 
+        <Button
           onClick={() => {
             setNombrePlantilla('');
             setContenidoPlantilla('');
             setBotonesEtiquetas([]);
             setDialogoAbierto(true);
-          }} 
-          size="lg" 
+          }}
+          size="lg"
           className="gap-2"
         >
           <Plus className="h-5 w-5" />
@@ -860,89 +859,89 @@ export function GestionPlantillasConsentimiento() {
               return coincideNombre && coincideEtiquetas;
             })
             .map((plantilla) => {
-            const etiquetas = obtenerNombresEtiquetas(plantilla);
-            const expandido = etiquetas_expandidas.has(plantilla.id);
-            const mostrar_boton = etiquetas.length > 3;
-            const etiquetas_mostradas = expandido ? etiquetas : etiquetas.slice(0, 3);
-            
-            return (
-              <Card key={plantilla.id} className="overflow-hidden">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2 flex-1">
-                      <CardTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        {plantilla.nombre}
-                      </CardTitle>
-                      
-                      {etiquetas.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap gap-1.5">
-                            {etiquetas_mostradas.map((nombre, index) => (
-                              <span
-                                key={index}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium"
+              const etiquetas = obtenerNombresEtiquetas(plantilla);
+              const expandido = etiquetas_expandidas.has(plantilla.id);
+              const mostrar_boton = etiquetas.length > 3;
+              const etiquetas_mostradas = expandido ? etiquetas : etiquetas.slice(0, 3);
+
+              return (
+                <Card key={plantilla.id} className="overflow-hidden">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2 flex-1">
+                        <CardTitle className="flex items-center gap-2">
+                          <FileText className="h-5 w-5" />
+                          {plantilla.nombre}
+                        </CardTitle>
+
+                        {etiquetas.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap gap-1.5">
+                              {etiquetas_mostradas.map((nombre, index) => (
+                                <span
+                                  key={index}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium"
+                                >
+                                  <Tag className="h-3 w-3" />
+                                  {nombre}
+                                </span>
+                              ))}
+                            </div>
+
+                            {mostrar_boton && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleEtiquetasExpandidas(plantilla.id)}
+                                className="h-7 text-xs gap-1 -ml-2"
                               >
-                                <Tag className="h-3 w-3" />
-                                {nombre}
-                              </span>
-                            ))}
+                                {expandido ? (
+                                  <>
+                                    <ChevronUp className="h-3 w-3" />
+                                    Ver menos
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="h-3 w-3" />
+                                    Ver {etiquetas.length - 3} más
+                                  </>
+                                )}
+                              </Button>
+                            )}
                           </div>
-                          
-                          {mostrar_boton && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleEtiquetasExpandidas(plantilla.id)}
-                              className="h-7 text-xs gap-1 -ml-2"
-                            >
-                              {expandido ? (
-                                <>
-                                  <ChevronUp className="h-3 w-3" />
-                                  Ver menos
-                                </>
-                              ) : (
-                                <>
-                                  <ChevronDown className="h-3 w-3" />
-                                  Ver {etiquetas.length - 3} más
-                                </>
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      )}
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => visualizarPlantilla(plantilla)}
+                          title="Visualizar plantilla"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => abrirEdicion(plantilla)}
+                          title="Editar plantilla"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => eliminarPlantilla(plantilla.id)}
+                          title="Eliminar plantilla"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => visualizarPlantilla(plantilla)}
-                        title="Visualizar plantilla"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => abrirEdicion(plantilla)}
-                        title="Editar plantilla"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => eliminarPlantilla(plantilla.id)}
-                        title="Eliminar plantilla"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            );
-          })}
+                  </CardHeader>
+                </Card>
+              );
+            })}
         </div>
       )}
 
@@ -1025,7 +1024,7 @@ export function GestionPlantillasConsentimiento() {
                         const nuevo = clamp(Number(e.target.value), 0, maxTop);
                         setMargenesPlantilla({ ...margenes_plantilla, superior: nuevo });
                       }}
-                      className={cn("h-8", (margenes_plantilla.superior > 999 || verticalZero) && "border-yellow-400")}
+                      className={cn('h-8', (margenes_plantilla.superior > 999 || verticalZero) && 'border-yellow-400')}
                       title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.superior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
                   </div>
@@ -1041,7 +1040,7 @@ export function GestionPlantillasConsentimiento() {
                         const nuevo = clamp(Number(e.target.value), 0, maxBottom);
                         setMargenesPlantilla({ ...margenes_plantilla, inferior: nuevo });
                       }}
-                      className={cn("h-8", (margenes_plantilla.inferior > 999 || verticalZero) && "border-yellow-400")}
+                      className={cn('h-8', (margenes_plantilla.inferior > 999 || verticalZero) && 'border-yellow-400')}
                       title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.inferior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
                   </div>
@@ -1057,7 +1056,7 @@ export function GestionPlantillasConsentimiento() {
                         const nuevo = clamp(Number(e.target.value), 0, maxLeft);
                         setMargenesPlantilla({ ...margenes_plantilla, izquierdo: nuevo });
                       }}
-                      className={cn("h-8", (margenes_plantilla.izquierdo > 999 || horizontalZero) && "border-yellow-400")}
+                      className={cn('h-8', (margenes_plantilla.izquierdo > 999 || horizontalZero) && 'border-yellow-400')}
                       title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.izquierdo > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
                   </div>
@@ -1073,7 +1072,7 @@ export function GestionPlantillasConsentimiento() {
                         const nuevo = clamp(Number(e.target.value), 0, maxRight);
                         setMargenesPlantilla({ ...margenes_plantilla, derecho: nuevo });
                       }}
-                      className={cn("h-8", (margenes_plantilla.derecho > 999 || horizontalZero) && "border-yellow-400")}
+                      className={cn('h-8', (margenes_plantilla.derecho > 999 || horizontalZero) && 'border-yellow-400')}
                       title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.derecho > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
                   </div>
@@ -1093,9 +1092,9 @@ export function GestionPlantillasConsentimiento() {
                   <Label>Etiquetas disponibles</Label>
                   <Popover open={combobox_etiquetas_edicion_abierto} onOpenChange={setComboboxEtiquetasEdicionAbierto}>
                     <PopoverTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         role="combobox"
                         aria-expanded={combobox_etiquetas_edicion_abierto}
                         className="gap-2"
@@ -1146,7 +1145,7 @@ export function GestionPlantillasConsentimiento() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                
+
                 {botones_etiquetas.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">
@@ -1195,8 +1194,8 @@ export function GestionPlantillasConsentimiento() {
           </div>
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setDialogoEdicion(false);
                 setPlantillaSeleccionada(null);
@@ -1254,8 +1253,8 @@ export function GestionPlantillasConsentimiento() {
           </div>
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setDialogoNuevaEtiqueta(false);
                 setNuevaEtiqueta({ nombre: '', codigo: '', descripcion: '' });
@@ -1271,7 +1270,7 @@ export function GestionPlantillasConsentimiento() {
         </DialogContent>
       </Dialog>
       <Dialog open={dialogo_visualizacion} onOpenChange={setDialogoVisualizacion}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
@@ -1282,58 +1281,28 @@ export function GestionPlantillasConsentimiento() {
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[calc(90vh-200px)] pr-4">
-            <div className="space-y-4 py-4">
-              <div className="border-2 rounded-lg bg-transparent shadow-sm">
-                <div className="bg-muted/30 px-4 py-2 border-b">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Vista previa del documento
-                  </p>
-                </div>
-                <div className="p-6 md:p-8 overflow-hidden">
-                  <div className="max-w-4xl mx-auto w-full">
-                    <RenderizadorHtml 
-                      contenido={plantilla_visualizando?.contenido || ''}
-                      modoDocumento
-                      escala={0.92}
-                      tamanoPapel={(plantilla_visualizando as any)?.tamano_papel || 'carta'}
-                      tamanoPersonalizado={plantilla_visualizando ? obtenerTamanoPlantilla(
-                        (plantilla_visualizando as any)?.tamano_hoja_id ?? null,
-                        (plantilla_visualizando as any)?.ancho_mm ?? null,
-                        (plantilla_visualizando as any)?.alto_mm ?? null,
-                      ) : undefined as any}
-                      margenes={{
-                        top: plantilla_visualizando?.margen_superior ?? 20,
-                        bottom: plantilla_visualizando?.margen_inferior ?? 20,
-                        left: plantilla_visualizando?.margen_izquierdo ?? 20,
-                        right: plantilla_visualizando?.margen_derecho ?? 20,
-                      }}
-                      className="[&_span[data-etiqueta]]:bg-yellow-100 [&_span[data-etiqueta]]:px-2 [&_span[data-etiqueta]]:py-0.5 [&_span[data-etiqueta]]:rounded [&_span[data-etiqueta]]:font-medium [&_span[data-etiqueta]]:text-yellow-900"
-                    />
-                  </div>
-                </div>
-              </div>
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="pt-4">
-                  <div className="flex gap-3">
-                    <div className="text-blue-600 mt-0.5">
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="space-y-2 text-sm text-blue-900">
-                      <p className="font-semibold">Acerca de esta vista previa:</p>
-                      <ul className="space-y-1 list-disc list-inside">
-                        <li>Las <span className="bg-yellow-100 px-1.5 py-0.5 rounded font-medium">etiquetas resaltadas</span> se reemplazarán con datos reales del paciente</li>
-                        <li>El formato y estilo del documento final se mantendrá tal como se muestra aquí</li>
-                        <li>Para generar un consentimiento completo, ve a <strong>Pacientes → Archivos → Generar Consentimiento</strong></li>
-                      </ul>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </ScrollArea>
+          <div className="flex-1 overflow-hidden">
+            <RenderizadorHtml
+              contenido={plantilla_visualizando?.contenido || ''}
+              modoDocumento
+              escala={0.8}
+              altura="calc(90vh - 180px)"
+              ajustarAncho
+              tamanoPapel={(plantilla_visualizando as any)?.tamano_papel || 'carta'}
+              tamanoPersonalizado={plantilla_visualizando ? obtenerTamanoPlantilla(
+                (plantilla_visualizando as any)?.tamano_hoja_id ?? null,
+                (plantilla_visualizando as any)?.ancho_mm ?? null,
+                (plantilla_visualizando as any)?.alto_mm ?? null,
+              ) : undefined as any}
+              margenes={{
+                top: plantilla_visualizando?.margen_superior ?? 20,
+                bottom: plantilla_visualizando?.margen_inferior ?? 20,
+                left: plantilla_visualizando?.margen_izquierdo ?? 20,
+                right: plantilla_visualizando?.margen_derecho ?? 20,
+              }}
+              className="[&_span[data-etiqueta]]:bg-yellow-100 [&_span[data-etiqueta]]:px-2 [&_span[data-etiqueta]]:py-0.5 [&_span[data-etiqueta]]:rounded [&_span[data-etiqueta]]:font-medium [&_span[data-etiqueta]]:text-yellow-900"
+            />
+          </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogoVisualizacion(false)}>

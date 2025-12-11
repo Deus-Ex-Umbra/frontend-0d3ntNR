@@ -1,0 +1,12 @@
+﻿src/componentes/editor-imagenes/editor-imagenes_movil.tsx(170,39): error TS2339: Property 'obtenerSimbologias' does not exist on type '{ obtenerAlergias: () => Promise<any>; crearAlergia: (datos: { nombre: string; descripcion?: string | undefined; }) => Promise<any>; actualizarAlergia: (id: number, datos: { ...; }) => Promise<...>; ... 24 more ...; eliminarTamanoHoja: (id: number) => Promise<...>; }'.
+src/componentes/pacientes/editor-recetas.tsx(1,43): error TS6133: 'useRef' is declared but its value is never read.
+src/componentes/pacientes/editor-recetas.tsx(7,1): error TS6133: 'SelectConAgregar' is declared but its value is never read.
+src/componentes/pacientes/editor-recetas.tsx(13,45): error TS6133: 'Sparkles' is declared but its value is never read.
+src/componentes/pacientes/editor-recetas.tsx(13,55): error TS6133: 'X' is declared but its value is never read.
+src/componentes/pacientes/editor-recetas.tsx(166,9): error TS6133: 'opcionesMedicamentos' is declared but its value is never read.
+src/componentes/pacientes/editor-recetas.tsx(197,9): error TS6133: 'actualizarIndicacion' is declared but its value is never read.
+src/componentes/pacientes/editor-recetas.tsx(201,9): error TS6133: 'agregarMedicamentoManual' is declared but its value is never read.
+src/componentes/pacientes/editor-recetas.tsx(210,9): error TS6133: 'crearMedicamento' is declared but its value is never read.
+src/componentes/plantillas/gestion-plantillas-recetas.tsx(383,32): error TS6133: 'titulo' is declared but its value is never read.
+src/componentes/plantillas/gestion-plantillas-recetas.tsx(383,48): error TS6133: 'onGuardar' is declared but its value is never read.
+src/paginas/Inventarios_movil.tsx(1478,78): error TS18048: 'movimiento.producto' is possibly 'undefined'.

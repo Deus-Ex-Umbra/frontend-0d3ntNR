@@ -133,7 +133,7 @@ export default function Pacientes() {
     }
 
     const termino = busqueda.toLowerCase();
-    const filtrados = todos_pacientes.filter(paciente => 
+    const filtrados = todos_pacientes.filter(paciente =>
       paciente.nombre.toLowerCase().includes(termino) ||
       paciente.apellidos.toLowerCase().includes(termino) ||
       paciente.id.toString().includes(termino) ||
@@ -186,8 +186,8 @@ export default function Pacientes() {
   const abrirDialogoEditar = async (paciente: Paciente) => {
     try {
       const datos_completos = await pacientesApi.obtenerPorId(paciente.id);
-      
-      const { codigo_pais, numero } = datos_completos.telefono 
+
+      const { codigo_pais, numero } = datos_completos.telefono
         ? separarTelefono(datos_completos.telefono)
         : { codigo_pais: '+591', numero: '' };
 
@@ -252,7 +252,7 @@ export default function Pacientes() {
 
     setGuardando(true);
     try {
-      const telefono_completo = formulario.numero_telefono 
+      const telefono_completo = formulario.numero_telefono
         ? formatearTelefonoCompleto(formulario.codigo_pais, formulario.numero_telefono)
         : undefined;
 
@@ -761,7 +761,7 @@ export default function Pacientes() {
   return (
     <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
       <MenuLateral />
-      
+
       <div className="flex-1 overflow-y-auto">
         <div className="p-8 space-y-8">
           <div className="flex justify-between items-start">
@@ -828,8 +828,8 @@ export default function Pacientes() {
                       {busqueda ? 'No se encontraron pacientes' : 'No hay pacientes registrados'}
                     </h3>
                     <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                      {busqueda 
-                        ? 'Intenta con otros términos de búsqueda o limpia el filtro' 
+                      {busqueda
+                        ? 'Intenta con otros términos de búsqueda o limpia el filtro'
                         : 'Comienza creando tu primer paciente usando el botón "Nuevo Paciente"'
                       }
                     </p>
@@ -964,361 +964,359 @@ export default function Pacientes() {
               {modo_edicion ? 'Editar Paciente' : 'Nuevo Paciente'}
             </DialogTitle>
             <DialogDescription>
-              {modo_edicion 
-                ? 'Modifica la información del paciente' 
+              {modo_edicion
+                ? 'Modifica la información del paciente'
                 : 'Completa los datos del nuevo paciente'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto pr-2">
-          <Tabs defaultValue="datos-generales" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="datos-generales">Datos Generales</TabsTrigger>
-              <TabsTrigger value="anamnesis">Información Médica</TabsTrigger>
-            </TabsList>
+            <Tabs defaultValue="datos-generales" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="datos-generales">Datos Generales</TabsTrigger>
+                <TabsTrigger value="anamnesis">Información Médica</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="datos-generales" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
+              <TabsContent value="datos-generales" className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nombre">Nombre *</Label>
+                    <Input
+                      id="nombre"
+                      value={formulario.nombre}
+                      onChange={(e) => setFormulario({ ...formulario, nombre: e.target.value })}
+                      placeholder="Juan"
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="apellidos">Apellidos *</Label>
+                    <Input
+                      id="apellidos"
+                      value={formulario.apellidos}
+                      onChange={(e) => setFormulario({ ...formulario, apellidos: e.target.value })}
+                      placeholder="Pérez López"
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <PhoneInput
+                    codigo_pais={formulario.codigo_pais}
+                    numero={formulario.numero_telefono}
+                    onCodigoPaisChange={(codigo) => setFormulario({ ...formulario, codigo_pais: codigo })}
+                    onNumeroChange={(numero) => setFormulario({ ...formulario, numero_telefono: numero })}
+                    label="Teléfono"
+                    placeholder="70123456"
+                  />
+
+                  <div className="space-y-2">
+                    <Label htmlFor="correo">Correo Electrónico</Label>
+                    <Input
+                      id="correo"
+                      type="email"
+                      value={formulario.correo}
+                      onChange={(e) => setFormulario({ ...formulario, correo: e.target.value })}
+                      placeholder="paciente@email.com"
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="nombre">Nombre *</Label>
+                  <Label htmlFor="direccion">Dirección</Label>
                   <Input
-                    id="nombre"
-                    value={formulario.nombre}
-                    onChange={(e) => setFormulario({ ...formulario, nombre: e.target.value })}
-                    placeholder="Juan"
+                    id="direccion"
+                    value={formulario.direccion}
+                    onChange={(e) => setFormulario({ ...formulario, direccion: e.target.value })}
+                    placeholder="Calle Principal #123"
                     className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="apellidos">Apellidos *</Label>
-                  <Input
-                    id="apellidos"
-                    value={formulario.apellidos}
-                    onChange={(e) => setFormulario({ ...formulario, apellidos: e.target.value })}
-                    placeholder="Pérez López"
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  <Label htmlFor="notas_generales">Notas Generales</Label>
+                  <EditorHtmlRico
+                    contenido={formulario.notas_generales}
+                    onChange={(contenido) => setFormulario({ ...formulario, notas_generales: contenido })}
+                    minHeight="180px"
+                    placeholder="Notas generales del paciente..."
+                    className="border rounded-md"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <PhoneInput
-                  codigo_pais={formulario.codigo_pais}
-                  numero={formulario.numero_telefono}
-                  onCodigoPaisChange={(codigo) => setFormulario({ ...formulario, codigo_pais: codigo })}
-                  onNumeroChange={(numero) => setFormulario({ ...formulario, numero_telefono: numero })}
-                  label="Teléfono"
-                  placeholder="70123456"
-                />
 
                 <div className="space-y-2">
-                  <Label htmlFor="correo">Correo Electrónico</Label>
-                  <Input
-                    id="correo"
-                    type="email"
-                    value={formulario.correo}
-                    onChange={(e) => setFormulario({ ...formulario, correo: e.target.value })}
-                    placeholder="paciente@email.com"
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="direccion">Dirección</Label>
-                <Input
-                  id="direccion"
-                  value={formulario.direccion}
-                  onChange={(e) => setFormulario({ ...formulario, direccion: e.target.value })}
-                  placeholder="Calle Principal #123"
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notas_generales">Notas Generales</Label>
-                <EditorHtmlRico
-                  contenido={formulario.notas_generales}
-                  onChange={(contenido) => setFormulario({ ...formulario, notas_generales: contenido })}
-                  minHeight="180px"
-                  placeholder="Notas generales del paciente..."
-                  className="border rounded-md"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Color de Categoría</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={abrirDialogoNuevoColor}
-                    className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nuevo Color
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Selecciona un color del catálogo para identificar al paciente
-                </p>
-                <ScrollArea className={`rounded-md border border-border p-3 ${
-                  catalogos.colores.filter(c => c.color).length > 8 ? 'h-[200px]' : 'h-auto max-h-[200px]'
-                }`}>
-                  <div className="flex gap-2 flex-wrap">
-                    {catalogos.colores.filter(c => c.color).map((color) => (
-                      <button
-                        key={color.id}
-                        type="button"
-                        className={`group relative w-12 h-12 rounded-lg border-2 transition-all hover:scale-110 ${
-                          formulario.color_categoria === color.color
-                            ? 'border-foreground scale-110 shadow-lg'
-                            : 'border-transparent hover:border-border'
-                        }`}
-                        style={{ backgroundColor: color.color! }}
-                        onClick={() => setFormulario({ ...formulario, color_categoria: color.color! })}
-                        title={color.nombre}
-                      >
-                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg border border-border">
-                          {color.nombre}
-                        </span>
-                      </button>
-                    ))}
-                    {formulario.color_categoria && (
-                      <button
-                        type="button"
-                        className="w-12 h-12 rounded-lg border-2 border-border bg-secondary hover:bg-secondary/80 flex items-center justify-center hover:scale-110 transition-all duration-200"
-                        onClick={() => setFormulario({ ...formulario, color_categoria: '' })}
-                        title="Limpiar color"
-                      >
-                        ×
-                      </button>
-                    )}
+                  <div className="flex items-center justify-between">
+                    <Label>Color de Categoría</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={abrirDialogoNuevoColor}
+                      className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nuevo Color
+                    </Button>
                   </div>
-                </ScrollArea>
-                {formulario.color_categoria && (
-                  <div className="p-3 mt-2 rounded-lg bg-secondary/30 border border-border">
-                    <p className="text-sm text-foreground">
-                      <span className="font-semibold">
-                        {obtenerColorPorId(formulario.color_categoria)?.nombre || 'Color seleccionado'}
-                      </span>
-                    </p>
-                    {obtenerColorPorId(formulario.color_categoria)?.descripcion && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {obtenerColorPorId(formulario.color_categoria)?.descripcion}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="anamnesis" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Alergias</Label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {formulario.alergias_ids.map((id) => {
-                    const alergia = catalogos.alergias.find(a => a.id === id);
-                    return alergia ? (
-                      <Badge
-                        key={id}
-                        variant="destructive"
-                        className="cursor-pointer hover:bg-destructive/80 transition-all duration-200"
-                        onClick={() => toggleAlergia(id)}
-                      >
-                        {alergia.nombre} ×
-                      </Badge>
-                    ) : null;
-                  })}
-                </div>
-                <SelectConAgregar
-                  opciones={catalogos.alergias.map(a => ({ valor: a.id.toString(), etiqueta: a.nombre }))}
-                  valor=""
-                  onChange={(valor) => {
-                    if (valor) toggleAlergia(parseInt(valor));
-                  }}
-                  onAgregarNuevo={agregarAlergia}
-                  estiloAgregar="destacado"
-                  placeholder="Seleccionar alergia"
-                  textoAgregar="Agregar nueva alergia"
-                  tituloModal="Agregar Nueva Alergia"
-                  descripcionModal="Ingresa el nombre de la alergia"
-                  placeholderInput="Ej: Penicilina"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Enfermedades Preexistentes</Label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {formulario.enfermedades_ids.map((id) => {
-                    const enfermedad = catalogos.enfermedades.find(e => e.id === id);
-                    return enfermedad ? (
-                      <Badge
-                        key={id}
-                        variant="secondary"
-                        className="cursor-pointer hover:bg-secondary/80 hover:text-destructive transition-all duration-200"
-                        onClick={() => toggleEnfermedad(id)}
-                      >
-                        {enfermedad.nombre} ×
-                      </Badge>
-                    ) : null;
-                  })}
-                </div>
-                <SelectConAgregar
-                  opciones={catalogos.enfermedades.map(e => ({ valor: e.id.toString(), etiqueta: e.nombre }))}
-                  valor=""
-                  onChange={(valor) => {
-                    if (valor) toggleEnfermedad(parseInt(valor));
-                  }}
-                  onAgregarNuevo={agregarEnfermedad}
-                  estiloAgregar="destacado"
-                  placeholder="Seleccionar enfermedad"
-                  textoAgregar="Agregar nueva enfermedad"
-                  tituloModal="Agregar Nueva Enfermedad"
-                  descripcionModal="Ingresa el nombre de la enfermedad"
-                  placeholderInput="Ej: Diabetes"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Medicamentos Actuales</Label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {formulario.medicamentos_ids.map((id) => {
-                    const medicamento = catalogos.medicamentos.find(m => m.id === id);
-                    return medicamento ? (
-                      <Badge
-                        key={id}
-                        className="cursor-pointer hover:bg-primary/80 transition-all duration-200"
-                        onClick={() => toggleMedicamento(id)}
-                      >
-                        {medicamento.nombre} ×
-                      </Badge>
-                    ) : null;
-                  })}
-                </div>
-                <SelectConAgregar
-                  opciones={catalogos.medicamentos.map(m => ({ valor: m.id.toString(), etiqueta: m.nombre }))}
-                  valor=""
-                  onChange={(valor) => {
-                    if (valor) toggleMedicamento(parseInt(valor));
-                  }}
-                  onAgregarNuevo={agregarMedicamento}
-                  estiloAgregar="destacado"
-                  placeholder="Seleccionar medicamento"
-                  textoAgregar="Agregar nuevo medicamento"
-                  tituloModal="Agregar Nuevo Medicamento"
-                  descripcionModal="Ingresa el nombre del medicamento"
-                  placeholderInput="Ej: Aspirina"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Historia Clínica</Label>
-                {!modo_edicion && (
-                  <div className="p-4 rounded-lg border border-border bg-secondary/30 text-sm text-muted-foreground">
-                    Primero debe crear el paciente para iniciar una historia clínica.
-                  </div>
-                )}
-
-                {modo_edicion && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">
-                          Solo la última versión es editable; las anteriores se pueden visualizar.
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Cada versión conserva su tamaño de hoja y márgenes.
-                        </p>
-                      </div>
-                      {versiones_historia.length > 0 && (
-                        <Button
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Selecciona un color del catálogo para identificar al paciente
+                  </p>
+                  <ScrollArea className={`rounded-md border border-border p-3 ${catalogos.colores.filter(c => c.color).length > 8 ? 'h-[200px]' : 'h-auto max-h-[200px]'
+                    }`}>
+                    <div className="flex gap-2 flex-wrap">
+                      {catalogos.colores.filter(c => c.color).map((color) => (
+                        <button
+                          key={color.id}
                           type="button"
-                          variant="secondary"
-                          onClick={crearNuevaVersionDesdeActual}
-                          disabled={creando_historia || guardando_historia || versiones_historia.length === 0 || !esUltimaSeleccionada}
+                          className={`group relative w-12 h-12 rounded-lg border-2 transition-all hover:scale-110 ${formulario.color_categoria === color.color
+                              ? 'border-foreground scale-110 shadow-lg'
+                              : 'border-transparent hover:border-border'
+                            }`}
+                          style={{ backgroundColor: color.color! }}
+                          onClick={() => setFormulario({ ...formulario, color_categoria: color.color! })}
+                          title={color.nombre}
                         >
-                          {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Guardar y crear nueva versión
-                        </Button>
+                          <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg border border-border">
+                            {color.nombre}
+                          </span>
+                        </button>
+                      ))}
+                      {formulario.color_categoria && (
+                        <button
+                          type="button"
+                          className="w-12 h-12 rounded-lg border-2 border-border bg-secondary hover:bg-secondary/80 flex items-center justify-center hover:scale-110 transition-all duration-200"
+                          onClick={() => setFormulario({ ...formulario, color_categoria: '' })}
+                          title="Limpiar color"
+                        >
+                          ×
+                        </button>
                       )}
                     </div>
+                  </ScrollArea>
+                  {formulario.color_categoria && (
+                    <div className="p-3 mt-2 rounded-lg bg-secondary/30 border border-border">
+                      <p className="text-sm text-foreground">
+                        <span className="font-semibold">
+                          {obtenerColorPorId(formulario.color_categoria)?.nombre || 'Color seleccionado'}
+                        </span>
+                      </p>
+                      {obtenerColorPorId(formulario.color_categoria)?.descripcion && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {obtenerColorPorId(formulario.color_categoria)?.descripcion}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
 
-                    {cargando_historias ? (
-                      <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Cargando versiones...
-                      </div>
-                    ) : versiones_historia.length === 0 ? (
-                      <div className="p-4 rounded-lg border border-dashed text-sm text-muted-foreground flex items-center justify-between gap-3">
-                        <span>Aún no hay versiones. Crea la primera para comenzar a documentar.</span>
-                        {paciente_seleccionado && (
-                          <Button onClick={() => crearPrimeraHistoria(paciente_seleccionado.id, false)} disabled={creando_historia}>
+              <TabsContent value="anamnesis" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Alergias</Label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {formulario.alergias_ids.map((id) => {
+                      const alergia = catalogos.alergias.find(a => a.id === id);
+                      return alergia ? (
+                        <Badge
+                          key={id}
+                          variant="destructive"
+                          className="cursor-pointer hover:bg-destructive/80 transition-all duration-200"
+                          onClick={() => toggleAlergia(id)}
+                        >
+                          {alergia.nombre} ×
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                  <SelectConAgregar
+                    opciones={catalogos.alergias.map(a => ({ valor: a.id.toString(), etiqueta: a.nombre }))}
+                    valor=""
+                    onChange={(valor) => {
+                      if (valor) toggleAlergia(parseInt(valor));
+                    }}
+                    onAgregarNuevo={agregarAlergia}
+                    estiloAgregar="destacado"
+                    placeholder="Seleccionar alergia"
+                    textoAgregar="Agregar nueva alergia"
+                    tituloModal="Agregar Nueva Alergia"
+                    descripcionModal="Ingresa el nombre de la alergia"
+                    placeholderInput="Ej: Penicilina"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Enfermedades Preexistentes</Label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {formulario.enfermedades_ids.map((id) => {
+                      const enfermedad = catalogos.enfermedades.find(e => e.id === id);
+                      return enfermedad ? (
+                        <Badge
+                          key={id}
+                          variant="secondary"
+                          className="cursor-pointer hover:bg-secondary/80 hover:text-destructive transition-all duration-200"
+                          onClick={() => toggleEnfermedad(id)}
+                        >
+                          {enfermedad.nombre} ×
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                  <SelectConAgregar
+                    opciones={catalogos.enfermedades.map(e => ({ valor: e.id.toString(), etiqueta: e.nombre }))}
+                    valor=""
+                    onChange={(valor) => {
+                      if (valor) toggleEnfermedad(parseInt(valor));
+                    }}
+                    onAgregarNuevo={agregarEnfermedad}
+                    estiloAgregar="destacado"
+                    placeholder="Seleccionar enfermedad"
+                    textoAgregar="Agregar nueva enfermedad"
+                    tituloModal="Agregar Nueva Enfermedad"
+                    descripcionModal="Ingresa el nombre de la enfermedad"
+                    placeholderInput="Ej: Diabetes"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Medicamentos Actuales</Label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {formulario.medicamentos_ids.map((id) => {
+                      const medicamento = catalogos.medicamentos.find(m => m.id === id);
+                      return medicamento ? (
+                        <Badge
+                          key={id}
+                          className="cursor-pointer hover:bg-primary/80 transition-all duration-200"
+                          onClick={() => toggleMedicamento(id)}
+                        >
+                          {medicamento.nombre} ×
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                  <SelectConAgregar
+                    opciones={catalogos.medicamentos.map(m => ({ valor: m.id.toString(), etiqueta: m.nombre }))}
+                    valor=""
+                    onChange={(valor) => {
+                      if (valor) toggleMedicamento(parseInt(valor));
+                    }}
+                    onAgregarNuevo={agregarMedicamento}
+                    estiloAgregar="destacado"
+                    placeholder="Seleccionar medicamento"
+                    textoAgregar="Agregar nuevo medicamento"
+                    tituloModal="Agregar Nuevo Medicamento"
+                    descripcionModal="Ingresa el nombre del medicamento"
+                    placeholderInput="Ej: Aspirina"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Historia Clínica</Label>
+                  {!modo_edicion && (
+                    <div className="p-4 rounded-lg border border-border bg-secondary/30 text-sm text-muted-foreground">
+                      Primero debe crear el paciente para iniciar una historia clínica.
+                    </div>
+                  )}
+
+                  {modo_edicion && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="space-y-1">
+                          <p className="text-sm text-muted-foreground">
+                            Solo la última versión es editable; las anteriores se pueden visualizar.
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Cada versión conserva su tamaño de hoja y márgenes.
+                          </p>
+                        </div>
+                        {versiones_historia.length > 0 && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={crearNuevaVersionDesdeActual}
+                            disabled={creando_historia || guardando_historia || versiones_historia.length === 0 || !esUltimaSeleccionada}
+                          >
                             {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Crear primera versión
+                            Guardar y crear nueva versión
                           </Button>
                         )}
                       </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="grid md:grid-cols-3 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-sm">Seleccionar versión</Label>
-                            <select
-                              className="w-full border rounded-md h-10 bg-background"
-                              value={version_visualizada?.id ?? ''}
-                              onChange={(e) => seleccionarVersionHistoria(Number(e.target.value))}
-                            >
-                              {versiones_historia.map((v) => (
-                                <option key={v.id} value={v.id}>
-                                  Versión {v.numero_version}: {v.nombre || 'Sin nombre'}{v.id === version_activa?.id ? ' (actual)' : ''}
-                                </option>
-                              ))}
-                            </select>
-                            {version_visualizada && (
-                              <p className="text-xs text-muted-foreground">
-                                {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
-                              </p>
-                            )}
-                          </div>
-                          <div className="space-y-1 md:col-span-2">
-                            <Label className="text-sm">Nombre de la versión</Label>
-                            <Input
-                              value={versionSeleccionadaEditable ? (historia_en_edicion?.nombre || '') : (version_visualizada?.nombre || '')}
-                              onChange={(e) => {
-                                if (!version_visualizada) return;
-                                const nuevoNombre = e.target.value;
-                                if (versionSeleccionadaEditable) {
-                                  setHistoriaEnEdicion((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
-                                  setVersionActiva((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
-                                }
-                                setVersionVisualizada({ ...version_visualizada, nombre: nuevoNombre });
-                                setVersionesHistoria((prev) => prev.map((v) => (v.id === version_visualizada.id ? { ...v, nombre: nuevoNombre } : v)));
-                              }}
-                              disabled={!versionSeleccionadaEditable}
-                            />
-                            {!versionSeleccionadaEditable && (
-                              <p className="text-xs text-muted-foreground">Esta versión está bloqueada. Solo la última versión sin finalizar se puede editar.</p>
-                            )}
-                          </div>
-                        </div>
 
-                        <EditorDocumento
-                          valorHtml={versionSeleccionadaEditable ? historia_contenido : (version_visualizada?.contenido_html || '')}
-                          onChangeHtml={versionSeleccionadaEditable ? setHistoriaContenido : () => {}}
-                          config={versionSeleccionadaEditable ? historia_config : ((version_visualizada as any)?.config ?? historia_config)}
-                          onChangeConfig={versionSeleccionadaEditable ? setHistoriaConfig : () => {}}
-                          minHeight="320px"
-                          soloLectura={!versionSeleccionadaEditable}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+                      {cargando_historias ? (
+                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Cargando versiones...
+                        </div>
+                      ) : versiones_historia.length === 0 ? (
+                        <div className="p-4 rounded-lg border border-dashed text-sm text-muted-foreground flex items-center justify-between gap-3">
+                          <span>Aún no hay versiones. Crea la primera para comenzar a documentar.</span>
+                          {paciente_seleccionado && (
+                            <Button onClick={() => crearPrimeraHistoria(paciente_seleccionado.id, false)} disabled={creando_historia}>
+                              {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              Crear primera versión
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="grid md:grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-sm">Seleccionar versión</Label>
+                              <select
+                                className="w-full border rounded-md h-10 bg-background"
+                                value={version_visualizada?.id ?? ''}
+                                onChange={(e) => seleccionarVersionHistoria(Number(e.target.value))}
+                              >
+                                {versiones_historia.map((v) => (
+                                  <option key={v.id} value={v.id}>
+                                    Versión {v.numero_version}: {v.nombre || 'Sin nombre'}{v.id === version_activa?.id ? ' (actual)' : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              {version_visualizada && (
+                                <p className="text-xs text-muted-foreground">
+                                  {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
+                                </p>
+                              )}
+                            </div>
+                            <div className="space-y-1 md:col-span-2">
+                              <Label className="text-sm">Nombre de la versión</Label>
+                              <Input
+                                value={versionSeleccionadaEditable ? (historia_en_edicion?.nombre || '') : (version_visualizada?.nombre || '')}
+                                onChange={(e) => {
+                                  if (!version_visualizada) return;
+                                  const nuevoNombre = e.target.value;
+                                  if (versionSeleccionadaEditable) {
+                                    setHistoriaEnEdicion((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
+                                    setVersionActiva((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
+                                  }
+                                  setVersionVisualizada({ ...version_visualizada, nombre: nuevoNombre });
+                                  setVersionesHistoria((prev) => prev.map((v) => (v.id === version_visualizada.id ? { ...v, nombre: nuevoNombre } : v)));
+                                }}
+                                disabled={!versionSeleccionadaEditable}
+                              />
+                              {!versionSeleccionadaEditable && (
+                                <p className="text-xs text-muted-foreground">Esta versión está bloqueada. Solo la última versión sin finalizar se puede editar.</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <EditorDocumento
+                            valorHtml={versionSeleccionadaEditable ? historia_contenido : (version_visualizada?.contenido_html || '')}
+                            onChangeHtml={versionSeleccionadaEditable ? setHistoriaContenido : () => { }}
+                            config={versionSeleccionadaEditable ? historia_config : ((version_visualizada as any)?.config ?? historia_config)}
+                            onChangeConfig={versionSeleccionadaEditable ? setHistoriaConfig : () => { }}
+                            minHeight="320px"
+                            soloLectura={!versionSeleccionadaEditable}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
 
           <DialogFooter>
@@ -1330,8 +1328,8 @@ export default function Pacientes() {
             >
               Cancelar
             </Button>
-            <Button 
-              onClick={manejarGuardar} 
+            <Button
+              onClick={manejarGuardar}
               disabled={guardando}
               className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
             >
@@ -1381,7 +1379,7 @@ export default function Pacientes() {
             >
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={confirmarAbrirWhatsApp}
               className="bg-green-500 hover:bg-green-600 text-white hover:shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200"
             >
@@ -1428,7 +1426,7 @@ export default function Pacientes() {
             <div className="space-y-2">
               <Label htmlFor="color-picker">Color *</Label>
               <div className="space-y-3">
-                <HexColorPicker 
+                <HexColorPicker
                   color={formulario_color.color}
                   onChange={(color) => setFormularioColor({ ...formulario_color, color })}
                   style={{ width: '100%', height: '150px' }}
@@ -1485,8 +1483,8 @@ export default function Pacientes() {
             >
               Cancelar
             </Button>
-            <Button 
-              onClick={manejarCrearColor} 
+            <Button
+              onClick={manejarCrearColor}
               disabled={guardando_color || !formulario_color.nombre.trim()}
               className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
             >
@@ -1566,7 +1564,7 @@ export default function Pacientes() {
           }
         }}
       >
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCircle className="h-6 w-6" />
@@ -1577,7 +1575,8 @@ export default function Pacientes() {
             </DialogDescription>
           </DialogHeader>
 
-          {paciente_seleccionado && (
+          <div className="flex-1 overflow-y-auto pr-2">
+            {paciente_seleccionado && (
             <div className="space-y-6">
               <div className="flex items-center gap-4 p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors duration-200">
                 <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
@@ -1621,8 +1620,8 @@ export default function Pacientes() {
                             variant="outline"
                             size="sm"
                             onClick={() => prepararWhatsApp(
-                              paciente_seleccionado.telefono!, 
-                              paciente_seleccionado.nombre, 
+                              paciente_seleccionado.telefono!,
+                              paciente_seleccionado.nombre,
                               paciente_seleccionado.apellidos
                             )}
                             className="hover:bg-green-500/20 hover:text-green-500 hover:border-green-500 transition-all duration-200"
@@ -1651,7 +1650,7 @@ export default function Pacientes() {
                       <div>
                         <Label className="text-muted-foreground">Notas Generales</Label>
                         <div className="mt-2 p-3 rounded-lg bg-secondary/30 border border-border">
-                          <RenderizadorHtml 
+                          <RenderizadorHtml
                             contenido={paciente_seleccionado.notas_generales}
                           />
                         </div>
@@ -1691,17 +1690,17 @@ export default function Pacientes() {
                                 <div>
                                   <Label className="text-xs text-muted-foreground">Estado</Label>
                                   <div className="mt-1">
-                                    <Badge 
+                                    <Badge
                                       variant={
-                                        ultima_cita.estado_pago === 'pagado' ? 'default' : 
-                                        ultima_cita.estado_pago === 'pendiente' ? 'secondary' : 
-                                        'destructive'
+                                        ultima_cita.estado_pago === 'pagado' ? 'default' :
+                                          ultima_cita.estado_pago === 'pendiente' ? 'secondary' :
+                                            'destructive'
                                       }
                                       className="text-xs"
                                     >
                                       {ultima_cita.estado_pago === 'pagado' ? 'Pagado' :
-                                       ultima_cita.estado_pago === 'pendiente' ? 'Pendiente' :
-                                       'Cancelado'}
+                                        ultima_cita.estado_pago === 'pendiente' ? 'Pendiente' :
+                                          'Cancelado'}
                                     </Badge>
                                   </div>
                                 </div>
@@ -1741,17 +1740,17 @@ export default function Pacientes() {
                                 <div>
                                   <Label className="text-xs text-muted-foreground">Estado</Label>
                                   <div className="mt-1">
-                                    <Badge 
+                                    <Badge
                                       variant={
-                                        ultimo_tratamiento.estado === 'completado' ? 'default' : 
-                                        ultimo_tratamiento.estado === 'en_progreso' ? 'secondary' : 
-                                        'outline'
+                                        ultimo_tratamiento.estado === 'completado' ? 'default' :
+                                          ultimo_tratamiento.estado === 'en_progreso' ? 'secondary' :
+                                            'outline'
                                       }
                                       className="text-xs"
                                     >
                                       {ultimo_tratamiento.estado === 'completado' ? 'Completado' :
-                                       ultimo_tratamiento.estado === 'en_progreso' ? 'En Progreso' :
-                                       ultimo_tratamiento.estado}
+                                        ultimo_tratamiento.estado === 'en_progreso' ? 'En Progreso' :
+                                          ultimo_tratamiento.estado}
                                     </Badge>
                                   </div>
                                 </div>
@@ -1785,7 +1784,7 @@ export default function Pacientes() {
                           </div>
                         </div>
                       )}
-                      
+
                       {paciente_seleccionado.enfermedades && paciente_seleccionado.enfermedades.length > 0 && (
                         <div className="space-y-2">
                           <Label className="text-muted-foreground">Enfermedades Preexistentes</Label>
@@ -1798,7 +1797,7 @@ export default function Pacientes() {
                           </div>
                         </div>
                       )}
-                      
+
                       {paciente_seleccionado.medicamentos && paciente_seleccionado.medicamentos.length > 0 && (
                         <div className="space-y-2">
                           <Label className="text-muted-foreground">Medicamentos Actuales</Label>
@@ -1811,7 +1810,7 @@ export default function Pacientes() {
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="space-y-3">
                         <div className="space-y-2">
                           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1897,19 +1896,20 @@ export default function Pacientes() {
                                 </div>
                               </div>
 
-                              <div className="p-3 rounded-lg bg-secondary/30 border border-border overflow-hidden">
-                                <div className="max-w-4xl mx-auto w-full">
-                                  <RenderizadorHtml
-                                    contenido={version_visualizada.contenido_html || ''}
-                                    modoDocumento
-                                    escala={0.92}
-                                    tamanoPersonalizado={{
-                                      widthMm: (version_visualizada as any).config?.widthMm ?? 216,
-                                      heightMm: (version_visualizada as any).config?.heightMm ?? 279,
-                                    }}
-                                    margenes={(version_visualizada as any).config?.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 }}
-                                  />
-                                </div>
+                              <div className="overflow-hidden">
+                                <RenderizadorHtml
+                                  contenido={version_visualizada.contenido_html || ''}
+                                  modoDocumento
+                                  escala={0.7}
+                                  altura="500px"
+                                  ajustarAncho
+                                  className="max-w-full"
+                                  tamanoPersonalizado={{
+                                    widthMm: (version_visualizada as any).config?.widthMm ?? 216,
+                                    heightMm: (version_visualizada as any).config?.heightMm ?? 279,
+                                  }}
+                                  margenes={(version_visualizada as any).config?.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 }}
+                                />
                               </div>
                             </div>
                           ) : (
@@ -1919,22 +1919,22 @@ export default function Pacientes() {
                           )}
                         </div>
                       </div>
-                      
+
                       {(!paciente_seleccionado.alergias || paciente_seleccionado.alergias.length === 0) &&
-                       (!paciente_seleccionado.enfermedades || paciente_seleccionado.enfermedades.length === 0) &&
-                       (!paciente_seleccionado.medicamentos || paciente_seleccionado.medicamentos.length === 0) &&
-                       !paciente_seleccionado.notas_medicas &&
-                       !ultima_cita &&
-                       !ultimo_tratamiento && (
-                        <div className="text-center py-8">
-                          <div className="mx-auto w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center mb-3">
-                            <AlertCircle className="h-6 w-6 text-muted-foreground" />
+                        (!paciente_seleccionado.enfermedades || paciente_seleccionado.enfermedades.length === 0) &&
+                        (!paciente_seleccionado.medicamentos || paciente_seleccionado.medicamentos.length === 0) &&
+                        !paciente_seleccionado.notas_medicas &&
+                        !ultima_cita &&
+                        !ultimo_tratamiento && (
+                          <div className="text-center py-8">
+                            <div className="mx-auto w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center mb-3">
+                              <AlertCircle className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <p className="text-muted-foreground">
+                              No hay información médica registrada
+                            </p>
                           </div>
-                          <p className="text-muted-foreground">
-                            No hay información médica registrada
-                          </p>
-                        </div>
-                      )}
+                        )}
                     </div>
                   )}
                 </TabsContent>
@@ -1955,6 +1955,7 @@ export default function Pacientes() {
               </Tabs>
             </div>
           )}
+          </div>
         </DialogContent>
       </Dialog>
 
