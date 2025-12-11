@@ -237,8 +237,6 @@ export function RenderizadorHtml({
     textAlign: 'left'
   };
 
-  if (!contenido) return null;
-
   return (
     <div
       className={cn(
