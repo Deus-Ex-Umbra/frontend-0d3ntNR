@@ -364,8 +364,17 @@ export function RenderizadorHtml({
             word-wrap: break-word;
         }
         .renderizador-contenido p { 
-          margin: 0 0 1em 0; 
-          white-space: pre-wrap; 
+          margin: 0; 
+          white-space: pre-wrap;
+          min-height: 1.5em;
+        }
+        .renderizador-contenido p:empty,
+        .renderizador-contenido p:has(> br:only-child) {
+          min-height: 1.5em;
+          display: block;
+        }
+        .renderizador-contenido p + p {
+          margin-top: 0;
         }
         .renderizador-contenido h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0; white-space: pre-wrap; }
         .renderizador-contenido h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0; white-space: pre-wrap; }
