@@ -330,10 +330,26 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   const pageWidthPx = Number.isFinite(rawPageWidthPx) && rawPageWidthPx > 0 ? rawPageWidthPx : fallbackWidthPx;
   const pageHeightPx = Number.isFinite(rawPageHeightPx) && rawPageHeightPx > 0 ? rawPageHeightPx : fallbackHeightPx;
 
-  const rawMarginTopPx = Math.round(mmToPx(margenes.top));
-  const rawMarginBottomPx = Math.round(mmToPx(margenes.bottom));
-  const rawMarginLeftPx = Math.round(mmToPx(margenes.left));
-  const rawMarginRightPx = Math.round(mmToPx(margenes.right));
+  const limiteVerticalMm = Math.max(0, Math.floor(baseMm.heightMm * 0.25));
+  const limiteHorizontalMm = Math.max(0, Math.floor(baseMm.widthMm * 0.30));
+  const toNonNegativeMm = (valor: number) => Math.max(0, Number.isFinite(valor) ? valor : 0);
+  const clampPairMm = (primero: number, segundo: number, limite: number): [number, number] => {
+    const limpioPrimero = toNonNegativeMm(primero);
+    const limpioSegundo = toNonNegativeMm(segundo);
+    const cappedPrimero = Math.min(limpioPrimero, Math.max(0, limite - limpioSegundo));
+    const cappedSegundo = Math.min(limpioSegundo, Math.max(0, limite - cappedPrimero));
+    return [cappedPrimero, cappedSegundo];
+  };
+  const margenesAjustadosMm = (() => {
+    const [top, bottom] = clampPairMm(margenes.top, margenes.bottom, limiteVerticalMm);
+    const [left, right] = clampPairMm(margenes.left, margenes.right, limiteHorizontalMm);
+    return { top, bottom, left, right };
+  })();
+
+  const rawMarginTopPx = Math.round(mmToPx(margenesAjustadosMm.top));
+  const rawMarginBottomPx = Math.round(mmToPx(margenesAjustadosMm.bottom));
+  const rawMarginLeftPx = Math.round(mmToPx(margenesAjustadosMm.left));
+  const rawMarginRightPx = Math.round(mmToPx(margenesAjustadosMm.right));
   const marginTopPx = Number.isFinite(rawMarginTopPx) && rawMarginTopPx >= 0 ? rawMarginTopPx : 0;
   const marginBottomPx = Number.isFinite(rawMarginBottomPx) && rawMarginBottomPx >= 0 ? rawMarginBottomPx : 0;
   const marginLeftPx = Number.isFinite(rawMarginLeftPx) && rawMarginLeftPx >= 0 ? rawMarginLeftPx : 0;

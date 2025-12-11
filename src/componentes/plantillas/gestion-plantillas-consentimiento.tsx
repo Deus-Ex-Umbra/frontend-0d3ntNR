@@ -46,6 +46,21 @@ export function GestionPlantillasConsentimiento() {
     if (Number.isNaN(v)) return min;
     return Math.min(Math.max(v, min), max);
   };
+  const aplicarLimiteMargenes = (m: { superior: number; inferior: number; izquierdo: number; derecho: number }, widthMm: number, heightMm: number) => {
+    const limiteVertical = Math.max(0, Math.floor(heightMm * 0.25));
+    const limiteHorizontal = Math.max(0, Math.floor(widthMm * 0.30));
+    const toNonNegative = (v: number) => Math.max(0, Number.isFinite(v) ? v : 0);
+    const clampPair = (primero: number, segundo: number, limite: number): [number, number] => {
+      const limpioPrimero = toNonNegative(primero);
+      const limpioSegundo = toNonNegative(segundo);
+      const cappedPrimero = Math.min(limpioPrimero, Math.max(0, limite - limpioSegundo));
+      const cappedSegundo = Math.min(limpioSegundo, Math.max(0, limite - cappedPrimero));
+      return [cappedPrimero, cappedSegundo];
+    };
+    const [superior, inferior] = clampPair(m.superior, m.inferior, limiteVertical);
+    const [izquierdo, derecho] = clampPair(m.izquierdo, m.derecho, limiteHorizontal);
+    return { superior, inferior, izquierdo, derecho, limiteVertical, limiteHorizontal };
+  };
   const [etiquetas_personalizadas, setEtiquetasPersonalizadas] = useState<EtiquetaPersonalizada[]>([]);
   const [botones_etiquetas, setBotonesEtiquetas] = useState<{ codigo: string; nombre: string; descripcion: string }[]>([]);
   const [dialogo_nueva_etiqueta, setDialogoNuevaEtiqueta] = useState(false);
@@ -143,14 +158,15 @@ export function GestionPlantillasConsentimiento() {
         ? { width: 216, height: 356 }
         : { width: 210, height: 297 };
   const pageMm = pageBase;
-  const maxLeft = Math.max(0, pageMm.width - margenes_plantilla.derecho);
-  const maxRight = Math.max(0, pageMm.width - margenes_plantilla.izquierdo);
-  const maxTop = Math.max(0, pageMm.height - margenes_plantilla.inferior);
-  const maxBottom = Math.max(0, pageMm.height - margenes_plantilla.superior);
-  const horizontalZero = margenes_plantilla.izquierdo + margenes_plantilla.derecho === pageMm.width;
-  const verticalZero = margenes_plantilla.superior + margenes_plantilla.inferior === pageMm.height;
-  const anchoEscritura = pageMm.width - margenes_plantilla.izquierdo - margenes_plantilla.derecho;
-  const altoEscritura = pageMm.height - margenes_plantilla.superior - margenes_plantilla.inferior;
+  const margenesAjustados = aplicarLimiteMargenes(margenes_plantilla, pageMm.width, pageMm.height);
+  const maxLeft = Math.max(0, margenesAjustados.limiteHorizontal - margenesAjustados.derecho);
+  const maxRight = Math.max(0, margenesAjustados.limiteHorizontal - margenesAjustados.izquierdo);
+  const maxTop = Math.max(0, margenesAjustados.limiteVertical - margenesAjustados.inferior);
+  const maxBottom = Math.max(0, margenesAjustados.limiteVertical - margenesAjustados.superior);
+  const horizontalZero = margenesAjustados.izquierdo + margenesAjustados.derecho >= margenesAjustados.limiteHorizontal;
+  const verticalZero = margenesAjustados.superior + margenesAjustados.inferior >= margenesAjustados.limiteVertical;
+  const anchoEscritura = pageMm.width - margenesAjustados.izquierdo - margenesAjustados.derecho;
+  const altoEscritura = pageMm.height - margenesAjustados.superior - margenesAjustados.inferior;
   const seleccionarTamanoHoja = (valor: string) => {
     if (!valor) { setTamanoHojaId(null); return; }
     const id = Number(valor);
@@ -158,15 +174,14 @@ export function GestionPlantillasConsentimiento() {
     if (item) {
       setTamanoHojaId(item.id);
       const dims = { width: Math.round(item.ancho), height: Math.round(item.alto) };
-      const maxL = Math.max(0, dims.width - margenes_plantilla.derecho);
-      const maxR = Math.max(0, dims.width - margenes_plantilla.izquierdo);
-      const maxT = Math.max(0, dims.height - margenes_plantilla.inferior);
-      const maxB = Math.max(0, dims.height - margenes_plantilla.superior);
-      setMargenesPlantilla({
-        superior: clamp(margenes_plantilla.superior, 0, maxT),
-        inferior: clamp(margenes_plantilla.inferior, 0, maxB),
-        izquierdo: clamp(margenes_plantilla.izquierdo, 0, maxL),
-        derecho: clamp(margenes_plantilla.derecho, 0, maxR),
+      setMargenesPlantilla(prev => {
+        const ajustados = aplicarLimiteMargenes(prev, dims.width, dims.height);
+        return {
+          superior: ajustados.superior,
+          inferior: ajustados.inferior,
+          izquierdo: ajustados.izquierdo,
+          derecho: ajustados.derecho,
+        };
       });
     }
   };
@@ -530,7 +545,7 @@ export function GestionPlantillasConsentimiento() {
                   <Info className="h-4 w-4 text-blue-500 mt-0.5" />
                   <div className="space-y-1">
                     <p className="text-sm font-semibold">Tamaño de hoja y márgenes</p>
-                    <p className="text-xs text-muted-foreground">Configura la página tal como la usarás en el PDF. Carta se aplica por defecto, pero puedes agregar otro tamaño sin salir.</p>
+                    <p className="text-xs text-muted-foreground">Configura el tamaño que verán tus pacientes en el PDF. Carta queda seleccionada por defecto.</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
@@ -570,14 +585,14 @@ export function GestionPlantillasConsentimiento() {
                       type="number"
                       min={0}
                       max={maxTop}
-                      value={margenes_plantilla.superior}
+                      value={margenesAjustados.superior}
                       onChange={(e) => {
                         const nuevo = clamp(Number(e.target.value), 0, maxTop);
-                        setMargenesPlantilla({ ...margenes_plantilla, superior: nuevo });
+                        setMargenesPlantilla(prev => ({ ...prev, superior: nuevo }));
                       }}
                       className={cn(
                         "h-8",
-                        (margenes_plantilla.superior > 999 || verticalZero) && "border-yellow-400"
+                        (margenesAjustados.superior > 999 || verticalZero) && "border-yellow-400"
                       )}
                       title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.superior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
@@ -589,14 +604,14 @@ export function GestionPlantillasConsentimiento() {
                       type="number"
                       min={0}
                       max={maxBottom}
-                      value={margenes_plantilla.inferior}
+                      value={margenesAjustados.inferior}
                       onChange={(e) => {
                         const nuevo = clamp(Number(e.target.value), 0, maxBottom);
-                        setMargenesPlantilla({ ...margenes_plantilla, inferior: nuevo });
+                        setMargenesPlantilla(prev => ({ ...prev, inferior: nuevo }));
                       }}
                       className={cn(
                         "h-8",
-                        (margenes_plantilla.inferior > 999 || verticalZero) && "border-yellow-400"
+                        (margenesAjustados.inferior > 999 || verticalZero) && "border-yellow-400"
                       )}
                       title={verticalZero ? 'Área de escritura vertical nula' : (margenes_plantilla.inferior > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
@@ -608,14 +623,14 @@ export function GestionPlantillasConsentimiento() {
                       type="number"
                       min={0}
                       max={maxLeft}
-                      value={margenes_plantilla.izquierdo}
+                      value={margenesAjustados.izquierdo}
                       onChange={(e) => {
                         const nuevo = clamp(Number(e.target.value), 0, maxLeft);
-                        setMargenesPlantilla({ ...margenes_plantilla, izquierdo: nuevo });
+                        setMargenesPlantilla(prev => ({ ...prev, izquierdo: nuevo }));
                       }}
                       className={cn(
                         "h-8",
-                        (margenes_plantilla.izquierdo > 999 || horizontalZero) && "border-yellow-400"
+                        (margenesAjustados.izquierdo > 999 || horizontalZero) && "border-yellow-400"
                       )}
                       title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.izquierdo > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
@@ -627,14 +642,14 @@ export function GestionPlantillasConsentimiento() {
                       type="number"
                       min={0}
                       max={maxRight}
-                      value={margenes_plantilla.derecho}
+                      value={margenesAjustados.derecho}
                       onChange={(e) => {
                         const nuevo = clamp(Number(e.target.value), 0, maxRight);
-                        setMargenesPlantilla({ ...margenes_plantilla, derecho: nuevo });
+                        setMargenesPlantilla(prev => ({ ...prev, derecho: nuevo }));
                       }}
                       className={cn(
                         "h-8",
-                        (margenes_plantilla.derecho > 999 || horizontalZero) && "border-yellow-400"
+                        (margenesAjustados.derecho > 999 || horizontalZero) && "border-yellow-400"
                       )}
                       title={horizontalZero ? 'Área de escritura horizontal nula' : (margenes_plantilla.derecho > 999 ? 'Valor muy alto, puede causar problemas de visualización' : undefined)}
                     />
@@ -750,7 +765,7 @@ export function GestionPlantillasConsentimiento() {
                     minHeight="400px"
                     tamanoPapel={tamano_papel}
                     tamanoPersonalizado={tamanoActual ? { widthMm: tamanoActual.widthMm, heightMm: tamanoActual.heightMm } : undefined as any}
-                    margenes={{ top: margenes_plantilla.superior, right: margenes_plantilla.derecho, bottom: margenes_plantilla.inferior, left: margenes_plantilla.izquierdo }}
+                    margenes={{ top: margenesAjustados.superior, right: margenesAjustados.derecho, bottom: margenesAjustados.inferior, left: margenesAjustados.izquierdo }}
                   />
                 </div>
               </div>
@@ -1173,7 +1188,7 @@ export function GestionPlantillasConsentimiento() {
                   minHeight="400px"
                   tamanoPapel={tamano_papel}
                   tamanoPersonalizado={tamanoActual ? { widthMm: tamanoActual.widthMm, heightMm: tamanoActual.heightMm } : undefined as any}
-                  margenes={{ top: margenes_plantilla.superior, right: margenes_plantilla.derecho, bottom: margenes_plantilla.inferior, left: margenes_plantilla.izquierdo }}
+                  margenes={{ top: margenesAjustados.superior, right: margenesAjustados.derecho, bottom: margenesAjustados.inferior, left: margenesAjustados.izquierdo }}
                 />
               </div>
             </div>

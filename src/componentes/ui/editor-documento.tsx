@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { EditorConEtiquetasPersonalizado } from '@/componentes/ui/editor-con-etiquetas-personalizado'
 import { Label } from '@/componentes/ui/label'
 import { Input } from '@/componentes/ui/input'
@@ -106,17 +106,41 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
   }
 
   const pageInfo = seleccionado ? { widthMm: Math.round(seleccionado.ancho), heightMm: Math.round(seleccionado.alto) } : { widthMm: config.widthMm, heightMm: config.heightMm }
-  const anchoEscritura = Math.max(0, pageInfo.widthMm - config.margenes.left - config.margenes.right)
-  const altoEscritura = Math.max(0, pageInfo.heightMm - config.margenes.top - config.margenes.bottom)
-
   const pageMm = { width: pageInfo.widthMm, height: pageInfo.heightMm }
-  const clamp = (v: number, min: number, max: number) => Math.min(Math.max(Number.isFinite(v) ? v : min, min), max)
-  const maxLeft = Math.max(0, pageMm.width - config.margenes.right)
-  const maxRight = Math.max(0, pageMm.width - config.margenes.left)
-  const maxTop = Math.max(0, pageMm.height - config.margenes.bottom)
-  const maxBottom = Math.max(0, pageMm.height - config.margenes.top)
-  const horizontalZero = config.margenes.left + config.margenes.right === pageMm.width
-  const verticalZero = config.margenes.top + config.margenes.bottom === pageMm.height
+  const limiteVerticalMm = Math.max(0, Math.floor(pageMm.height * 0.25))
+  const limiteHorizontalMm = Math.max(0, Math.floor(pageMm.width * 0.30))
+  const toNonNegative = (v: number) => Math.max(0, Number.isFinite(v) ? v : 0)
+  const clampPair = (primero: number, segundo: number, limite: number): [number, number] => {
+    const limpioPrimero = toNonNegative(primero)
+    const limpioSegundo = toNonNegative(segundo)
+    const cappedPrimero = Math.min(limpioPrimero, Math.max(0, limite - limpioSegundo))
+    const cappedSegundo = Math.min(limpioSegundo, Math.max(0, limite - cappedPrimero))
+    return [cappedPrimero, cappedSegundo]
+  }
+  const ajustarMargenes = useCallback((valores: DocumentoConfig['margenes']) => {
+    const [top, bottom] = clampPair(valores.top, valores.bottom, limiteVerticalMm)
+    const [left, right] = clampPair(valores.left, valores.right, limiteHorizontalMm)
+    return { top, bottom, left, right }
+  }, [limiteHorizontalMm, limiteVerticalMm])
+  const margenesAjustados = useMemo(() => ajustarMargenes(config.margenes), [ajustarMargenes, config.margenes])
+  useEffect(() => {
+    const iguales = config.margenes.top === margenesAjustados.top
+      && config.margenes.bottom === margenesAjustados.bottom
+      && config.margenes.left === margenesAjustados.left
+      && config.margenes.right === margenesAjustados.right
+    if (!iguales) {
+      onChangeConfig({ ...config, margenes: margenesAjustados })
+    }
+  }, [config, margenesAjustados, onChangeConfig])
+  const anchoEscritura = Math.max(0, pageInfo.widthMm - margenesAjustados.left - margenesAjustados.right)
+  const altoEscritura = Math.max(0, pageInfo.heightMm - margenesAjustados.top - margenesAjustados.bottom)
+
+  const maxLeft = Math.max(0, limiteHorizontalMm - margenesAjustados.right)
+  const maxRight = Math.max(0, limiteHorizontalMm - margenesAjustados.left)
+  const maxTop = Math.max(0, limiteVerticalMm - margenesAjustados.bottom)
+  const maxBottom = Math.max(0, limiteVerticalMm - margenesAjustados.top)
+  const horizontalLimitReached = margenesAjustados.left + margenesAjustados.right >= limiteHorizontalMm
+  const verticalLimitReached = margenesAjustados.top + margenesAjustados.bottom >= limiteVerticalMm
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -157,12 +181,13 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
             type="number"
             min={0}
             max={maxTop}
-            value={config.margenes.top}
+            value={margenesAjustados.top}
             onChange={(e) => {
-              const top = clamp(parseInt(e.target.value, 10), 0, maxTop)
-              onChangeConfig({ ...config, margenes: { ...config.margenes, top } })
+              const top = toNonNegative(parseInt(e.target.value, 10))
+              const nuevos = ajustarMargenes({ ...config.margenes, top })
+              onChangeConfig({ ...config, margenes: nuevos })
             }}
-            className={cn('h-8', (config.margenes.top > 999 || verticalZero) && 'border-yellow-400')}
+            className={cn('h-8', (margenesAjustados.top > 999 || verticalLimitReached) && 'border-yellow-400')}
             disabled={soloLectura}
           />
         </div>
@@ -172,12 +197,13 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
             type="number"
             min={0}
             max={maxBottom}
-            value={config.margenes.bottom}
+            value={margenesAjustados.bottom}
             onChange={(e) => {
-              const bottom = clamp(parseInt(e.target.value, 10), 0, maxBottom)
-              onChangeConfig({ ...config, margenes: { ...config.margenes, bottom } })
+              const bottom = toNonNegative(parseInt(e.target.value, 10))
+              const nuevos = ajustarMargenes({ ...config.margenes, bottom })
+              onChangeConfig({ ...config, margenes: nuevos })
             }}
-            className={cn('h-8', (config.margenes.bottom > 999 || verticalZero) && 'border-yellow-400')}
+            className={cn('h-8', (margenesAjustados.bottom > 999 || verticalLimitReached) && 'border-yellow-400')}
             disabled={soloLectura}
           />
         </div>
@@ -187,12 +213,13 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
             type="number"
             min={0}
             max={maxLeft}
-            value={config.margenes.left}
+            value={margenesAjustados.left}
             onChange={(e) => {
-              const left = clamp(parseInt(e.target.value, 10), 0, maxLeft)
-              onChangeConfig({ ...config, margenes: { ...config.margenes, left } })
+              const left = toNonNegative(parseInt(e.target.value, 10))
+              const nuevos = ajustarMargenes({ ...config.margenes, left })
+              onChangeConfig({ ...config, margenes: nuevos })
             }}
-            className={cn('h-8', (config.margenes.left > 999 || horizontalZero) && 'border-yellow-400')}
+            className={cn('h-8', (margenesAjustados.left > 999 || horizontalLimitReached) && 'border-yellow-400')}
             disabled={soloLectura}
           />
         </div>
@@ -202,12 +229,13 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
             type="number"
             min={0}
             max={maxRight}
-            value={config.margenes.right}
+            value={margenesAjustados.right}
             onChange={(e) => {
-              const right = clamp(parseInt(e.target.value, 10), 0, maxRight)
-              onChangeConfig({ ...config, margenes: { ...config.margenes, right } })
+              const right = toNonNegative(parseInt(e.target.value, 10))
+              const nuevos = ajustarMargenes({ ...config.margenes, right })
+              onChangeConfig({ ...config, margenes: nuevos })
             }}
-            className={cn('h-8', (config.margenes.right > 999 || horizontalZero) && 'border-yellow-400')}
+            className={cn('h-8', (margenesAjustados.right > 999 || horizontalLimitReached) && 'border-yellow-400')}
             disabled={soloLectura}
           />
         </div>
@@ -219,7 +247,7 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
         minHeight={minHeight}
         tamanoPapel={undefined as any}
         tamanoPersonalizado={{ widthMm: pageInfo.widthMm, heightMm: pageInfo.heightMm }}
-        margenes={config.margenes}
+        margenes={margenesAjustados}
         habilitarEtiquetas={false}
         soloLectura={soloLectura}
       />

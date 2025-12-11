@@ -123,6 +123,21 @@ export function GestionPlantillasRecetas() {
     if (Number.isNaN(v)) return min;
     return Math.min(Math.max(v, min), max);
   };
+  const aplicarLimiteMargenes = (m: { top: number; right: number; bottom: number; left: number }, widthMm: number, heightMm: number) => {
+    const limiteVertical = Math.max(0, Math.floor(heightMm * 0.25));
+    const limiteHorizontal = Math.max(0, Math.floor(widthMm * 0.30));
+    const toNonNegative = (v: number) => Math.max(0, Number.isFinite(v) ? v : 0);
+    const clampPair = (primero: number, segundo: number, limite: number): [number, number] => {
+      const limpioPrimero = toNonNegative(primero);
+      const limpioSegundo = toNonNegative(segundo);
+      const cappedPrimero = Math.min(limpioPrimero, Math.max(0, limite - limpioSegundo));
+      const cappedSegundo = Math.min(limpioSegundo, Math.max(0, limite - cappedPrimero));
+      return [cappedPrimero, cappedSegundo];
+    };
+    const [top, bottom] = clampPair(m.top, m.bottom, limiteVertical);
+    const [left, right] = clampPair(m.left, m.right, limiteHorizontal);
+    return { top, bottom, left, right, limiteVertical, limiteHorizontal };
+  };
 
   const tamanoSeleccionado = tamanoHojaId ? tamanosHoja.find(t => t.id === tamanoHojaId) : undefined;
   
@@ -143,15 +158,16 @@ export function GestionPlantillasRecetas() {
         ? { width: 216, height: 356 }
         : { width: 210, height: 297 };
 
-  const maxLeft = Math.max(0, pageBase.width - margenes.right);
-  const maxRight = Math.max(0, pageBase.width - margenes.left);
-  const maxTop = Math.max(0, pageBase.height - margenes.bottom);
-  const maxBottom = Math.max(0, pageBase.height - margenes.top);
+  const margenesAjustados = aplicarLimiteMargenes(margenes, pageBase.width, pageBase.height);
+  const maxLeft = Math.max(0, margenesAjustados.limiteHorizontal - margenesAjustados.right);
+  const maxRight = Math.max(0, margenesAjustados.limiteHorizontal - margenesAjustados.left);
+  const maxTop = Math.max(0, margenesAjustados.limiteVertical - margenesAjustados.bottom);
+  const maxBottom = Math.max(0, margenesAjustados.limiteVertical - margenesAjustados.top);
   
-  const horizontalZero = margenes.left + margenes.right === pageBase.width;
-  const verticalZero = margenes.top + margenes.bottom === pageBase.height;
-  const anchoEscritura = pageBase.width - margenes.left - margenes.right;
-  const altoEscritura = pageBase.height - margenes.top - margenes.bottom;
+  const horizontalZero = margenesAjustados.left + margenesAjustados.right >= margenesAjustados.limiteHorizontal;
+  const verticalZero = margenesAjustados.top + margenesAjustados.bottom >= margenesAjustados.limiteVertical;
+  const anchoEscritura = pageBase.width - margenesAjustados.left - margenesAjustados.right;
+  const altoEscritura = pageBase.height - margenesAjustados.top - margenesAjustados.bottom;
 
   const opcionesTamanos: OpcionSelectConAgregar[] = useMemo(() => tamanosHoja.map((t) => {
     const etiquetaMedidas = `${Math.round(t.ancho)} × ${Math.round(t.alto)} mm`;
@@ -228,15 +244,9 @@ export function GestionPlantillasRecetas() {
     if (item) {
       setTamanoHojaId(item.id);
       const dims = { width: Math.round(item.ancho), height: Math.round(item.alto) };
-      const maxL = Math.max(0, dims.width - margenes.right);
-      const maxR = Math.max(0, dims.width - margenes.left);
-      const maxT = Math.max(0, dims.height - margenes.bottom);
-      const maxB = Math.max(0, dims.height - margenes.top);
-      setMargenes({
-        top: clamp(margenes.top, 0, maxT),
-        bottom: clamp(margenes.bottom, 0, maxB),
-        left: clamp(margenes.left, 0, maxL),
-        right: clamp(margenes.right, 0, maxR),
+      setMargenes(prev => {
+        const ajustados = aplicarLimiteMargenes(prev, dims.width, dims.height);
+        return { top: ajustados.top, bottom: ajustados.bottom, left: ajustados.left, right: ajustados.right };
       });
     }
   };
@@ -419,33 +429,33 @@ export function GestionPlantillasRecetas() {
             <div className="space-y-1">
               <Label className="text-xs">Superior (mm)</Label>
               <Input
-                type="number" min={0} max={maxTop} value={margenes.top}
-                onChange={(e) => setMargenes({ ...margenes, top: clamp(Number(e.target.value), 0, maxTop) })}
-                className={cn("h-8", (margenes.top > 999 || verticalZero) && "border-yellow-400")}
+                type="number" min={0} max={maxTop} value={margenesAjustados.top}
+                onChange={(e) => setMargenes(prev => ({ ...prev, top: clamp(Number(e.target.value), 0, maxTop) }))}
+                className={cn("h-8", (margenesAjustados.top > 999 || verticalZero) && "border-yellow-400")}
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Inferior (mm)</Label>
               <Input
-                type="number" min={0} max={maxBottom} value={margenes.bottom}
-                onChange={(e) => setMargenes({ ...margenes, bottom: clamp(Number(e.target.value), 0, maxBottom) })}
-                className={cn("h-8", (margenes.bottom > 999 || verticalZero) && "border-yellow-400")}
+                type="number" min={0} max={maxBottom} value={margenesAjustados.bottom}
+                onChange={(e) => setMargenes(prev => ({ ...prev, bottom: clamp(Number(e.target.value), 0, maxBottom) }))}
+                className={cn("h-8", (margenesAjustados.bottom > 999 || verticalZero) && "border-yellow-400")}
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Izquierdo (mm)</Label>
               <Input
-                type="number" min={0} max={maxLeft} value={margenes.left}
-                onChange={(e) => setMargenes({ ...margenes, left: clamp(Number(e.target.value), 0, maxLeft) })}
-                className={cn("h-8", (margenes.left > 999 || horizontalZero) && "border-yellow-400")}
+                type="number" min={0} max={maxLeft} value={margenesAjustados.left}
+                onChange={(e) => setMargenes(prev => ({ ...prev, left: clamp(Number(e.target.value), 0, maxLeft) }))}
+                className={cn("h-8", (margenesAjustados.left > 999 || horizontalZero) && "border-yellow-400")}
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Derecho (mm)</Label>
               <Input
-                type="number" min={0} max={maxRight} value={margenes.right}
-                onChange={(e) => setMargenes({ ...margenes, right: clamp(Number(e.target.value), 0, maxRight) })}
-                className={cn("h-8", (margenes.right > 999 || horizontalZero) && "border-yellow-400")}
+                type="number" min={0} max={maxRight} value={margenesAjustados.right}
+                onChange={(e) => setMargenes(prev => ({ ...prev, right: clamp(Number(e.target.value), 0, maxRight) }))}
+                className={cn("h-8", (margenesAjustados.right > 999 || horizontalZero) && "border-yellow-400")}
               />
             </div>
           </div>
@@ -519,7 +529,7 @@ export function GestionPlantillasRecetas() {
             minHeight="400px"
             tamanoPapel={tamanoPapel}
             tamanoPersonalizado={tamanoActual}
-            margenes={{ top: margenes.top, right: margenes.right, bottom: margenes.bottom, left: margenes.left }}
+            margenes={{ top: margenesAjustados.top, right: margenesAjustados.right, bottom: margenesAjustados.bottom, left: margenesAjustados.left }}
           />
         </div>
       </div>

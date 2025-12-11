@@ -27,6 +27,29 @@ interface ValorMedicamento {
   indicaciones: string;
 }
 
+const aplicarLimiteMargenes = (cfg: DocumentoConfig): DocumentoConfig => {
+  const widthMm = Math.max(0, cfg.widthMm || 0);
+  const heightMm = Math.max(0, cfg.heightMm || 0);
+  const limiteVerticalMm = Math.max(0, Math.floor(heightMm * 0.25));
+  const limiteHorizontalMm = Math.max(0, Math.floor(widthMm * 0.30));
+  const toNonNegative = (v: number) => Math.max(0, Number.isFinite(v) ? v : 0);
+  const clampPair = (primero: number, segundo: number, limite: number): [number, number] => {
+    const limpioPrimero = toNonNegative(primero);
+    const limpioSegundo = toNonNegative(segundo);
+    const cappedPrimero = Math.min(limpioPrimero, Math.max(0, limite - limpioSegundo));
+    const cappedSegundo = Math.min(limpioSegundo, Math.max(0, limite - cappedPrimero));
+    return [cappedPrimero, cappedSegundo];
+  };
+  const [top, bottom] = clampPair(cfg.margenes.top, cfg.margenes.bottom, limiteVerticalMm);
+  const [left, right] = clampPair(cfg.margenes.left, cfg.margenes.right, limiteHorizontalMm);
+  return {
+    ...cfg,
+    widthMm,
+    heightMm,
+    margenes: { top, bottom, left, right },
+  };
+};
+
 export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos, onRecetaGenerada }: EditorRecetasProps) {
   const { toast } = useToast();
   
@@ -50,12 +73,13 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
   
   // Edición
   const [contenidoEditado, setContenidoEditado] = useState('');
-  const [configuracionDocumento, setConfiguracionDocumento] = useState<DocumentoConfig>({
+  const [configuracionDocumento, setConfiguracionDocumento] = useState<DocumentoConfig>(() => aplicarLimiteMargenes({
     widthMm: 216,
     heightMm: 279,
     margenes: { top: 20, right: 20, bottom: 20, left: 20 },
     nombre_tamano: 'Carta'
-  });
+  }));
+  const actualizarConfiguracionDocumento = (cfg: DocumentoConfig) => setConfiguracionDocumento(aplicarLimiteMargenes(cfg));
 
   // Estados de carga
   const [cargando, setCargando] = useState(false);
@@ -212,9 +236,14 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
       const contenedor = document.createElement('div');
       
       // Configuración de dimensiones y márgenes
-      const widthMm = config?.widthMm || 216; // Carta por defecto
-      const heightMm = config?.heightMm || 279;
-      const margenes = config?.margenes || { top: 20, right: 20, bottom: 20, left: 20 };
+      const cfgAjustado = aplicarLimiteMargenes(config || {
+        widthMm: 216,
+        heightMm: 279,
+        margenes: { top: 20, right: 20, bottom: 20, left: 20 },
+      });
+      const widthMm = cfgAjustado.widthMm || 216; // Carta por defecto
+      const heightMm = cfgAjustado.heightMm || 279;
+      const margenes = cfgAjustado.margenes;
       
       // Convertir mm a px (aprox 3.78 px por mm)
       const mmToPx = 3.78;
@@ -464,7 +493,7 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
                         valorHtml={contenidoEditado}
                         onChangeHtml={setContenidoEditado}
                         config={configuracionDocumento}
-                        onChangeConfig={setConfiguracionDocumento}
+                        onChangeConfig={actualizarConfiguracionDocumento}
                         className="h-full border-0 min-h-[600px]"
                       />
                     </div>
