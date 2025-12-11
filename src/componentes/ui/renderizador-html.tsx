@@ -52,11 +52,10 @@ export function RenderizadorHtml({
   const [htmlParaMostrar, setHtmlParaMostrar] = useState(contenido);
   const measurerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(escalaInicial);
+  const [zoom, setZoom] = useState(escalaInicial || 0.6);
   const [mostrarMargenes, setMostrarMargenes] = useState(false);
   const [paginaActual, setPaginaActual] = useState(1);
   const [colorEtiquetas, setColorEtiquetas] = useState('#dbeafe');
-  const [colorBordeEtiquetas, setColorBordeEtiquetas] = useState('#93c5fd');
 
   useEffect(() => {
     let nuevoContenido = contenido;
@@ -158,39 +157,25 @@ export function RenderizadorHtml({
       }
       setHtmlParaMostrar(container.innerHTML);
       if (modoDocumento) {
-        const children = Array.from(container.children) as HTMLElement[];
-        const newPages: string[] = [];
-        let currentPageNodes: HTMLElement[] = [];
-        let currentHeight = 0;
-        const safetyBuffer = 10;
-        const effectivePageHeight = contentAreaHeight - safetyBuffer;
-        children.forEach(child => {
-          const style = window.getComputedStyle(child);
-          const marginTop = parseFloat(style.marginTop) || 0;
-          const marginBottom = parseFloat(style.marginBottom) || 0;
-          const childHeight = child.offsetHeight + marginTop + marginBottom;
-          if (currentHeight + childHeight > effectivePageHeight && currentPageNodes.length > 0) {
-            newPages.push(currentPageNodes.map(n => n.outerHTML).join(''));
-            currentPageNodes = [child];
-            currentHeight = childHeight;
-          } else {
-            currentPageNodes.push(child);
-            currentHeight += childHeight;
-          }
-        });
+        const totalHeight = container.scrollHeight;
+        const effectivePageHeight = contentAreaHeight;
 
-        if (currentPageNodes.length > 0) {
-          newPages.push(currentPageNodes.map(n => n.outerHTML).join(''));
-        }
+        // Calcular número de páginas basado en altura total del contenido
+        const numPages = Math.max(1, Math.ceil(totalHeight / effectivePageHeight));
 
-        setPaginas(newPages);
+        // Crear un array con el número de páginas (usaremos el HTML completo con offset)
+        const pageArray = Array.from({ length: numPages }, (_, i) => i);
+        setPaginas(pageArray.map(String));
+
+        // Guardar el HTML completo y la altura por página para usar en el render
+        setHtmlParaMostrar(container.innerHTML);
       }
     };
 
-    const timer = setTimeout(procesarContenido, 50);
+    const timer = setTimeout(procesarContenido, 100);
     return () => clearTimeout(timer);
 
-  }, [contenidoLocal, modoDocumento, contentAreaHeight, modoInteractivo, modoPlantilla]);
+  }, [contenidoLocal, modoDocumento, contentAreaHeight, contentAreaWidth, modoInteractivo, modoPlantilla, PAGE.paddingTop, PAGE.paddingBottom, pageHeightPx]);
 
   const handleContainerClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -242,9 +227,11 @@ export function RenderizadorHtml({
   const contentStyle: React.CSSProperties = {
     whiteSpace: 'pre-wrap',
     wordWrap: 'break-word',
+    overflowWrap: 'break-word',
+    wordBreak: 'break-word',
     width: '100%',
     fontFamily: 'Arial, sans-serif',
-    fontSize: '11pt',
+    fontSize: '16px',
     lineHeight: '1.5',
     color: modoDocumento ? '#000' : 'inherit',
     textAlign: 'left'
@@ -327,7 +314,7 @@ export function RenderizadorHtml({
                 colorEtiquetas === '#dbeafe' ? "ring-2 ring-offset-2 ring-blue-400" : ""
               )}
               style={{ backgroundColor: '#dbeafe', borderColor: '#93c5fd' }}
-              onClick={() => { setColorEtiquetas('#dbeafe'); setColorBordeEtiquetas('#93c5fd'); }}
+              onClick={() => { setColorEtiquetas('#dbeafe'); }}
               title="Por defecto (Azul)"
             />
             <button
@@ -336,7 +323,7 @@ export function RenderizadorHtml({
                 colorEtiquetas === '#ffffff' ? "ring-2 ring-offset-2 ring-gray-400" : ""
               )}
               style={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb' }}
-              onClick={() => { setColorEtiquetas('#ffffff'); setColorBordeEtiquetas('#e5e7eb'); }}
+              onClick={() => { setColorEtiquetas('#ffffff'); }}
               title="Blanco (Limpio)"
             />
           </div>
@@ -362,19 +349,32 @@ export function RenderizadorHtml({
             font-variant-ligatures: none;
             white-space: pre-wrap;
             word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            hyphens: auto;
+            color: #000000;
         }
         .renderizador-contenido p { 
-          margin: 0; 
+          margin: 0.5em 0;
+          min-height: 1em;
+          min-width: 0;
+          box-sizing: border-box;
+          max-width: 100%;
           white-space: pre-wrap;
-          min-height: 1.5em;
         }
         .renderizador-contenido p:empty,
         .renderizador-contenido p:has(> br:only-child) {
-          min-height: 1.5em;
+          min-height: 1em;
           display: block;
+          margin: 0.5em 0;
         }
-        .renderizador-contenido p + p {
-          margin-top: 0;
+        .renderizador-contenido p:empty::before {
+          content: '';
+          display: inline-block;
+        }
+        .renderizador-contenido p br {
+          display: inline;
+          margin: 0;
         }
         .renderizador-contenido h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0; white-space: pre-wrap; }
         .renderizador-contenido h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0; white-space: pre-wrap; }
@@ -485,63 +485,71 @@ export function RenderizadorHtml({
               transformOrigin: 'top center',
             }}
           >
-            {paginas.length > 0 ? paginas.map((paginaHtml, pageIndex) => (
-              <div
-                key={pageIndex}
-                id={`pagina-${pageIndex}`}
-                className="bg-white shadow-xl transition-shadow hover:shadow-2xl"
-                style={{
-                  width: pageWidthPx,
-                  height: pageHeightPx,
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                  position: 'relative'
-                }}
-              >
-                {mostrarMargenes && (
+            {paginas.length > 0 ? paginas.map((_, pageIndex) => {
+              // Calcular el offset vertical para esta página
+              const offsetY = pageIndex * contentAreaHeight;
+
+              return (
+                <div
+                  key={pageIndex}
+                  id={`pagina-${pageIndex}`}
+                  className="bg-white shadow-xl transition-shadow hover:shadow-2xl"
+                  style={{
+                    width: pageWidthPx,
+                    height: pageHeightPx,
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                    position: 'relative'
+                  }}
+                >
+                  {mostrarMargenes && (
+                    <div
+                      className="absolute border border-dashed border-gray-300 pointer-events-none"
+                      style={{
+                        top: PAGE.paddingTop,
+                        left: PAGE.paddingLeft,
+                        width: contentAreaWidth,
+                        height: contentAreaHeight,
+                        zIndex: 5
+                      }}
+                    />
+                  )}
+
                   <div
-                    className="absolute border border-dashed border-gray-300 pointer-events-none"
                     style={{
+                      position: 'absolute',
                       top: PAGE.paddingTop,
                       left: PAGE.paddingLeft,
                       width: contentAreaWidth,
                       height: contentAreaHeight,
-                      zIndex: 5
+                      overflow: 'hidden'
                     }}
-                  />
-                )}
+                  >
+                    <div
+                      className="renderizador-contenido"
+                      style={{
+                        ...contentStyle,
+                        transform: `translateY(-${offsetY}px)`,
+                      }}
+                      dangerouslySetInnerHTML={{ __html: htmlParaMostrar }}
+                    />
+                  </div>
 
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: PAGE.paddingTop,
-                    left: PAGE.paddingLeft,
-                    width: contentAreaWidth,
-                    height: contentAreaHeight,
-                    overflow: 'hidden'
-                  }}
-                >
                   <div
-                    className="renderizador-contenido"
-                    style={contentStyle}
-                    dangerouslySetInnerHTML={{ __html: paginaHtml }}
-                  />
+                    style={{
+                      position: 'absolute',
+                      bottom: '10px',
+                      right: '20px',
+                      fontSize: '10px',
+                      color: '#aaa',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Página {pageIndex + 1} de {paginas.length}
+                  </div>
                 </div>
-
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    right: '20px',
-                    fontSize: '10px',
-                    color: '#aaa',
-                    userSelect: 'none'
-                  }}
-                >
-                  Página {pageIndex + 1} de {paginas.length}
-                </div>
-              </div>
-            )) : (
+              );
+            }) : (
               <div className="flex items-center justify-center text-muted-foreground p-4">
                 Procesando vista previa...
               </div>
