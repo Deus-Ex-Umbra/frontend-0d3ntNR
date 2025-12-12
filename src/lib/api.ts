@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { formatearFechaISO } from './utilidades';
 
 const API_URL = (import.meta as any).env.VITE_API_URL || 'https://backend-0d3nt.ddns.net';
 
@@ -207,7 +208,7 @@ export const agendaApi = {
     return respuesta.data;
   },
   filtrarCitas: async (fecha_inicio: Date, fecha_fin: Date) => {
-    const respuesta = await api.get(`/agenda/filtrar?fecha_inicio=${fecha_inicio.toISOString()}&fecha_fin=${fecha_fin.toISOString()}`);
+    const respuesta = await api.get(`/agenda/filtrar?fecha_inicio=${formatearFechaISO(fecha_inicio)}&fecha_fin=${formatearFechaISO(fecha_fin)}`);
     return respuesta.data;
   },
   obtenerCitasSinPagar: async () => {
@@ -223,7 +224,7 @@ export const agendaApi = {
     return respuesta.data;
   },
   filtrarEspaciosLibres: async (fecha_inicio: Date, fecha_fin: Date) => {
-    const respuesta = await api.get(`/agenda/espacios-libres-filtrar?fecha_inicio=${fecha_inicio.toISOString()}&fecha_fin=${fecha_fin.toISOString()}`);
+    const respuesta = await api.get(`/agenda/espacios-libres-filtrar?fecha_inicio=${formatearFechaISO(fecha_inicio)}&fecha_fin=${formatearFechaISO(fecha_fin)}`);
     return respuesta.data;
   },
   actualizar: async (id: number, datos: any) => {

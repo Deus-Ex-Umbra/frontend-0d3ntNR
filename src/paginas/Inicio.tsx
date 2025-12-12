@@ -60,7 +60,10 @@ export default function Inicio() {
 
   const obtenerFechaHoy = (): string => {
     const hoy = new Date();
-    return hoy.toISOString().split('T')[0];
+    const anio = hoy.getFullYear();
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    return `${anio}-${mes}-${dia}`;
   };
 
   const obtenerMensajeGuardado = (): MensajeGuardado | null => {
@@ -77,13 +80,13 @@ export default function Inicio() {
 
   const guardarMensaje = (mensaje: string) => {
     if (!usuario?.id) return;
-    
+
     const datos: MensajeGuardado = {
       mensaje,
       fecha: obtenerFechaHoy(),
       usuario_id: usuario.id,
     };
-    
+
     try {
       localStorage.setItem('mensaje_dia', JSON.stringify(datos));
     } catch (error) {
@@ -93,20 +96,20 @@ export default function Inicio() {
 
   const necesitaNuevoMensaje = (): boolean => {
     const mensaje_guardado = obtenerMensajeGuardado();
-    
+
     if (!mensaje_guardado) {
       return true;
     }
-    
+
     if (usuario?.id && mensaje_guardado.usuario_id !== usuario.id) {
       return true;
     }
-    
+
     const fecha_hoy = obtenerFechaHoy();
     if (mensaje_guardado.fecha !== fecha_hoy) {
       return true;
     }
-    
+
     return false;
   };
 
@@ -124,12 +127,12 @@ export default function Inicio() {
 
   const cargarFraseMotivacional = async () => {
     const mensaje_guardado = obtenerMensajeGuardado();
-    
+
     if (!necesitaNuevoMensaje() && mensaje_guardado) {
       setFraseMotivacional(mensaje_guardado.mensaje);
       return;
     }
-    
+
     setCargandoFrase(true);
     try {
       const frase = await asistenteApi.obtenerFraseMotivacional(7);
@@ -183,40 +186,40 @@ export default function Inicio() {
   }
 
   const tarjetas_estadisticas = [
-    { 
-      titulo: 'Pacientes Totales', 
-      valor: estadisticas?.total_pacientes || 0, 
-      icono: Users, 
-      color: 'text-blue-400', 
-      fondo: 'bg-blue-500/10' 
+    {
+      titulo: 'Pacientes Totales',
+      valor: estadisticas?.total_pacientes || 0,
+      icono: Users,
+      color: 'text-blue-400',
+      fondo: 'bg-blue-500/10'
     },
-    { 
-      titulo: 'Citas Hoy', 
-      valor: estadisticas?.citas_hoy || 0, 
-      icono: Calendar, 
-      color: 'text-green-400', 
-      fondo: 'bg-green-500/10' 
+    {
+      titulo: 'Citas Hoy',
+      valor: estadisticas?.citas_hoy || 0,
+      icono: Calendar,
+      color: 'text-green-400',
+      fondo: 'bg-green-500/10'
     },
-    { 
-      titulo: 'Ingresos del Mes', 
-      valor: formatearMoneda(estadisticas?.ingresos_mes || 0), 
-      icono: DollarSign, 
-      color: 'text-yellow-400', 
-      fondo: 'bg-yellow-500/10' 
+    {
+      titulo: 'Ingresos del Mes',
+      valor: formatearMoneda(estadisticas?.ingresos_mes || 0),
+      icono: DollarSign,
+      color: 'text-yellow-400',
+      fondo: 'bg-yellow-500/10'
     },
-    { 
-      titulo: 'Tratamientos Activos', 
-      valor: estadisticas?.planes_activos || 0, 
-      icono: FileText, 
-      color: 'text-purple-400', 
-      fondo: 'bg-purple-500/10' 
+    {
+      titulo: 'Tratamientos Activos',
+      valor: estadisticas?.planes_activos || 0,
+      icono: FileText,
+      color: 'text-purple-400',
+      fondo: 'bg-purple-500/10'
     },
   ];
 
   return (
     <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
       <MenuLateral />
-      
+
       <div className="flex-1 overflow-y-auto">
         <div className="p-8 space-y-8">
           <div className="space-y-4">
@@ -325,11 +328,10 @@ export default function Inicio() {
                           estadisticas.ultimas_transacciones.map((transaccion) => (
                             <div key={`${transaccion.tipo}-${transaccion.id}`} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200">
                               <div className="flex items-center gap-3 flex-1">
-                                <div className={`p-1.5 rounded-lg ${
-                                  transaccion.tipo === 'ingreso' 
-                                    ? 'bg-green-500/10' 
+                                <div className={`p-1.5 rounded-lg ${transaccion.tipo === 'ingreso'
+                                    ? 'bg-green-500/10'
                                     : 'bg-red-500/10'
-                                }`}>
+                                  }`}>
                                   {transaccion.tipo === 'ingreso' ? (
                                     <TrendingUp className="h-4 w-4 text-green-500" />
                                   ) : (
@@ -341,11 +343,10 @@ export default function Inicio() {
                                   <p className="text-xs text-muted-foreground">{formatearFechaTransaccion(transaccion.fecha)}</p>
                                 </div>
                               </div>
-                              <span className={`text-sm font-bold ${
-                                transaccion.tipo === 'ingreso' 
-                                  ? 'text-green-500' 
+                              <span className={`text-sm font-bold ${transaccion.tipo === 'ingreso'
+                                  ? 'text-green-500'
                                   : 'text-red-500'
-                              }`}>
+                                }`}>
                                 {transaccion.tipo === 'ingreso' ? '+' : '-'}
                                 {formatearMoneda(transaccion.monto)}
                               </span>

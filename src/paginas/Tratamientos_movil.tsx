@@ -186,11 +186,11 @@ export default function TratamientosMobile() {
 
   const recargarPlanSeleccionado = async () => {
     if (!plan_seleccionado) return;
-    
+
     try {
       const planes_actualizados = await planesTratamientoApi.obtenerTodos();
       const plan_actualizado = planes_actualizados.find((p: PlanTratamiento) => p.id === plan_seleccionado.id);
-      
+
       if (plan_actualizado) {
         setPlanSeleccionado(plan_actualizado);
         setPlanes(planes_actualizados.filter((p: PlanTratamiento) => p.paciente && p.tratamiento));
@@ -365,7 +365,7 @@ export default function TratamientosMobile() {
   const abrirDialogoAsignar = (tratamiento: Tratamiento) => {
     const ahora = new Date();
     ahora.setHours(9, 0, 0, 0);
-    
+
     setFormularioAsignar({
       paciente_id: "",
       tratamiento_id: tratamiento.id.toString(),
@@ -377,15 +377,15 @@ export default function TratamientosMobile() {
 
 
   const formatearFechaParaBackend = (fecha: Date): string => {
-    const anio = fecha.getUTCFullYear();
-    const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
-    const dia = String(fecha.getUTCDate()).padStart(2, '0');
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
     return `${anio}-${mes}-${dia}`;
   };
-  
+
   const formatearHoraParaBackend = (fecha: Date): string => {
-    const horas = String(fecha.getUTCHours()).padStart(2, '0');
-    const minutos = String(fecha.getUTCMinutes()).padStart(2, '0');
+    const horas = String(fecha.getHours()).padStart(2, '0');
+    const minutos = String(fecha.getMinutes()).padStart(2, '0');
     return `${horas}:${minutos}`;
   };
 
@@ -419,9 +419,9 @@ export default function TratamientosMobile() {
       cargarPlanes();
     } catch (error: any) {
       console.error("Error al asignar tratamiento:", error);
-      
+
       const mensaje_error = error.response?.data?.message || "No se pudo asignar el tratamiento";
-      
+
       toast({
         title: "Error - Conflicto de Horarios",
         description: (
@@ -529,14 +529,14 @@ export default function TratamientosMobile() {
           description: "Cita agregada al plan correctamente",
         });
       }
-      
+
       setDialogoCitaAbierto(false);
       await recargarPlanSeleccionado();
     } catch (error: any) {
       console.error("Error al guardar cita:", error);
-      
+
       const mensaje_error = error.response?.data?.message || "No se pudo guardar la cita";
-      
+
       toast({
         title: "Error - Conflicto de Horarios",
         description: (
@@ -593,7 +593,7 @@ export default function TratamientosMobile() {
         title: "Éxito",
         description: "Cita eliminada correctamente",
       });
-      
+
       setDialogoConfirmarEliminarAbierto(false);
       setCitaAEliminar(null);
       await recargarPlanSeleccionado();
@@ -661,9 +661,9 @@ export default function TratamientosMobile() {
     const dias = tratamiento.intervalo_dias || 0;
     const semanas = tratamiento.intervalo_semanas || 0;
     const meses = tratamiento.intervalo_meses || 0;
-    
+
     const partes: string[] = [];
-    
+
     if (meses > 0) {
       partes.push(`${meses} mes${meses !== 1 ? 'es' : ''}`);
     }
@@ -673,17 +673,17 @@ export default function TratamientosMobile() {
     if (dias > 0) {
       partes.push(`${dias} día${dias !== 1 ? 's' : ''}`);
     }
-    
+
     if (partes.length === 0) {
       return 'Sin intervalo (mismo día)';
     }
-    
+
     return `Cada ${partes.join(', ')}`;
   };
 
   const cumpleFiltroPlantilla = (tratamiento: Tratamiento): boolean => {
     if (!busqueda_plantillas) return true;
-    
+
     const termino = busqueda_plantillas.toLowerCase();
     return tratamiento.nombre.toLowerCase().includes(termino);
   };
@@ -692,13 +692,13 @@ export default function TratamientosMobile() {
     if (paciente_filtro !== 'todos' && plan.paciente?.id.toString() !== paciente_filtro) {
       return false;
     }
-    
+
     if (!busqueda_planes) return true;
-    
+
     const termino = busqueda_planes.toLowerCase();
     const nombre_paciente = `${plan.paciente?.nombre || ''} ${plan.paciente?.apellidos || ''}`.toLowerCase();
     const nombre_tratamiento = plan.tratamiento?.nombre.toLowerCase() || '';
-    
+
     return nombre_paciente.includes(termino) || nombre_tratamiento.includes(termino);
   };
 
@@ -816,7 +816,7 @@ export default function TratamientosMobile() {
                       </div>
                       <div className="space-y-2">
                         <h3 className="text-lg font-semibold text-foreground">
-                          {busqueda_plantillas 
+                          {busqueda_plantillas
                             ? 'No se encontraron plantillas'
                             : 'No hay plantillas registradas'
                           }
@@ -1513,17 +1513,17 @@ export default function TratamientosMobile() {
           <DialogHeader>
             <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
-              {cita_a_eliminar 
+              {cita_a_eliminar
                 ? '¿Estás seguro de eliminar esta cita?'
                 : plan_a_eliminar
-                ? '¿Estás seguro de eliminar este plan asignado?'
-                : tratamiento_seleccionado 
-                ? '¿Estás seguro de eliminar esta plantilla?'
-                : '¿Estás seguro de eliminar este elemento?'
+                  ? '¿Estás seguro de eliminar este plan asignado?'
+                  : tratamiento_seleccionado
+                    ? '¿Estás seguro de eliminar esta plantilla?'
+                    : '¿Estás seguro de eliminar este elemento?'
               }
             </DialogDescription>
           </DialogHeader>
-          
+
           {cita_a_eliminar && (
             <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
               <p className="font-semibold text-foreground">{cita_a_eliminar.descripcion}</p>
@@ -1561,20 +1561,20 @@ export default function TratamientosMobile() {
 
           <DialogFooter className="flex-col sm:flex-row">
             <Button variant="outline" onClick={() => {
-                  setDialogoConfirmarEliminarAbierto(false);
-                  setCitaAEliminar(null);
-                  setPlanAEliminar(null);
-                  setTratamientoSeleccionado(null);
-                }} className="w-full sm:w-auto">Cancelar</Button>
+              setDialogoConfirmarEliminarAbierto(false);
+              setCitaAEliminar(null);
+              setPlanAEliminar(null);
+              setTratamientoSeleccionado(null);
+            }} className="w-full sm:w-auto">Cancelar</Button>
             <Button variant="destructive" onClick={() => {
-                if (cita_a_eliminar) {
-                  confirmarEliminarCita();
-                } else if (plan_a_eliminar) {
-                  confirmarEliminarPlan();
-                } else if (tratamiento_seleccionado) {
-                  confirmarEliminarPlantilla();
-                }
-              }} className="w-full sm:w-auto">Eliminar</Button>
+              if (cita_a_eliminar) {
+                confirmarEliminarCita();
+              } else if (plan_a_eliminar) {
+                confirmarEliminarPlan();
+              } else if (tratamiento_seleccionado) {
+                confirmarEliminarPlantilla();
+              }
+            }} className="w-full sm:w-auto">Eliminar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

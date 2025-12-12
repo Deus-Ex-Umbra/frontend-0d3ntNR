@@ -236,12 +236,12 @@ export default function Tratamientos() {
     const fecha_actual = formulario_cita.fecha?.getTime();
     const fecha_inicial = formulario_cita_inicial.fecha?.getTime();
     if (fecha_actual !== fecha_inicial) return true;
-    
+
     return formulario_cita.descripcion !== formulario_cita_inicial.descripcion ||
-           formulario_cita.estado_pago !== formulario_cita_inicial.estado_pago ||
-           formulario_cita.monto_esperado !== formulario_cita_inicial.monto_esperado ||
-           formulario_cita.horas_aproximadas !== formulario_cita_inicial.horas_aproximadas ||
-           formulario_cita.minutos_aproximados !== formulario_cita_inicial.minutos_aproximados;
+      formulario_cita.estado_pago !== formulario_cita_inicial.estado_pago ||
+      formulario_cita.monto_esperado !== formulario_cita_inicial.monto_esperado ||
+      formulario_cita.horas_aproximadas !== formulario_cita_inicial.horas_aproximadas ||
+      formulario_cita.minutos_aproximados !== formulario_cita_inicial.minutos_aproximados;
   };
 
   const materialesCitaCambiaron = (): boolean => {
@@ -292,11 +292,11 @@ export default function Tratamientos() {
 
   const recargarPlanSeleccionado = async () => {
     if (!plan_seleccionado) return;
-    
+
     try {
       const planes_actualizados = await planesTratamientoApi.obtenerTodos();
       const plan_actualizado = planes_actualizados.find((p: PlanTratamiento) => p.id === plan_seleccionado.id);
-      
+
       if (plan_actualizado) {
         setPlanSeleccionado(plan_actualizado);
         setPlanes(planes_actualizados.filter((p: PlanTratamiento) => p.paciente && p.tratamiento));
@@ -308,7 +308,7 @@ export default function Tratamientos() {
 
   const cargarInventarios = async () => {
     if (inventarios.length > 0) return;
-    
+
     try {
       const datos_inventarios = await inventarioApi.obtenerInventarios();
       setInventarios(datos_inventarios);
@@ -321,7 +321,7 @@ export default function Tratamientos() {
     if (productos_por_inventario[inventario_id]) {
       return;
     }
-    
+
     setCargandoMateriales(true);
     try {
       const productos = await inventarioApi.obtenerProductos(inventario_id);
@@ -343,13 +343,13 @@ export default function Tratamientos() {
 
   const validarDisponibilidadMateriales = (): { valido: boolean; advertencias: string[] } => {
     const advertencias: string[] = [];
-    
+
     for (const material of materiales_cita_edicion) {
       if (material.inventario_id === 0) {
         advertencias.push('Hay materiales sin inventario seleccionado');
         continue;
       }
-      
+
       if (material.producto_id === 0) {
         advertencias.push('Hay materiales sin producto seleccionado');
         continue;
@@ -386,12 +386,12 @@ export default function Tratamientos() {
     try {
       const respuesta = await inventarioApi.obtenerMaterialesCita(cita_id);
       const materiales = respuesta.materiales || [];
-      
+
       const materiales_agrupados: Record<string, MaterialCita> = {};
-      
+
       for (const material of materiales) {
         const key = `${material.inventario_id}-${material.producto_id}`;
-        
+
         if (!materiales_agrupados[key]) {
           materiales_agrupados[key] = {
             producto_id: material.producto_id,
@@ -403,7 +403,7 @@ export default function Tratamientos() {
             items: []
           };
         }
-        
+
         if (material.items && material.items.length > 0) {
           materiales_agrupados[key].items = material.items.map((item: any) => ({
             lote_id: item.lote_id,
@@ -419,7 +419,7 @@ export default function Tratamientos() {
           });
         }
       }
-      
+
       setMaterialesCitaEdicion(Object.values(materiales_agrupados));
       setMaterialesCitaEdicionIniciales(JSON.parse(JSON.stringify(Object.values(materiales_agrupados))));
     } catch (error) {
@@ -434,16 +434,16 @@ export default function Tratamientos() {
     try {
       const respuesta = await inventarioApi.obtenerMaterialesTratamiento(plan_tratamiento_id);
       const materiales = respuesta.materiales || [];
-      const materiales_confirmados = materiales.some((mat: any) => 
+      const materiales_confirmados = materiales.some((mat: any) =>
         mat.tipo === 'inicio' && mat.confirmado === true
       );
       setMaterialesGeneralesConfirmados(materiales_confirmados);
-      
+
       const materiales_agrupados: Record<string, MaterialGeneral> = {};
-      
+
       for (const material of materiales) {
         const key = `${material.inventario_id}-${material.producto_id}`;
-        
+
         if (!materiales_agrupados[key]) {
           materiales_agrupados[key] = {
             producto_id: material.producto_id,
@@ -455,12 +455,12 @@ export default function Tratamientos() {
             items: []
           };
         }
-        
+
         materiales_agrupados[key].items.push({
           cantidad_por_cita: material.cantidad_planeada || 1,
         });
       }
-      
+
       setMaterialesGenerales(Object.values(materiales_agrupados));
     } catch (error) {
       console.error('Error al cargar materiales del tratamiento:', error);
@@ -493,7 +493,7 @@ export default function Tratamientos() {
         }
       }
     }
-    
+
     if (campo === 'producto_id') {
       const producto_id = parseInt(valor);
       const inventario_id = nuevos_materiales[index].inventario_id;
@@ -506,7 +506,7 @@ export default function Tratamientos() {
         nuevos_materiales[index].items = [{ cantidad_por_cita: 1 }];
       }
     }
-    
+
     setMaterialesGenerales(nuevos_materiales);
   };
 
@@ -519,7 +519,7 @@ export default function Tratamientos() {
   const actualizarItemMaterialGeneral = (material_index: number, item_index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_generales];
     const valor_procesado = (campo === 'lote_id' || campo === 'activo_id') ? parseInt(valor) : valor;
-    
+
     nuevos_materiales[material_index].items[item_index] = {
       ...nuevos_materiales[material_index].items[item_index],
       [campo]: valor_procesado
@@ -590,7 +590,7 @@ export default function Tratamientos() {
         }
       }
     }
-    
+
     if (campo === 'producto_id') {
       const producto_id = parseInt(valor);
       const inventario_id = nuevos_materiales[index].inventario_id;
@@ -603,7 +603,7 @@ export default function Tratamientos() {
         nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
       }
     }
-    
+
     setMaterialesPorCita(nuevos_materiales);
   };
 
@@ -616,7 +616,7 @@ export default function Tratamientos() {
   const actualizarItemMaterialPorCita = (material_index: number, item_index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_por_cita];
     const valor_procesado = (campo === 'lote_id' || campo === 'activo_id') ? parseInt(valor) : valor;
-    
+
     nuevos_materiales[material_index].items[item_index] = {
       ...nuevos_materiales[material_index].items[item_index],
       [campo]: valor_procesado
@@ -676,7 +676,7 @@ export default function Tratamientos() {
     const nuevos_materiales = [...materiales_cita_edicion];
     const valor_procesado = (campo === 'producto_id' || campo === 'inventario_id') ? parseInt(valor) : valor;
     nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor_procesado };
-    
+
     if (campo === 'inventario_id') {
       const inventario_id = parseInt(valor);
       const inventario = inventarios.find(inv => inv.id === inventario_id);
@@ -689,7 +689,7 @@ export default function Tratamientos() {
         }
       }
     }
-    
+
     if (campo === 'producto_id') {
       const producto_id = parseInt(valor);
       const inventario_id = nuevos_materiales[index].inventario_id;
@@ -719,7 +719,7 @@ export default function Tratamientos() {
       items: [...nuevos_materiales[material_index].items]
     };
     const valor_procesado = (campo === 'lote_id' || campo === 'activo_id') ? parseInt(valor) : valor;
-    
+
     nuevos_materiales[material_index].items[item_index] = {
       ...nuevos_materiales[material_index].items[item_index],
       [campo]: valor_procesado
@@ -840,7 +840,7 @@ export default function Tratamientos() {
     setModoEdicion(true);
     setDialogoPlantillaAbierto(true);
     try {
-      const materiales = await tratamientosApi.obtenerMaterialesPlantilla(tratamiento.id);   
+      const materiales = await tratamientosApi.obtenerMaterialesPlantilla(tratamiento.id);
       if (materiales && materiales.length > 0) {
         const materiales_por_inv: { [key: number]: Producto[] } = {};
         const generales: MaterialGeneral[] = [];
@@ -851,7 +851,7 @@ export default function Tratamientos() {
           if (!materiales_por_inv[inv_id]) {
             materiales_por_inv[inv_id] = [];
           }
-          
+
           const producto: Producto = {
             id: mat.producto_id,
             inventario_id: mat.inventario_id,
@@ -1064,7 +1064,7 @@ export default function Tratamientos() {
   const abrirDialogoAsignar = (tratamiento: Tratamiento) => {
     const ahora = new Date();
     ahora.setHours(9, 0, 0, 0);
-    
+
     setFormularioAsignar({
       paciente_id: "",
       tratamiento_id: tratamiento.id.toString(),
@@ -1075,15 +1075,15 @@ export default function Tratamientos() {
   };
 
   const formatearFechaParaBackend = (fecha: Date): string => {
-    const anio = fecha.getUTCFullYear();
-    const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
-    const dia = String(fecha.getUTCDate()).padStart(2, '0');
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
     return `${anio}-${mes}-${dia}`;
   };
-  
+
   const formatearHoraParaBackend = (fecha: Date): string => {
-    const horas = String(fecha.getUTCHours()).padStart(2, '0');
-    const minutos = String(fecha.getUTCMinutes()).padStart(2, '0');
+    const horas = String(fecha.getHours()).padStart(2, '0');
+    const minutos = String(fecha.getMinutes()).padStart(2, '0');
     return `${horas}:${minutos}`;
   };
 
@@ -1117,9 +1117,9 @@ export default function Tratamientos() {
       cargarPlanes();
     } catch (error: any) {
       console.error("Error al asignar tratamiento:", error);
-      
+
       const mensaje_error = error.response?.data?.message || "No se pudo asignar el tratamiento";
-      
+
       toast({
         title: "Error - Conflicto de Horarios",
         description: (
@@ -1159,7 +1159,7 @@ export default function Tratamientos() {
 
   const abrirDialogoEditarCita = async (cita: any) => {
     const es_pasada = esCitaPasada(cita.fecha);
-    
+
     const formulario_inicial = {
       fecha: new Date(cita.fecha),
       descripcion: cita.descripcion,
@@ -1172,14 +1172,14 @@ export default function Tratamientos() {
     setFormularioCitaInicial(formulario_inicial);
     setCitaSeleccionada(cita);
     setModoEdicionCita(true);
-    
+
     if (!es_pasada) {
       setMaterialesCitaEdicion([]);
       if (cita.id) {
         await cargarMaterialesCita(cita.id);
       }
     }
-    
+
     setDialogoCitaAbierto(true);
   };
 
@@ -1252,7 +1252,7 @@ export default function Tratamientos() {
       if (modo_edicion_cita && cita_seleccionada) {
         await agendaApi.actualizar(cita_seleccionada.id, datos);
         cita_id = cita_seleccionada.id;
-        
+
         const estado_cambio = cita_seleccionada.estado_pago !== formulario_cita.estado_pago;
         const cambio_a_pagado = cita_seleccionada.estado_pago !== 'pagado' && formulario_cita.estado_pago === 'pagado';
         const cambio_desde_pagado = cita_seleccionada.estado_pago === 'pagado' && formulario_cita.estado_pago !== 'pagado';
@@ -1260,13 +1260,13 @@ export default function Tratamientos() {
           try {
             const materiales_para_guardar = materiales_cita_edicion
               .filter(m => m.producto_id > 0)
-              .flatMap(m => 
+              .flatMap(m =>
                 m.items.map(item => ({
                   producto_id: m.producto_id,
                   cantidad_planeada: item.cantidad_planeada,
                 }))
               );
-            
+
             if (materiales_para_guardar.length > 0) {
               await inventarioApi.asignarMaterialesCita(cita_id, {
                 materiales: materiales_para_guardar,
@@ -1281,7 +1281,7 @@ export default function Tratamientos() {
             });
           }
         }
-        
+
         if (estado_cambio && plan_seleccionado) {
           if (cambio_a_pagado) {
             toast({
@@ -1312,13 +1312,13 @@ export default function Tratamientos() {
           try {
             const materiales_para_guardar = materiales_cita_edicion
               .filter(m => m.producto_id > 0)
-              .flatMap(m => 
+              .flatMap(m =>
                 m.items.map(item => ({
                   producto_id: m.producto_id,
                   cantidad_planeada: item.cantidad_planeada,
                 }))
               );
-            
+
             if (materiales_para_guardar.length > 0) {
               await inventarioApi.asignarMaterialesCita(cita_id, {
                 materiales: materiales_para_guardar,
@@ -1333,20 +1333,20 @@ export default function Tratamientos() {
             });
           }
         }
-        
+
         toast({
           title: "Éxito",
           description: "Cita agregada al plan correctamente",
         });
       }
-      
+
       setDialogoCitaAbierto(false);
       await recargarPlanSeleccionado();
     } catch (error: any) {
       console.error("Error al guardar cita:", error);
-      
+
       const mensaje_error = error.response?.data?.message || "No se pudo guardar la cita";
-      
+
       toast({
         title: "Error - Conflicto de Horarios",
         description: (
@@ -1379,7 +1379,7 @@ export default function Tratamientos() {
         title: "Éxito",
         description: "Cita eliminada correctamente",
       });
-      
+
       setDialogoConfirmarEliminarAbierto(false);
       setCitaAEliminar(null);
       await recargarPlanSeleccionado();
@@ -1406,13 +1406,13 @@ export default function Tratamientos() {
       setDialogoDetallePlanAbierto(false);
       cargarPlanes();
     } catch (error: any) {
-        console.error("Error al eliminar plan:", error);
-        const mensaje = error.response?.data?.message || "No se pudo eliminar el plan de tratamiento.";
-        toast({
-            title: "Error",
-            description: mensaje,
-            variant: "destructive",
-        });
+      console.error("Error al eliminar plan:", error);
+      const mensaje = error.response?.data?.message || "No se pudo eliminar el plan de tratamiento.";
+      toast({
+        title: "Error",
+        description: mensaje,
+        variant: "destructive",
+      });
     }
   };
 
@@ -1423,12 +1423,12 @@ export default function Tratamientos() {
     };
     setFormularioEditarCosto(formulario_inicial);
     setFormularioCostoInicial(formulario_inicial);
-    
+
     setMaterialesGenerales([]);
     if (plan_seleccionado.id) {
       await cargarMaterialesTratamiento(plan_seleccionado.id);
     }
-    
+
     setDialogoEditarCostoAbierto(true);
   };
 
@@ -1457,10 +1457,10 @@ export default function Tratamientos() {
       await planesTratamientoApi.actualizar(plan_seleccionado.id, {
         costo_total: nuevo_costo,
       });
-      
+
       if (materiales_generales.length > 0) {
         try {
-          const materiales_transformados = materiales_generales.flatMap(material => 
+          const materiales_transformados = materiales_generales.flatMap(material =>
             material.items.map(item => ({
               producto_id: material.producto_id,
               tipo: 'inicio',
@@ -1475,12 +1475,12 @@ export default function Tratamientos() {
           console.error('Error al guardar materiales:', error);
         }
       }
-      
+
       toast({
         title: "Éxito",
         description: "Tratamiento actualizado correctamente",
       });
-      
+
       setDialogoEditarCostoAbierto(false);
       await recargarPlanSeleccionado();
       await cargarPlanes();
@@ -1504,7 +1504,7 @@ export default function Tratamientos() {
     setMontoConfirmacion(cita.monto_esperado?.toString() || '');
     setMaterialesAdicionalesConfirmacion([]);
     setMostrarAgregarMaterialesConfirmacion(false);
-    
+
     try {
       const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
       const materiales_raw = respuesta.materiales || [];
@@ -1545,7 +1545,7 @@ export default function Tratamientos() {
           });
         }
       }
-      
+
       setMaterialesConfirmacion(materiales_confirmacion);
       setDialogoConfirmarMaterialesAbierto(true);
     } catch (error) {
@@ -1575,7 +1575,7 @@ export default function Tratamientos() {
             cantidad_planeada: item.cantidad_planeada,
           }));
         });
-        
+
         await inventarioApi.agregarMaterialesCita(cita_seleccionada.id, {
           materiales: materiales_para_asignar,
         });
@@ -1639,7 +1639,7 @@ export default function Tratamientos() {
         cantidad_planeada: mat.cantidad_planeada,
         cantidad_usada: mat.cantidad_planeada,
       }));
-      
+
       setMaterialesTratamientoConfirmacion(materiales_preparados);
       setEstadoPagoTratamiento('pendiente');
       setMontoPagoTratamiento('');
@@ -1668,7 +1668,7 @@ export default function Tratamientos() {
       };
       if (estado_pago_tratamiento && estado_pago_tratamiento !== 'pendiente') {
         datos_confirmacion.estado_pago = estado_pago_tratamiento;
-        
+
         if (monto_pago_tratamiento && parseFloat(monto_pago_tratamiento) > 0) {
           datos_confirmacion.monto_pago = parseFloat(monto_pago_tratamiento);
           datos_confirmacion.metodo_pago = metodo_pago_tratamiento;
@@ -1757,9 +1757,9 @@ export default function Tratamientos() {
     const dias = tratamiento.intervalo_dias || 0;
     const semanas = tratamiento.intervalo_semanas || 0;
     const meses = tratamiento.intervalo_meses || 0;
-    
+
     const partes: string[] = [];
-    
+
     if (meses > 0) {
       partes.push(`${meses} mes${meses !== 1 ? 'es' : ''}`);
     }
@@ -1769,17 +1769,17 @@ export default function Tratamientos() {
     if (dias > 0) {
       partes.push(`${dias} día${dias !== 1 ? 's' : ''}`);
     }
-    
+
     if (partes.length === 0) {
       return 'Sin intervalo (mismo día)';
     }
-    
+
     return `Cada ${partes.join(', ')}`;
   };
 
   const cumpleFiltroPlantilla = (tratamiento: Tratamiento): boolean => {
     if (!busqueda_plantillas) return true;
-    
+
     const termino = busqueda_plantillas.toLowerCase();
     return tratamiento.nombre.toLowerCase().includes(termino);
   };
@@ -1788,13 +1788,13 @@ export default function Tratamientos() {
     if (paciente_filtro !== 'todos' && plan.paciente?.id.toString() !== paciente_filtro) {
       return false;
     }
-    
+
     if (!busqueda_planes) return true;
-    
+
     const termino = busqueda_planes.toLowerCase();
     const nombre_paciente = `${plan.paciente?.nombre || ''} ${plan.paciente?.apellidos || ''}`.toLowerCase();
     const nombre_tratamiento = plan.tratamiento?.nombre.toLowerCase() || '';
-    
+
     return nombre_paciente.includes(termino) || nombre_tratamiento.includes(termino);
   };
 
@@ -1818,7 +1818,7 @@ export default function Tratamientos() {
 
   const tratamientos_filtrados = tratamientos.filter(cumpleFiltroPlantilla);
   const planes_filtrados = planes.filter(cumpleFiltroPlan);
-  
+
   const hay_cambios_cita = modo_edicion_cita && (materialesCitaCambiaron() || formularioCitaCambio());
 
   if (cargando) {
@@ -1914,7 +1914,7 @@ export default function Tratamientos() {
                       </div>
                       <div className="space-y-2">
                         <h3 className="text-lg font-semibold text-foreground">
-                          {busqueda_plantillas 
+                          {busqueda_plantillas
                             ? 'No se encontraron plantillas'
                             : 'No hay plantillas registradas'
                           }
@@ -2194,224 +2194,224 @@ export default function Tratamientos() {
 
           <ScrollArea className="max-h-[calc(90vh-200px)] pr-4">
             <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="nombre">Nombre del Tratamiento *</Label>
-              <Input
-                id="nombre"
-                value={formulario_plantilla.nombre}
-                onChange={(e) =>
-                  setFormularioPlantilla({
-                    ...formulario_plantilla,
-                    nombre: e.target.value,
-                  })
-                }
-                placeholder="Ej: Endodoncia, Ortodoncia, Blanqueamiento"
-                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="numero_citas">Número de Citas *</Label>
+                <Label htmlFor="nombre">Nombre del Tratamiento *</Label>
                 <Input
-                  id="numero_citas"
-                  type="number"
-                  min="1"
-                  value={formulario_plantilla.numero_citas}
+                  id="nombre"
+                  value={formulario_plantilla.nombre}
                   onChange={(e) =>
                     setFormularioPlantilla({
                       ...formulario_plantilla,
-                      numero_citas: e.target.value,
+                      nombre: e.target.value,
                     })
                   }
-                  placeholder="Ej: 25"
+                  placeholder="Ej: Endodoncia, Ortodoncia, Blanqueamiento"
                   className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="costo_total">Costo Total (Bs.) *</Label>
-                <Input
-                  id="costo_total"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formulario_plantilla.costo_total}
-                  onChange={(e) =>
-                    setFormularioPlantilla({
-                      ...formulario_plantilla,
-                      costo_total: e.target.value,
-                    })
-                  }
-                  placeholder="Ej: 5000.00"
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Intervalo entre Citas</Label>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="intervalo_meses" className="text-xs text-muted-foreground">
-                    Meses
-                  </Label>
-                  <Input
-                    id="intervalo_meses"
-                    type="number"
-                    min="0"
-                    value={formulario_plantilla.intervalo_meses}
-                    onChange={(e) =>
-                      setFormularioPlantilla({
-                        ...formulario_plantilla,
-                        intervalo_meses: e.target.value,
-                      })
-                    }
-                    placeholder="0"
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="intervalo_semanas" className="text-xs text-muted-foreground">
-                    Semanas
-                  </Label>
-                  <Input
-                    id="intervalo_semanas"
-                    type="number"
-                    min="0"
-                    value={formulario_plantilla.intervalo_semanas}
-                    onChange={(e) =>
-                      setFormularioPlantilla({
-                        ...formulario_plantilla,
-                        intervalo_semanas: e.target.value,
-                      })
-                    }
-                    placeholder="0"
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="intervalo_dias" className="text-xs text-muted-foreground">
-                    Días
-                  </Label>
-                  <Input
-                    id="intervalo_dias"
-                    type="number"
-                    min="0"
-                    value={formulario_plantilla.intervalo_dias}
-                    onChange={(e) =>
-                      setFormularioPlantilla({
-                        ...formulario_plantilla,
-                        intervalo_dias: e.target.value,
-                      })
-                    }
-                    placeholder="0"
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Las citas se programarán automáticamente con este intervalo. Ej: 1 mes, 2 semanas, 3 días
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Duración Aproximada de Cada Cita</Label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="horas_aproximadas_citas" className="text-xs text-muted-foreground">
-                    Horas
-                  </Label>
+                  <Label htmlFor="numero_citas">Número de Citas *</Label>
                   <Input
-                    id="horas_aproximadas_citas"
+                    id="numero_citas"
                     type="number"
-                    min="0"
-                    value={formulario_plantilla.horas_aproximadas_citas}
+                    min="1"
+                    value={formulario_plantilla.numero_citas}
                     onChange={(e) =>
                       setFormularioPlantilla({
                         ...formulario_plantilla,
-                        horas_aproximadas_citas: e.target.value,
+                        numero_citas: e.target.value,
                       })
                     }
-                    placeholder="0"
+                    placeholder="Ej: 25"
                     className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="minutos_aproximados_citas" className="text-xs text-muted-foreground">
-                    Minutos
-                  </Label>
+                  <Label htmlFor="costo_total">Costo Total (Bs.) *</Label>
                   <Input
-                    id="minutos_aproximados_citas"
+                    id="costo_total"
                     type="number"
-                    min="1"
-                    value={formulario_plantilla.minutos_aproximados_citas}
+                    step="0.01"
+                    min="0"
+                    value={formulario_plantilla.costo_total}
                     onChange={(e) =>
                       setFormularioPlantilla({
                         ...formulario_plantilla,
-                        minutos_aproximados_citas: e.target.value,
+                        costo_total: e.target.value,
                       })
                     }
-                    placeholder="30"
+                    placeholder="Ej: 5000.00"
                     className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                   />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Todas las citas del plan tendrán esta duración estimada
-              </p>
-            </div>
 
-            <div className="space-y-4 pt-4 border-t">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-primary" />
-                <Label className="text-base font-semibold">Materiales del Tratamiento</Label>
+              <div className="space-y-2">
+                <Label>Intervalo entre Citas</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="intervalo_meses" className="text-xs text-muted-foreground">
+                      Meses
+                    </Label>
+                    <Input
+                      id="intervalo_meses"
+                      type="number"
+                      min="0"
+                      value={formulario_plantilla.intervalo_meses}
+                      onChange={(e) =>
+                        setFormularioPlantilla({
+                          ...formulario_plantilla,
+                          intervalo_meses: e.target.value,
+                        })
+                      }
+                      placeholder="0"
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="intervalo_semanas" className="text-xs text-muted-foreground">
+                      Semanas
+                    </Label>
+                    <Input
+                      id="intervalo_semanas"
+                      type="number"
+                      min="0"
+                      value={formulario_plantilla.intervalo_semanas}
+                      onChange={(e) =>
+                        setFormularioPlantilla({
+                          ...formulario_plantilla,
+                          intervalo_semanas: e.target.value,
+                        })
+                      }
+                      placeholder="0"
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="intervalo_dias" className="text-xs text-muted-foreground">
+                      Días
+                    </Label>
+                    <Input
+                      id="intervalo_dias"
+                      type="number"
+                      min="0"
+                      value={formulario_plantilla.intervalo_dias}
+                      onChange={(e) =>
+                        setFormularioPlantilla({
+                          ...formulario_plantilla,
+                          intervalo_dias: e.target.value,
+                        })
+                      }
+                      placeholder="0"
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Las citas se programarán automáticamente con este intervalo. Ej: 1 mes, 2 semanas, 3 días
+                </p>
               </div>
 
-              <ScrollArea className="h-[300px] rounded-md border p-4">
-                <Accordion 
-                  type="multiple" 
-                  className="w-full space-y-2"
-                  onValueChange={async (values) => {
-                    if (values.includes('materiales-generales') || values.includes('materiales-por-cita')) {
-                      await cargarInventarios();
-                    }
-                  }}
-                >
-                  <AccordionItem value="materiales-generales">
-                    <AccordionTrigger className="hover:no-underline">
-                      <div className="flex items-center gap-2">
-                        <Package className="h-4 w-4" />
-                        <span>Materiales Generales</span>
-                        <Badge variant="secondary">{materiales_generales.length}</Badge>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Materiales que se aplicarán automáticamente en cada cita del tratamiento
-                      </p>
+              <div className="space-y-2">
+                <Label>Duración Aproximada de Cada Cita</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="horas_aproximadas_citas" className="text-xs text-muted-foreground">
+                      Horas
+                    </Label>
+                    <Input
+                      id="horas_aproximadas_citas"
+                      type="number"
+                      min="0"
+                      value={formulario_plantilla.horas_aproximadas_citas}
+                      onChange={(e) =>
+                        setFormularioPlantilla({
+                          ...formulario_plantilla,
+                          horas_aproximadas_citas: e.target.value,
+                        })
+                      }
+                      placeholder="0"
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    />
+                  </div>
 
-                      <SelectorMateriales
-                        inventarios={inventarios}
-                        productos_por_inventario={productos_por_inventario}
-                        materiales={materiales_generales}
-                        cargarProductos={cargarProductosInventario}
-                        onAgregarMaterial={agregarMaterialGeneral}
-                        onEliminarMaterial={eliminarMaterialGeneral}
-                        onActualizarMaterial={actualizarMaterialGeneral}
-                        onAgregarItem={agregarItemMaterialGeneral}
-                        onEliminarItem={eliminarItemMaterialGeneral}
-                        onActualizarItem={actualizarItemMaterialGeneral}
-                        texto_boton_agregar="Agregar Material General"
-                        cargando={cargando_materiales}
-                      />
+                  <div className="space-y-2">
+                    <Label htmlFor="minutos_aproximados_citas" className="text-xs text-muted-foreground">
+                      Minutos
+                    </Label>
+                    <Input
+                      id="minutos_aproximados_citas"
+                      type="number"
+                      min="1"
+                      value={formulario_plantilla.minutos_aproximados_citas}
+                      onChange={(e) =>
+                        setFormularioPlantilla({
+                          ...formulario_plantilla,
+                          minutos_aproximados_citas: e.target.value,
+                        })
+                      }
+                      placeholder="30"
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Todas las citas del plan tendrán esta duración estimada
+                </p>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  <Label className="text-base font-semibold">Materiales del Tratamiento</Label>
+                </div>
+
+                <ScrollArea className="h-[300px] rounded-md border p-4">
+                  <Accordion
+                    type="multiple"
+                    className="w-full space-y-2"
+                    onValueChange={async (values) => {
+                      if (values.includes('materiales-generales') || values.includes('materiales-por-cita')) {
+                        await cargarInventarios();
+                      }
+                    }}
+                  >
+                    <AccordionItem value="materiales-generales">
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          <span>Materiales Generales</span>
+                          <Badge variant="secondary">{materiales_generales.length}</Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Materiales que se aplicarán automáticamente en cada cita del tratamiento
+                        </p>
+
+                        <SelectorMateriales
+                          inventarios={inventarios}
+                          productos_por_inventario={productos_por_inventario}
+                          materiales={materiales_generales}
+                          cargarProductos={cargarProductosInventario}
+                          onAgregarMaterial={agregarMaterialGeneral}
+                          onEliminarMaterial={eliminarMaterialGeneral}
+                          onActualizarMaterial={actualizarMaterialGeneral}
+                          onAgregarItem={agregarItemMaterialGeneral}
+                          onEliminarItem={eliminarItemMaterialGeneral}
+                          onActualizarItem={actualizarItemMaterialGeneral}
+                          texto_boton_agregar="Agregar Material General"
+                          cargando={cargando_materiales}
+                        />
                       </AccordionContent>
                     </AccordionItem>
 
-                    {}
+                    { }
                     <AccordionItem value="materiales-por-cita">
                       <AccordionTrigger className="hover:no-underline">
                         <div className="flex items-center gap-2">
@@ -2443,8 +2443,8 @@ export default function Tratamientos() {
                     </AccordionItem>
                   </Accordion>
                 </ScrollArea>
+              </div>
             </div>
-          </div>
           </ScrollArea>
 
           <DialogFooter>
@@ -2650,7 +2650,7 @@ export default function Tratamientos() {
                     <p className="text-2xl font-bold text-red-500">
                       {formatearMoneda(
                         plan_seleccionado.costo_total -
-                          plan_seleccionado.total_abonado
+                        plan_seleccionado.total_abonado
                       )}
                     </p>
                   </CardContent>
@@ -2826,9 +2826,9 @@ export default function Tratamientos() {
               {modo_edicion_cita ? 'Editar Cita' : 'Agregar Cita al Plan'}
             </DialogTitle>
             <DialogDescription>
-              {modo_edicion_cita 
+              {modo_edicion_cita
                 ? (cita_seleccionada && esCitaPasada(cita_seleccionada.fecha)
-                  ? 'Editando cita pasada: solo puedes modificar monto y estado de pago' 
+                  ? 'Editando cita pasada: solo puedes modificar monto y estado de pago'
                   : 'Modifica los detalles de la cita')
                 : 'Programa una nueva cita para este plan de tratamiento'}
             </DialogDescription>
@@ -2950,9 +2950,9 @@ export default function Tratamientos() {
             )}
 
             {modo_edicion_cita && !(cita_seleccionada && esCitaPasada(cita_seleccionada.fecha)) && (
-              <Accordion 
-                type="single" 
-                collapsible 
+              <Accordion
+                type="single"
+                collapsible
                 className="w-full border rounded-lg"
                 onValueChange={async (value) => {
                   if (value === 'materiales') {
@@ -3005,8 +3005,8 @@ export default function Tratamientos() {
             >
               Cancelar
             </Button>
-            <Button 
-              onClick={manejarGuardarCita} 
+            <Button
+              onClick={manejarGuardarCita}
               disabled={guardando || (modo_edicion_cita && !hay_cambios_cita)}
               className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
             >
@@ -3022,17 +3022,17 @@ export default function Tratamientos() {
           <DialogHeader>
             <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
-              {cita_a_eliminar 
+              {cita_a_eliminar
                 ? `¿Estás seguro de que deseas eliminar esta cita del plan?`
                 : plan_a_eliminar
-                ? `¿Estás seguro de que deseas eliminar este plan de tratamiento asignado?`
-                : tratamiento_seleccionado 
-                ? `¿Estás seguro de que deseas eliminar esta plantilla de tratamiento?`
-                : `¿Estás seguro de que deseas eliminar este elemento?`
+                  ? `¿Estás seguro de que deseas eliminar este plan de tratamiento asignado?`
+                  : tratamiento_seleccionado
+                    ? `¿Estás seguro de que deseas eliminar esta plantilla de tratamiento?`
+                    : `¿Estás seguro de que deseas eliminar este elemento?`
               }
             </DialogDescription>
           </DialogHeader>
-          
+
           {cita_a_eliminar && (
             <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
               <p className="font-semibold text-foreground">{cita_a_eliminar.descripcion}</p>
@@ -3104,7 +3104,7 @@ export default function Tratamientos() {
         </DialogContent>
       </Dialog>
 
-      {}
+      { }
       <Dialog open={dialogo_editar_costo_abierto} onOpenChange={setDialogoEditarCostoAbierto}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -3141,9 +3141,9 @@ export default function Tratamientos() {
 
               <div className="space-y-2">
                 <Label>Materiales Generales (opcionales)</Label>
-                <Accordion 
-                  type="single" 
-                  collapsible 
+                <Accordion
+                  type="single"
+                  collapsible
                   className="w-full border rounded-lg"
                   onValueChange={async (value) => {
                     if (value === 'materiales-generales-edicion') {
@@ -3204,7 +3204,7 @@ export default function Tratamientos() {
         </DialogContent>
       </Dialog>
 
-      {}
+      { }
       <Dialog open={dialogo_confirmar_materiales_abierto} onOpenChange={setDialogoConfirmarMaterialesAbierto}>
         <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
           <DialogHeader>
@@ -3222,7 +3222,7 @@ export default function Tratamientos() {
           </div>
 
           <div className="space-y-4 overflow-y-auto flex-1 px-1">
-            {}
+            { }
             <div className="border rounded-lg p-4 space-y-3 bg-blue-500/5">
               <h3 className="font-semibold text-foreground flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
@@ -3252,7 +3252,7 @@ export default function Tratamientos() {
               </div>
             </div>
 
-            {}
+            { }
             {cargando_materiales ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -3275,9 +3275,9 @@ export default function Tratamientos() {
                         <h4 className="font-semibold text-foreground">{material.producto_nombre}</h4>
                         <p className="text-sm text-muted-foreground">
                           {material.inventario_nombre && `${material.inventario_nombre} · `}
-                          {material.tipo_gestion === 'consumible' ? 'Consumible' : 
-                           material.tipo_gestion === 'activo_serializado' ? 'Activo Serializado' : 
-                           'Activo General'}
+                          {material.tipo_gestion === 'consumible' ? 'Consumible' :
+                            material.tipo_gestion === 'activo_serializado' ? 'Activo Serializado' :
+                              'Activo General'}
                         </p>
                         {material.nro_lote && (
                           <p className="text-xs text-muted-foreground mt-1">📦 Lote: {material.nro_lote}</p>
@@ -3323,7 +3323,7 @@ export default function Tratamientos() {
               </div>
             )}
 
-            {}
+            { }
             <div className="border-t pt-4 space-y-3">
               {!mostrar_agregar_materiales_confirmacion ? (
                 <Button
@@ -3440,7 +3440,7 @@ export default function Tratamientos() {
 
                   <div className="space-y-4 pt-4 border-t">
                     <Label className="text-base font-semibold">Información de Pago (Opcional)</Label>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="estado_pago_tratamiento">Estado de Pago</Label>
