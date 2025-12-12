@@ -669,9 +669,16 @@ export const inventarioApi = {
   crearProducto: async (datos: {
     inventario_id: number;
     nombre: string;
-    tipo_gestion: string;
+    // Nuevo sistema
+    tipo?: 'material' | 'activo_fijo';
+    subtipo_material?: 'con_lote_vencimiento' | 'con_serie' | 'sin_lote';
+    subtipo_activo_fijo?: 'instrumental' | 'mobiliario_equipo';
+    // Legacy
+    tipo_gestion?: string;
     stock_minimo?: number;
     unidad_medida?: string;
+    descripcion?: string;
+    notificar_stock_bajo?: boolean;
   }) => {
     const respuesta = await api.post('/inventario/productos', datos);
     return respuesta.data;
@@ -692,6 +699,7 @@ export const inventarioApi = {
     const respuesta = await api.delete(`/inventario/${inventario_id}/productos/${producto_id}`);
     return respuesta.data;
   },
+  // Legacy: mantener para compatibilidad
   registrarCompra: async (inventario_id: number, datos: {
     producto_id: number;
     cantidad: number;
@@ -704,6 +712,50 @@ export const inventarioApi = {
     generar_egreso?: boolean;
   }) => {
     const respuesta = await api.post(`/inventario/${inventario_id}/registrar-compra`, datos);
+    return respuesta.data;
+  },
+  // Nuevos endpoints de entrada
+  registrarEntradaMaterial: async (inventario_id: number, datos: {
+    producto_id: number;
+    cantidad: number;
+    costo_unitario: number;
+    tipo_entrada: 'compra' | 'regalo' | 'donacion' | 'otro_ingreso';
+    nro_lote?: string;
+    nro_serie?: string;
+    fecha_vencimiento?: string;
+    fecha_ingreso?: string;
+    observaciones?: string;
+    generar_egreso?: boolean;
+  }) => {
+    const respuesta = await api.post(`/inventario/${inventario_id}/materiales/entrada`, datos);
+    return respuesta.data;
+  },
+  registrarEntradaActivo: async (inventario_id: number, datos: {
+    producto_id: number;
+    costo_compra: number;
+    tipo_entrada: 'compra' | 'regalo' | 'donacion' | 'otro_ingreso';
+    codigo_interno?: string;
+    nro_serie?: string;
+    nombre_asignado?: string;
+    ubicacion?: string;
+    fecha_compra: string;
+    observaciones?: string;
+    generar_egreso?: boolean;
+  }) => {
+    const respuesta = await api.post(`/inventario/${inventario_id}/activos/entrada`, datos);
+    return respuesta.data;
+  },
+  // Salida de material
+  registrarSalidaMaterial: async (inventario_id: number, datos: {
+    producto_id: number;
+    material_id?: number;
+    cantidad: number;
+    tipo_salida: 'consumo_cita' | 'consumo_tratamiento' | 'venta' | 'desecho' | 'robo' | 'ajuste';
+    observaciones?: string;
+    generar_ingreso?: boolean;
+    monto_venta?: number;
+  }) => {
+    const respuesta = await api.post(`/inventario/${inventario_id}/materiales/salida`, datos);
     return respuesta.data;
   },
   confirmarConsumibles: async (cita_id: number, datos: {
@@ -826,6 +878,132 @@ export const inventarioApi = {
     registrar_pago: boolean;
   }) => {
     const respuesta = await api.post(`/inventario/${inventario_id}/activos/${activo_id}/vender`, datos);
+    return respuesta.data;
+  },
+  // =====================
+  // KARDEX (Movimientos de Inventario)
+  // =====================
+  obtenerKardex: async (inventario_id: number, filtros?: {
+    tipo?: string;
+    operacion?: 'entrada' | 'salida';
+    producto_id?: number;
+    fecha_inicio?: string;
+    fecha_fin?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filtros?.tipo) params.append('tipo', filtros.tipo);
+    if (filtros?.operacion) params.append('operacion', filtros.operacion);
+    if (filtros?.producto_id) params.append('producto_id', filtros.producto_id.toString());
+    if (filtros?.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+    if (filtros?.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+    if (filtros?.limit) params.append('limit', filtros.limit.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const respuesta = await api.get(`/inventario/${inventario_id}/kardex${query}`);
+    return respuesta.data;
+  },
+  obtenerKardexProducto: async (inventario_id: number, producto_id: number, filtros?: {
+    tipo?: string;
+    operacion?: 'entrada' | 'salida';
+    fecha_inicio?: string;
+    fecha_fin?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filtros?.tipo) params.append('tipo', filtros.tipo);
+    if (filtros?.operacion) params.append('operacion', filtros.operacion);
+    if (filtros?.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+    if (filtros?.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+    if (filtros?.limit) params.append('limit', filtros.limit.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const respuesta = await api.get(`/inventario/${inventario_id}/kardex/producto/${producto_id}${query}`);
+    return respuesta.data;
+  },
+  generarReporteKardex: async (inventario_id: number, fecha_inicio: string, fecha_fin: string) => {
+    const respuesta = await api.get(`/inventario/${inventario_id}/kardex/reporte?fecha_inicio=${fecha_inicio}&fecha_fin=${fecha_fin}`);
+    return respuesta.data;
+  },
+  // =====================
+  // BITÁCORA (Historial de Activos)
+  // =====================
+  obtenerBitacora: async (inventario_id: number, filtros?: {
+    tipo?: string;
+    producto_id?: number;
+    estado?: string;
+    fecha_inicio?: string;
+    fecha_fin?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filtros?.tipo) params.append('tipo', filtros.tipo);
+    if (filtros?.producto_id) params.append('producto_id', filtros.producto_id.toString());
+    if (filtros?.estado) params.append('estado', filtros.estado);
+    if (filtros?.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+    if (filtros?.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+    if (filtros?.limit) params.append('limit', filtros.limit.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const respuesta = await api.get(`/inventario/${inventario_id}/bitacora${query}`);
+    return respuesta.data;
+  },
+  obtenerBitacoraActivo: async (inventario_id: number, activo_id: number, filtros?: {
+    tipo?: string;
+    fecha_inicio?: string;
+    fecha_fin?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filtros?.tipo) params.append('tipo', filtros.tipo);
+    if (filtros?.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+    if (filtros?.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+    if (filtros?.limit) params.append('limit', filtros.limit.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const respuesta = await api.get(`/inventario/${inventario_id}/bitacora/activo/${activo_id}${query}`);
+    return respuesta.data;
+  },
+  obtenerEventosRecientes: async (inventario_id: number, limite?: number) => {
+    const query = limite ? `?limite=${limite}` : '';
+    const respuesta = await api.get(`/inventario/${inventario_id}/bitacora/recientes${query}`);
+    return respuesta.data;
+  },
+  // =====================
+  // AUDITORÍA
+  // =====================
+  buscarAuditoria: async (inventario_id: number, filtros?: {
+    accion?: string;
+    tipo_entidad?: 'producto' | 'material' | 'activo' | 'inventario';
+    usuario_id?: number;
+    fecha_inicio?: string;
+    fecha_fin?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filtros?.accion) params.append('accion', filtros.accion);
+    if (filtros?.tipo_entidad) params.append('tipo_entidad', filtros.tipo_entidad);
+    if (filtros?.usuario_id) params.append('usuario_id', filtros.usuario_id.toString());
+    if (filtros?.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+    if (filtros?.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+    if (filtros?.limit) params.append('limit', filtros.limit.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const respuesta = await api.get(`/inventario/${inventario_id}/auditoria${query}`);
+    return respuesta.data;
+  },
+  obtenerAuditoriaProducto: async (inventario_id: number, producto_id: number, filtros?: {
+    accion?: string;
+    fecha_inicio?: string;
+    fecha_fin?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filtros?.accion) params.append('accion', filtros.accion);
+    if (filtros?.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+    if (filtros?.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+    if (filtros?.limit) params.append('limit', filtros.limit.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const respuesta = await api.get(`/inventario/${inventario_id}/auditoria/producto/${producto_id}${query}`);
+    return respuesta.data;
+  },
+  generarReporteAntiSabotaje: async (inventario_id: number, fecha_inicio: string, fecha_fin: string) => {
+    const respuesta = await api.get(`/inventario/${inventario_id}/auditoria/reporte-antisabotaje?fecha_inicio=${fecha_inicio}&fecha_fin=${fecha_fin}`);
     return respuesta.data;
   },
 };

@@ -11,15 +11,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { Switch } from '@/componentes/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
-import { 
-  Package, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Loader2, 
-  AlertCircle, 
-  Lock, 
-  Globe, 
+import {
+  Package,
+  Plus,
+  Edit,
+  Trash2,
+  Loader2,
+  AlertCircle,
+  Lock,
+  Globe,
   Users,
   ArrowLeft,
   DollarSign,
@@ -47,14 +47,14 @@ import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { format } from 'date-fns';
 import { ajustarFechaParaBackend, formatearFechaSoloFecha } from '@/lib/utilidades';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
-import { 
-  UsuarioInventario as Usuario, 
-  Inventario, 
-  Producto, 
-  Lote, 
-  Activo, 
-  ReporteValor, 
-  MovimientoInventario 
+import {
+  UsuarioInventario as Usuario,
+  Inventario,
+  Producto,
+  Lote,
+  Activo,
+  ReporteValor,
+  MovimientoInventario
 } from '@/tipos';
 
 export default function Inventarios() {
@@ -65,11 +65,11 @@ export default function Inventarios() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [reporte_valor, setReporteValor] = useState<ReporteValor | null>(null);
   const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
-  
+
   const [cargando, setCargando] = useState(true);
   const [cargando_detalle, setCargandoDetalle] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  
+
   const [dialogo_inventario_abierto, setDialogoInventarioAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [dialogo_invitar_abierto, setDialogoInvitarAbierto] = useState(false);
@@ -83,11 +83,11 @@ export default function Inventarios() {
   const [dialogo_remover_usuario_abierto, setDialogoRemoverUsuarioAbierto] = useState(false);
   const [dialogo_editar_permiso_abierto, setDialogoEditarPermisoAbierto] = useState(false);
   const [dialogo_vender_activo_abierto, setDialogoVenderActivoAbierto] = useState(false);
-  
+
   const [modo_edicion, setModoEdicion] = useState(false);
   const [modo_edicion_producto, setModoEdicionProducto] = useState(false);
   const [modo_edicion_activo, setModoEdicionActivo] = useState(false);
-  
+
   const [inventario_a_eliminar, setInventarioAEliminar] = useState<Inventario | null>(null);
   const [producto_seleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [producto_a_eliminar, setProductoAEliminar] = useState<Producto | null>(null);
@@ -127,7 +127,9 @@ export default function Inventarios() {
 
   const [formulario_producto, setFormularioProducto] = useState({
     nombre: '',
-    tipo_gestion: 'consumible',
+    tipo: 'material' as 'material' | 'activo_fijo',
+    subtipo_material: 'sin_lote' as 'con_lote_vencimiento' | 'con_serie' | 'sin_lote',
+    subtipo_activo_fijo: 'instrumental' as 'instrumental' | 'mobiliario_equipo',
     stock_minimo: '10',
     unidad_medida: '',
     descripcion: '',
@@ -165,6 +167,19 @@ export default function Inventarios() {
     registrar_pago: true,
   });
 
+  // Subtipos para Material
+  const subtipos_material = [
+    { valor: 'con_lote_vencimiento', etiqueta: 'Con Lote y Vencimiento', descripcion: 'Fármacos, medicamentos' },
+    { valor: 'con_serie', etiqueta: 'Con Serie', descripcion: 'Implantes' },
+    { valor: 'sin_lote', etiqueta: 'Sin Lote', descripcion: 'Papel toalla, guantes, etc.' },
+  ];
+
+  const subtipos_activo_fijo = [
+    { valor: 'instrumental', etiqueta: 'Instrumental', descripcion: 'Ciclo de vida rápido' },
+    { valor: 'mobiliario_equipo', etiqueta: 'Mobiliario/Equipo', descripcion: 'Ciclo de vida lento' },
+  ];
+
+  // Legacy: mantener para compatibilidad
   const tipos_gestion = [
     { valor: 'consumible', etiqueta: 'Activo por Lotes' },
     { valor: 'activo_serializado', etiqueta: 'Activo Serializado' },
@@ -261,7 +276,7 @@ export default function Inventarios() {
         }
       }
     };
-    
+
     cargarInicial();
   }, []);
 
@@ -294,9 +309,9 @@ export default function Inventarios() {
   const cargarDetalleInventario = async (inventario: Inventario) => {
     try {
       setCargandoDetalle(true);
-      
+
       const tipos_backend = mapearATiposBackend(filtros_historial.tipo_operacion, filtros_historial.tipo_entidad);
-      
+
       const [inventario_actualizado, productos_respuesta, reporte_respuesta, movimientos_respuesta] = await Promise.all([
         inventarioApi.obtenerInventarioPorId(inventario.id),
         inventarioApi.obtenerProductos(inventario.id),
@@ -326,11 +341,11 @@ export default function Inventarios() {
 
   const cargarHistorial = async () => {
     if (!inventario_seleccionado) return;
-    
+
     try {
       setCargandoDetalle(true);
       const tipos_backend = mapearATiposBackend(filtros_historial.tipo_operacion, filtros_historial.tipo_entidad);
-      
+
       const movimientos_respuesta = await inventarioApi.obtenerHistorialMovimientos(inventario_seleccionado.id, {
         tipos: tipos_backend.length > 0 ? tipos_backend : undefined,
         fecha_inicio: filtros_historial.fecha_inicio,
@@ -362,7 +377,7 @@ export default function Inventarios() {
 
     try {
       setCargandoDetalle(true);
-      
+
       const resultado = await inventarioApi.obtenerHistorialMovimientos(
         inventario_seleccionado.id,
         {
@@ -372,9 +387,9 @@ export default function Inventarios() {
           limit: 100,
         }
       );
-      
+
       setMovimientos(resultado);
-      
+
       toast({
         title: 'Filtros limpiados',
         description: 'Mostrando todos los movimientos',
@@ -472,7 +487,7 @@ export default function Inventarios() {
             );
           }
         }
-        
+
         await inventarioApi.actualizarInventario(inventario_seleccionado.id, formulario_inventario);
         toast({
           title: 'Éxito',
@@ -491,7 +506,7 @@ export default function Inventarios() {
         });
         await cargarInventarios();
       }
-      
+
       setDialogoInventarioAbierto(false);
     } catch (error: any) {
       console.error('Error al guardar inventario:', error);
@@ -654,7 +669,9 @@ export default function Inventarios() {
   const abrirDialogoNuevoProducto = () => {
     setFormularioProducto({
       nombre: '',
-      tipo_gestion: 'consumible',
+      tipo: 'material',
+      subtipo_material: 'sin_lote',
+      subtipo_activo_fijo: 'instrumental',
       stock_minimo: '10',
       unidad_medida: '',
       descripcion: '',
@@ -668,7 +685,9 @@ export default function Inventarios() {
     setProductoSeleccionado(producto);
     setFormularioProducto({
       nombre: producto.nombre,
-      tipo_gestion: producto.tipo_gestion,
+      tipo: producto.tipo || 'material',
+      subtipo_material: producto.subtipo_material || 'sin_lote',
+      subtipo_activo_fijo: producto.subtipo_activo_fijo || 'instrumental',
       stock_minimo: (producto.stock_minimo ?? 0).toString(),
       unidad_medida: producto.unidad_medida ?? '',
       descripcion: producto.descripcion || '',
@@ -693,10 +712,16 @@ export default function Inventarios() {
     setGuardando(true);
     try {
       const datos = {
-        ...formulario_producto,
-        stock_minimo: formulario_producto.tipo_gestion === 'consumible' 
-          ? parseInt(formulario_producto.stock_minimo) 
+        nombre: formulario_producto.nombre,
+        tipo: formulario_producto.tipo,
+        subtipo_material: formulario_producto.tipo === 'material' ? formulario_producto.subtipo_material : undefined,
+        subtipo_activo_fijo: formulario_producto.tipo === 'activo_fijo' ? formulario_producto.subtipo_activo_fijo : undefined,
+        stock_minimo: formulario_producto.tipo === 'material'
+          ? parseInt(formulario_producto.stock_minimo)
           : 0,
+        unidad_medida: formulario_producto.unidad_medida,
+        descripcion: formulario_producto.descripcion,
+        notificar_stock_bajo: formulario_producto.notificar_stock_bajo,
         inventario_id: inventario_seleccionado.id,
       };
 
@@ -792,17 +817,17 @@ export default function Inventarios() {
         costo_total: parseFloat(formulario_lote.costo_total),
         fecha_compra: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_lote.fecha_compra)),
         nro_lote: formulario_lote.nro_lote,
-        fecha_vencimiento: formulario_lote.fecha_vencimiento 
+        fecha_vencimiento: formulario_lote.fecha_vencimiento
           ? format(formulario_lote.fecha_vencimiento, 'yyyy-MM-dd')
           : undefined,
         generar_egreso: formulario_lote.registrar_egreso,
       };
 
       await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
-      
+
       toast({
         title: 'Éxito',
-        description: formulario_lote.registrar_egreso 
+        description: formulario_lote.registrar_egreso
           ? 'Lote registrado y egreso creado en finanzas'
           : 'Lote registrado correctamente',
       });
@@ -868,7 +893,7 @@ export default function Inventarios() {
     setGuardando(true);
     try {
       const monto = parseFloat(formulario_ajuste_lote.monto || '0');
-      
+
       await inventarioApi.ajustarStock(inventario_seleccionado.id, {
         producto_id: producto_seleccionado.id,
         tipo: formulario_ajuste_lote.tipo,
@@ -996,10 +1021,10 @@ export default function Inventarios() {
         };
 
         await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
-        
+
         toast({
           title: 'Éxito',
-          description: formulario_activo.registrar_egreso 
+          description: formulario_activo.registrar_egreso
             ? 'Activo registrado y egreso creado en finanzas'
             : 'Activo registrado correctamente',
         });
@@ -1032,7 +1057,7 @@ export default function Inventarios() {
           nombre_asignado: activo.nombre_asignado,
         }
       );
-      
+
       toast({
         title: 'Éxito',
         description: 'Estado actualizado correctamente',
@@ -1148,25 +1173,39 @@ export default function Inventarios() {
     return visibilidad === 'privado' ? Lock : Globe;
   };
 
-  const obtenerColorTipoGestion = (tipo: string): string => {
+  const obtenerColorTipoGestion = (tipo?: string): string => {
     const colores: { [key: string]: string } = {
+      // Nuevos tipos
+      material: 'bg-purple-500',
+      activo_fijo: 'bg-blue-500',
+      // Legacy
       consumible: 'bg-purple-500',
       activo_serializado: 'bg-blue-500',
       activo_general: 'bg-cyan-500',
     };
-    return colores[tipo] || 'bg-gray-500';
+    return colores[tipo || ''] || 'bg-gray-500';
   };
 
-  const obtenerEtiquetaTipoGestion = (tipo: string): string => {
+  const obtenerEtiquetaTipoGestion = (tipo?: string): string => {
     const tipos: { [key: string]: string } = {
+      // Nuevos tipos
+      material: 'Material',
+      activo_fijo: 'Activo Fijo',
+      // Legacy
       consumible: 'Consumible',
       activo_serializado: 'Serializado',
       activo_general: 'General',
     };
-    return tipos[tipo] || tipo;
+    return tipos[tipo || ''] || tipo || 'Desconocido';
   };
 
   const obtenerStockTotal = (producto: Producto): number => {
+    // Nuevo sistema: usa tipo y materiales
+    if (producto.tipo === 'material') {
+      const materiales = producto.materiales || producto.lotes || [];
+      return materiales.reduce((total, m) => total + Number(m.cantidad_actual), 0);
+    }
+    // Legacy: consumible usa lotes
     if (producto.tipo_gestion === 'consumible' && producto.lotes) {
       return producto.lotes.reduce((total, lote) => total + Number(lote.cantidad_actual), 0);
     }
@@ -1174,6 +1213,12 @@ export default function Inventarios() {
   };
 
   const obtenerValorTotal = (producto: Producto): number => {
+    // Nuevo sistema: usa tipo y materiales
+    if (producto.tipo === 'material') {
+      const materiales = producto.materiales || producto.lotes || [];
+      return materiales.reduce((total, m) => total + (Number(m.cantidad_actual) * Number((m as any).costo_unitario || (m as any).costo_unitario_compra || 0)), 0);
+    }
+    // Legacy: consumible usa lotes
     if (producto.tipo_gestion === 'consumible' && producto.lotes) {
       return producto.lotes.reduce((total, lote) => total + (Number(lote.cantidad_actual) * Number(lote.costo_unitario_compra)), 0);
     }
@@ -1189,7 +1234,17 @@ export default function Inventarios() {
 
   const productos_filtrados = productos.filter(p => {
     const coincide_busqueda = p.nombre.toLowerCase().includes(busqueda_productos.toLowerCase());
-    const coincide_tipo = filtro_tipo_producto === 'todos' || p.tipo_gestion === filtro_tipo_producto;
+    // Mapear filtro a ambos sistemas (nuevo y legacy)
+    let coincide_tipo = filtro_tipo_producto === 'todos';
+    if (!coincide_tipo) {
+      // Nuevo sistema
+      if (filtro_tipo_producto === 'material' && p.tipo === 'material') coincide_tipo = true;
+      if (filtro_tipo_producto === 'activo_fijo' && p.tipo === 'activo_fijo') coincide_tipo = true;
+      // Legacy
+      if (filtro_tipo_producto === 'consumible' && (p.tipo === 'material' || p.tipo_gestion === 'consumible')) coincide_tipo = true;
+      if (filtro_tipo_producto === 'activo_serializado' && (p.tipo === 'activo_fijo' || p.tipo_gestion === 'activo_serializado')) coincide_tipo = true;
+      if (filtro_tipo_producto === 'activo_general' && p.tipo_gestion === 'activo_general') coincide_tipo = true;
+    }
     return coincide_busqueda && coincide_tipo && p.activo;
   });
   const usuarios_disponibles_para_invitar = usuarios.filter(u => {
@@ -1200,7 +1255,7 @@ export default function Inventarios() {
       );
       if (ya_invitado) return false;
     }
-    
+
     return true;
   });
 
@@ -1228,7 +1283,7 @@ export default function Inventarios() {
     <div className="flex h-screen bg-background overflow-hidden">
       <MenuLateral />
       <Toaster />
-      
+
       {vista_actual === 'lista' ? (
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="p-6 border-b border-border bg-card">
@@ -1273,7 +1328,7 @@ export default function Inventarios() {
                     {busqueda_inventarios ? 'No se encontraron inventarios' : 'No hay inventarios'}
                   </h3>
                   <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                    {busqueda_inventarios 
+                    {busqueda_inventarios
                       ? 'Intenta con otros términos de búsqueda'
                       : 'Comienza creando tu primer inventario para gestionar productos y materiales'}
                   </p>
@@ -1283,10 +1338,10 @@ export default function Inventarios() {
               <div className="space-y-4">
                 {inventarios_filtrados.map((inventario) => {
                   const IconoVisibilidad = obtenerIconoVisibilidad(inventario.visibilidad);
-                  
+
                   return (
-                    <Card 
-                      key={inventario.id} 
+                    <Card
+                      key={inventario.id}
                       className="hover:shadow-lg transition-all duration-200 hover:border-primary/50 cursor-pointer"
                       onClick={() => verDetalleInventario(inventario)}
                     >
@@ -1422,16 +1477,16 @@ export default function Inventarios() {
               <div className="flex gap-2">
                 {inventario_seleccionado?.es_propietario && (
                   <>
-                    {(inventario_seleccionado?.visibilidad === 'publico' || 
-                     (inventario_seleccionado?.visibilidad === 'privado' && (inventario_seleccionado?.permisos?.length || 0) > 0)) && (
-                      <Button
-                        onClick={abrirDialogoInvitar}
-                        variant="outline"
-                      >
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Invitar Usuario
-                      </Button>
-                    )}
+                    {(inventario_seleccionado?.visibilidad === 'publico' ||
+                      (inventario_seleccionado?.visibilidad === 'privado' && (inventario_seleccionado?.permisos?.length || 0) > 0)) && (
+                        <Button
+                          onClick={abrirDialogoInvitar}
+                          variant="outline"
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Invitar Usuario
+                        </Button>
+                      )}
                     <Button
                       onClick={() => abrirDialogoEditarInventario(inventario_seleccionado)}
                       variant="outline"
@@ -1536,9 +1591,8 @@ export default function Inventarios() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="todos">Todos</SelectItem>
-                        <SelectItem value="consumible">Consumibles</SelectItem>
-                        <SelectItem value="activo_serializado">Serializados</SelectItem>
-                        <SelectItem value="activo_general">Generales</SelectItem>
+                        <SelectItem value="material">Materiales</SelectItem>
+                        <SelectItem value="activo_fijo">Activos Fijos</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1575,8 +1629,8 @@ export default function Inventarios() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <CardTitle className="text-lg">{producto.nombre}</CardTitle>
-                                <Badge className={`${obtenerColorTipoGestion(producto.tipo_gestion)} text-white`}>
-                                  {obtenerEtiquetaTipoGestion(producto.tipo_gestion)}
+                                <Badge className={`${obtenerColorTipoGestion(producto.tipo || producto.tipo_gestion)} text-white`}>
+                                  {obtenerEtiquetaTipoGestion(producto.tipo || producto.tipo_gestion)}
                                 </Badge>
                                 {stock_bajo && (
                                   <Badge variant="destructive" className="flex items-center gap-1">
@@ -1586,17 +1640,17 @@ export default function Inventarios() {
                                 )}
                               </div>
                               <div className="flex gap-2">
-                                {producto.tipo_gestion === 'consumible' && (
+                                {(producto.tipo === 'material' || producto.tipo_gestion === 'consumible') && (
                                   <Button
                                     onClick={() => abrirDialogoNuevoLote(producto)}
                                     size="sm"
                                     variant="outline"
                                   >
                                     <ShoppingCart className="h-4 w-4 mr-1" />
-                                    Registrar Nuevo Lote
+                                    Registrar Entrada
                                   </Button>
                                 )}
-                                {producto.tipo_gestion !== 'consumible' && (
+                                {(producto.tipo === 'activo_fijo' || (producto.tipo_gestion && producto.tipo_gestion !== 'consumible')) && (
                                   <Button
                                     onClick={() => abrirDialogoNuevoActivo(producto)}
                                     size="sm"
@@ -1637,7 +1691,7 @@ export default function Inventarios() {
                                   </p>
                                 </div>
                               </div>
-                              {producto.tipo_gestion === 'consumible' && (
+                              {(producto.tipo === 'material' || producto.tipo_gestion === 'consumible') && (
                                 <div className="flex items-center gap-2">
                                   <AlertCircle className="h-4 w-4 text-muted-foreground" />
                                   <div>
@@ -1657,9 +1711,9 @@ export default function Inventarios() {
                               </div>
                             </div>
 
-                            {producto.tipo_gestion === 'consumible' && producto.lotes && producto.lotes.length > 0 && (
+                            {(producto.tipo === 'material' || producto.tipo_gestion === 'consumible') && (producto.materiales || producto.lotes) && ((producto.materiales?.length || 0) + (producto.lotes?.length || 0)) > 0 && (
                               <div className="border-t pt-4">
-                                <h4 className="font-semibold mb-2 text-sm">Lotes Disponibles</h4>
+                                <h4 className="font-semibold mb-2 text-sm">Existencias Disponibles</h4>
                                 <Table>
                                   <TableHeader>
                                     <TableRow>
@@ -1671,10 +1725,10 @@ export default function Inventarios() {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {producto.lotes.map((lote) => {
-                                      const vencido = estaVencido(lote.fecha_vencimiento);
+                                    {(producto.materiales || producto.lotes || []).map((lote) => {
+                                      const vencido = estaVencido((lote as any).fecha_vencimiento);
                                       return (
-                                        <TableRow 
+                                        <TableRow
                                           key={lote.id}
                                           className={vencido ? 'bg-destructive/10 hover:bg-destructive/20' : ''}
                                         >
@@ -1685,10 +1739,10 @@ export default function Inventarios() {
                                             {lote.cantidad_actual} {producto.unidad_medida}
                                           </TableCell>
                                           <TableCell className={vencido ? 'text-destructive' : ''}>
-                                            ${Number(lote.costo_unitario_compra).toFixed(2)}
+                                            ${Number((lote as any).costo_unitario_compra || (lote as any).costo_unitario || 0).toFixed(2)}
                                           </TableCell>
                                           <TableCell className={vencido ? 'text-destructive font-semibold' : ''}>
-                                            {lote.fecha_vencimiento 
+                                            {lote.fecha_vencimiento
                                               ? format(new Date(lote.fecha_vencimiento), 'dd/MM/yyyy')
                                               : 'Sin vencimiento'
                                             }
@@ -1697,14 +1751,14 @@ export default function Inventarios() {
                                           <TableCell className="text-right">
                                             <div className="flex gap-1 justify-end">
                                               <Button
-                                                onClick={() => abrirDialogoAjusteStockLote(producto, lote)}
+                                                onClick={() => abrirDialogoAjusteStockLote(producto, lote as any)}
                                                 size="sm"
                                                 variant="outline"
                                               >
                                                 <Settings className="h-3 w-3" />
                                               </Button>
                                               <Button
-                                                onClick={() => abrirDialogoConfirmarEliminarLote(lote)}
+                                                onClick={() => abrirDialogoConfirmarEliminarLote(lote as any)}
                                                 size="sm"
                                                 variant="destructive"
                                               >
@@ -1809,19 +1863,19 @@ export default function Inventarios() {
                         Filtros de Auditoría
                       </h3>
                       <div className="flex gap-2">
-                        {(filtros_historial.tipo_operacion.length > 0 || 
+                        {(filtros_historial.tipo_operacion.length > 0 ||
                           filtros_historial.tipo_entidad.length > 0 ||
-                          filtros_historial.fecha_inicio || 
+                          filtros_historial.fecha_inicio ||
                           filtros_historial.fecha_fin) && (
-                          <Button
-                            onClick={limpiarFiltrosHistorial}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <X className="h-4 w-4 mr-1" />
-                            Limpiar
-                          </Button>
-                        )}
+                            <Button
+                              onClick={limpiarFiltrosHistorial}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Limpiar
+                            </Button>
+                          )}
                         <Button
                           onClick={cargarHistorial}
                           size="sm"
@@ -1832,214 +1886,214 @@ export default function Inventarios() {
                       </div>
                     </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label>Fecha Inicio</Label>
-                      <DatePicker
-                        valor={filtros_historial.fecha_inicio}
-                        onChange={(fecha) => setFiltrosHistorial(prev => ({ ...prev, fecha_inicio: fecha }))}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Fecha Fin</Label>
-                      <DatePicker
-                        valor={filtros_historial.fecha_fin}
-                        onChange={(fecha) => setFiltrosHistorial(prev => ({ ...prev, fecha_fin: fecha }))}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Tipo de Operación</Label>
-                      <MultiSelect
-                        opciones={tipos_operacion.map(t => ({ valor: t.valor, etiqueta: t.etiqueta }))}
-                        valores={filtros_historial.tipo_operacion}
-                        onChange={(valores) => setFiltrosHistorial(prev => ({ ...prev, tipo_operacion: valores }))}
-                        placeholder="Seleccionar operaciones..."
-                        textoVacio="No se encontraron operaciones"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Límite de Registros</Label>
-                      <Select
-                        value={filtros_historial.limit.toString()}
-                        onValueChange={(valor) => setFiltrosHistorial(prev => ({ ...prev, limit: parseInt(valor) }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="50">50</SelectItem>
-                          <SelectItem value="100">100</SelectItem>
-                          <SelectItem value="250">250</SelectItem>
-                          <SelectItem value="500">500</SelectItem>
-                          <SelectItem value="1000">1000</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  {filtros_historial.tipo_operacion.some(op => ['creacion', 'edicion', 'eliminacion'].includes(op)) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-2">
-                        <Label>Tipo de Entidad</Label>
-                        <MultiSelect
-                          opciones={tipos_entidad.map(t => ({ valor: t.valor, etiqueta: t.etiqueta }))}
-                          valores={filtros_historial.tipo_entidad}
-                          onChange={(valores) => setFiltrosHistorial(prev => ({ ...prev, tipo_entidad: valores }))}
-                          placeholder="Todas las entidades"
-                          textoVacio="No se encontraron entidades"
+                        <Label>Fecha Inicio</Label>
+                        <DatePicker
+                          valor={filtros_historial.fecha_inicio}
+                          onChange={(fecha) => setFiltrosHistorial(prev => ({ ...prev, fecha_inicio: fecha }))}
                         />
                       </div>
-                    </div>
-                  )}
 
-                  {(filtros_historial.tipo_operacion.length > 0 || 
-                    filtros_historial.tipo_entidad.length > 0 ||
-                    filtros_historial.fecha_inicio || 
-                    filtros_historial.fecha_fin) && (
-                    <div className="flex flex-wrap gap-2">
-                      <span className="text-sm text-muted-foreground">Filtros activos:</span>
-                      {filtros_historial.tipo_operacion.map(tipo => {
-                        const operacion = tipos_operacion.find(op => op.valor === tipo);
-                        return (
-                          <Badge key={tipo} variant="secondary" className="gap-1">
-                            {operacion?.etiqueta || tipo}
-                            <button
-                              onClick={() => setFiltrosHistorial(prev => ({
-                                ...prev,
-                                tipo_operacion: prev.tipo_operacion.filter(t => t !== tipo)
-                              }))}
-                              className="ml-1 hover:bg-destructive/20 rounded-full"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        );
-                      })}
-                      {filtros_historial.tipo_entidad.map(tipo => {
-                        const entidad = tipos_entidad.find(ent => ent.valor === tipo);
-                        return (
-                          <Badge key={tipo} variant="outline" className="gap-1">
-                            {entidad?.etiqueta || tipo}
-                            <button
-                              onClick={() => setFiltrosHistorial(prev => ({
-                                ...prev,
-                                tipo_entidad: prev.tipo_entidad.filter(t => t !== tipo)
-                              }))}
-                              className="ml-1 hover:bg-destructive/20 rounded-full"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        );
-                      })}
-                      {filtros_historial.fecha_inicio && (
-                        <Badge variant="secondary">
-                          Desde: {format(filtros_historial.fecha_inicio, 'dd/MM/yyyy')}
-                        </Badge>
-                      )}
-                      {filtros_historial.fecha_fin && (
-                        <Badge variant="secondary">
-                          Hasta: {format(filtros_historial.fecha_fin, 'dd/MM/yyyy')}
-                        </Badge>
-                      )}
+                      <div className="space-y-2">
+                        <Label>Fecha Fin</Label>
+                        <DatePicker
+                          valor={filtros_historial.fecha_fin}
+                          onChange={(fecha) => setFiltrosHistorial(prev => ({ ...prev, fecha_fin: fecha }))}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Tipo de Operación</Label>
+                        <MultiSelect
+                          opciones={tipos_operacion.map(t => ({ valor: t.valor, etiqueta: t.etiqueta }))}
+                          valores={filtros_historial.tipo_operacion}
+                          onChange={(valores) => setFiltrosHistorial(prev => ({ ...prev, tipo_operacion: valores }))}
+                          placeholder="Seleccionar operaciones..."
+                          textoVacio="No se encontraron operaciones"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Límite de Registros</Label>
+                        <Select
+                          value={filtros_historial.limit.toString()}
+                          onValueChange={(valor) => setFiltrosHistorial(prev => ({ ...prev, limit: parseInt(valor) }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                            <SelectItem value="250">250</SelectItem>
+                            <SelectItem value="500">500</SelectItem>
+                            <SelectItem value="1000">1000</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  )}
+                    {filtros_historial.tipo_operacion.some(op => ['creacion', 'edicion', 'eliminacion'].includes(op)) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label>Tipo de Entidad</Label>
+                          <MultiSelect
+                            opciones={tipos_entidad.map(t => ({ valor: t.valor, etiqueta: t.etiqueta }))}
+                            valores={filtros_historial.tipo_entidad}
+                            onChange={(valores) => setFiltrosHistorial(prev => ({ ...prev, tipo_entidad: valores }))}
+                            placeholder="Todas las entidades"
+                            textoVacio="No se encontraron entidades"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {(filtros_historial.tipo_operacion.length > 0 ||
+                      filtros_historial.tipo_entidad.length > 0 ||
+                      filtros_historial.fecha_inicio ||
+                      filtros_historial.fecha_fin) && (
+                        <div className="flex flex-wrap gap-2">
+                          <span className="text-sm text-muted-foreground">Filtros activos:</span>
+                          {filtros_historial.tipo_operacion.map(tipo => {
+                            const operacion = tipos_operacion.find(op => op.valor === tipo);
+                            return (
+                              <Badge key={tipo} variant="secondary" className="gap-1">
+                                {operacion?.etiqueta || tipo}
+                                <button
+                                  onClick={() => setFiltrosHistorial(prev => ({
+                                    ...prev,
+                                    tipo_operacion: prev.tipo_operacion.filter(t => t !== tipo)
+                                  }))}
+                                  className="ml-1 hover:bg-destructive/20 rounded-full"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            );
+                          })}
+                          {filtros_historial.tipo_entidad.map(tipo => {
+                            const entidad = tipos_entidad.find(ent => ent.valor === tipo);
+                            return (
+                              <Badge key={tipo} variant="outline" className="gap-1">
+                                {entidad?.etiqueta || tipo}
+                                <button
+                                  onClick={() => setFiltrosHistorial(prev => ({
+                                    ...prev,
+                                    tipo_entidad: prev.tipo_entidad.filter(t => t !== tipo)
+                                  }))}
+                                  className="ml-1 hover:bg-destructive/20 rounded-full"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            );
+                          })}
+                          {filtros_historial.fecha_inicio && (
+                            <Badge variant="secondary">
+                              Desde: {format(filtros_historial.fecha_inicio, 'dd/MM/yyyy')}
+                            </Badge>
+                          )}
+                          {filtros_historial.fecha_fin && (
+                            <Badge variant="secondary">
+                              Hasta: {format(filtros_historial.fecha_fin, 'dd/MM/yyyy')}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                   </div>
                   {cargando_detalle ? (
-                  <div className="flex items-center justify-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : movimientos.length === 0 ? (
-                  <div className="text-center py-12">
-                    <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No hay movimientos</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {(filtros_historial.tipo_operacion.length > 0 || 
-                        filtros_historial.tipo_entidad.length > 0 ||
-                        filtros_historial.fecha_inicio || 
-                        filtros_historial.fecha_fin)
-                        ? 'No se encontraron movimientos con los filtros aplicados'
-                        : 'Los movimientos de inventario aparecerán aquí'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-center h-64">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : movimientos.length === 0 ? (
+                    <div className="text-center py-12">
+                      <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">No hay movimientos</h3>
                       <p className="text-sm text-muted-foreground">
-                        Mostrando {movimientos.length} {movimientos.length === 1 ? 'registro' : 'registros'}
+                        {(filtros_historial.tipo_operacion.length > 0 ||
+                          filtros_historial.tipo_entidad.length > 0 ||
+                          filtros_historial.fecha_inicio ||
+                          filtros_historial.fecha_fin)
+                          ? 'No se encontraron movimientos con los filtros aplicados'
+                          : 'Los movimientos de inventario aparecerán aquí'}
                       </p>
                     </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Producto</TableHead>
-                          <TableHead>Detalles</TableHead>
-                          <TableHead>Usuario</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {movimientos.map((movimiento) => (
-                          <TableRow key={movimiento.id}>
-                            <TableCell className="whitespace-nowrap">
-                              {format(new Date(movimiento.fecha), 'dd/MM/yyyy HH:mm')}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={obtenerColorTipoMovimiento(movimiento.tipo)}>
-                                {obtenerEtiquetaTipoMovimiento(movimiento.tipo)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {movimiento.producto ? movimiento.producto.nombre : '-'}
-                            </TableCell>
-                            <TableCell className="max-w-md">
-                              {movimiento.cantidad && (
-                                <div className="text-sm">
-                                  <span className="font-medium">Cantidad:</span> {movimiento.cantidad}
-                                  {movimiento.stock_anterior !== undefined && movimiento.stock_nuevo !== undefined && (
-                                    <span className="text-muted-foreground">
-                                      {' '}({movimiento.stock_anterior} → {movimiento.stock_nuevo})
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              {movimiento.observaciones && (
-                                <div className="text-sm text-muted-foreground mt-1">
-                                  {movimiento.observaciones}
-                                </div>
-                              )}
-                              {movimiento.datos_anteriores && movimiento.datos_nuevos && (
-                                <details className="text-xs mt-2">
-                                  <summary className="cursor-pointer text-primary hover:underline">
-                                    Ver cambios
-                                  </summary>
-                                  <div className="mt-2 space-y-1 pl-2 border-l-2 border-muted">
-                                    <div>
-                                      <span className="font-semibold">Antes:</span>
-                                      <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
-                                        {JSON.stringify(movimiento.datos_anteriores, null, 2)}
-                                      </pre>
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold">Después:</span>
-                                      <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
-                                        {JSON.stringify(movimiento.datos_nuevos, null, 2)}
-                                      </pre>
-                                    </div>
-                                  </div>
-                                </details>
-                              )}
-                            </TableCell>
-                            <TableCell>{movimiento.usuario?.nombre || 'Usuario desconocido'}</TableCell>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm text-muted-foreground">
+                          Mostrando {movimientos.length} {movimientos.length === 1 ? 'registro' : 'registros'}
+                        </p>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Producto</TableHead>
+                            <TableHead>Detalles</TableHead>
+                            <TableHead>Usuario</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
+                        </TableHeader>
+                        <TableBody>
+                          {movimientos.map((movimiento) => (
+                            <TableRow key={movimiento.id}>
+                              <TableCell className="whitespace-nowrap">
+                                {format(new Date(movimiento.fecha), 'dd/MM/yyyy HH:mm')}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={obtenerColorTipoMovimiento(movimiento.tipo)}>
+                                  {obtenerEtiquetaTipoMovimiento(movimiento.tipo)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {movimiento.producto ? movimiento.producto.nombre : '-'}
+                              </TableCell>
+                              <TableCell className="max-w-md">
+                                {movimiento.cantidad && (
+                                  <div className="text-sm">
+                                    <span className="font-medium">Cantidad:</span> {movimiento.cantidad}
+                                    {movimiento.stock_anterior !== undefined && movimiento.stock_nuevo !== undefined && (
+                                      <span className="text-muted-foreground">
+                                        {' '}({movimiento.stock_anterior} → {movimiento.stock_nuevo})
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {movimiento.observaciones && (
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    {movimiento.observaciones}
+                                  </div>
+                                )}
+                                {movimiento.datos_anteriores && movimiento.datos_nuevos && (
+                                  <details className="text-xs mt-2">
+                                    <summary className="cursor-pointer text-primary hover:underline">
+                                      Ver cambios
+                                    </summary>
+                                    <div className="mt-2 space-y-1 pl-2 border-l-2 border-muted">
+                                      <div>
+                                        <span className="font-semibold">Antes:</span>
+                                        <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
+                                          {JSON.stringify(movimiento.datos_anteriores, null, 2)}
+                                        </pre>
+                                      </div>
+                                      <div>
+                                        <span className="font-semibold">Después:</span>
+                                        <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
+                                          {JSON.stringify(movimiento.datos_nuevos, null, 2)}
+                                        </pre>
+                                      </div>
+                                    </div>
+                                  </details>
+                                )}
+                              </TableCell>
+                              <TableCell>{movimiento.usuario?.nombre || 'Usuario desconocido'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                 </div>
               </ScrollArea>
             </TabsContent>
@@ -2118,13 +2172,13 @@ export default function Inventarios() {
                         <p className="text-sm text-muted-foreground mb-4">
                           Invita usuarios para que puedan acceder a este inventario
                         </p>
-                        {inventario_seleccionado?.es_propietario && 
-                         inventario_seleccionado?.visibilidad === 'publico' && (
-                          <Button onClick={abrirDialogoInvitar}>
-                            <UserPlus className="h-4 w-4 mr-2" />
-                            Invitar Usuario
-                          </Button>
-                        )}
+                        {inventario_seleccionado?.es_propietario &&
+                          inventario_seleccionado?.visibilidad === 'publico' && (
+                            <Button onClick={abrirDialogoInvitar}>
+                              <UserPlus className="h-4 w-4 mr-2" />
+                              Invitar Usuario
+                            </Button>
+                          )}
                       </div>
                     )}
                   </div>
@@ -2169,9 +2223,9 @@ export default function Inventarios() {
               <Switch
                 id="visibilidad"
                 checked={formulario_inventario.visibilidad === 'publico'}
-                onCheckedChange={(checked) => setFormularioInventario({ 
-                  ...formulario_inventario, 
-                  visibilidad: checked ? 'publico' : 'privado' 
+                onCheckedChange={(checked) => setFormularioInventario({
+                  ...formulario_inventario,
+                  visibilidad: checked ? 'publico' : 'privado'
                 })}
               />
             </div>
@@ -2186,9 +2240,9 @@ export default function Inventarios() {
               <Switch
                 id="modo-estricto"
                 checked={formulario_inventario.modo_estricto}
-                onCheckedChange={(checked) => setFormularioInventario({ 
-                  ...formulario_inventario, 
-                  modo_estricto: checked 
+                onCheckedChange={(checked) => setFormularioInventario({
+                  ...formulario_inventario,
+                  modo_estricto: checked
                 })}
               />
             </div>
@@ -2262,9 +2316,9 @@ export default function Inventarios() {
               <Switch
                 id="rol"
                 checked={formulario_invitar.rol === 'editor'}
-                onCheckedChange={(checked) => setFormularioInvitar({ 
-                  ...formulario_invitar, 
-                  rol: checked ? 'editor' : 'lector' 
+                onCheckedChange={(checked) => setFormularioInvitar({
+                  ...formulario_invitar,
+                  rol: checked ? 'editor' : 'lector'
                 })}
               />
             </div>
@@ -2307,7 +2361,7 @@ export default function Inventarios() {
         </DialogContent>
       </Dialog>
 
-      {}
+      { }
       <Dialog open={dialogo_editar_permiso_abierto} onOpenChange={setDialogoEditarPermisoAbierto}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -2367,30 +2421,86 @@ export default function Inventarios() {
                 id="nombre_producto"
                 value={formulario_producto.nombre}
                 onChange={(e) => setFormularioProducto({ ...formulario_producto, nombre: e.target.value })}
-                placeholder="Alcohol 70%"
+                placeholder="Nombre del producto..."
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="tipo_gestion">Tipo de Gestión *</Label>
-                <Select
-                  value={formulario_producto.tipo_gestion}
-                  onValueChange={(value) => setFormularioProducto({ ...formulario_producto, tipo_gestion: value })}
-                  disabled={modo_edicion_producto}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tipos_gestion.map((tipo) => (
-                      <SelectItem key={tipo.valor} value={tipo.valor}>
-                        {tipo.etiqueta}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Switch para tipo de producto */}
+            <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+              <div className="space-y-0.5">
+                <Label htmlFor="tipo_producto" className="text-base font-medium">
+                  {formulario_producto.tipo === 'material' ? 'Material (Consumible)' : 'Activo Fijo'}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {formulario_producto.tipo === 'material'
+                    ? 'Recursos que se consumen y agotan (fármacos, guantes, etc.)'
+                    : 'Equipos o instrumentos con ciclo de vida (sillas, autoclaves, etc.)'}
+                </p>
               </div>
+              <Switch
+                id="tipo_producto"
+                checked={formulario_producto.tipo === 'activo_fijo'}
+                onCheckedChange={(checked) => setFormularioProducto({
+                  ...formulario_producto,
+                  tipo: checked ? 'activo_fijo' : 'material'
+                })}
+                disabled={modo_edicion_producto}
+              />
+            </div>
+
+            {/* Subtipo según el tipo seleccionado */}
+            <div className="grid grid-cols-2 gap-4">
+              {formulario_producto.tipo === 'material' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="subtipo_material">Subtipo de Material *</Label>
+                  <Select
+                    value={formulario_producto.subtipo_material}
+                    onValueChange={(value: 'con_lote_vencimiento' | 'con_serie' | 'sin_lote') =>
+                      setFormularioProducto({ ...formulario_producto, subtipo_material: value })
+                    }
+                    disabled={modo_edicion_producto}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subtipos_material.map((subtipo) => (
+                        <SelectItem key={subtipo.valor} value={subtipo.valor}>
+                          <div className="flex flex-col">
+                            <span>{subtipo.etiqueta}</span>
+                            <span className="text-xs text-muted-foreground">{subtipo.descripcion}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="subtipo_activo">Subtipo de Activo *</Label>
+                  <Select
+                    value={formulario_producto.subtipo_activo_fijo}
+                    onValueChange={(value: 'instrumental' | 'mobiliario_equipo') =>
+                      setFormularioProducto({ ...formulario_producto, subtipo_activo_fijo: value })
+                    }
+                    disabled={modo_edicion_producto}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subtipos_activo_fijo.map((subtipo) => (
+                        <SelectItem key={subtipo.valor} value={subtipo.valor}>
+                          <div className="flex flex-col">
+                            <span>{subtipo.etiqueta}</span>
+                            <span className="text-xs text-muted-foreground">{subtipo.descripcion}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="unidad_medida">Unidad de Medida *</Label>
@@ -2403,7 +2513,8 @@ export default function Inventarios() {
               </div>
             </div>
 
-            {formulario_producto.tipo_gestion === 'consumible' && (
+            {/* Stock mínimo solo para materiales */}
+            {formulario_producto.tipo === 'material' && (
               <div className="space-y-2">
                 <Label htmlFor="stock_minimo">Stock Mínimo *</Label>
                 <Input
@@ -2426,7 +2537,8 @@ export default function Inventarios() {
               />
             </div>
 
-            {formulario_producto.tipo_gestion === 'consumible' && (
+            {/* Notificar stock bajo solo para materiales */}
+            {formulario_producto.tipo === 'material' && (
               <div className="flex items-center space-x-2">
                 <Switch
                   id="notificar_stock_bajo"
@@ -2639,8 +2751,8 @@ export default function Inventarios() {
                   const cantidad_num = parseFloat(nueva_cantidad || '0');
                   const costo_unitario = lote_seleccionado ? Number(lote_seleccionado.costo_unitario_compra || 0) : 0;
                   const nuevo_monto = (cantidad_num * costo_unitario).toFixed(2);
-                  setFormularioAjusteLote({ 
-                    ...formulario_ajuste_lote, 
+                  setFormularioAjusteLote({
+                    ...formulario_ajuste_lote,
                     cantidad: nueva_cantidad,
                     monto: nuevo_monto
                   });
@@ -2668,8 +2780,8 @@ export default function Inventarios() {
                 }}
               />
               <p className="text-xs text-muted-foreground">
-                {formulario_ajuste_lote.tipo === 'entrada' 
-                  ? 'Se registrará como egreso en finanzas' 
+                {formulario_ajuste_lote.tipo === 'entrada'
+                  ? 'Se registrará como egreso en finanzas'
                   : 'Se registrará como ingreso en finanzas'}
               </p>
             </div>

@@ -4,19 +4,31 @@ export type { Paciente, PacienteBasico, HistoriaClinicaVersion } from './pacient
 
 export type { Cita, HoraLibre, ElementoAgenda } from './cita';
 
-export type { 
-  Inventario, 
-  Producto, 
-  Lote, 
-  Activo, 
-  ReporteValor, 
-  MovimientoInventario 
+export type {
+  Inventario,
+  Producto,
+  Lote,
+  Material,
+  Activo,
+  ReporteValor,
+  MovimientoInventario,
+  MovimientoKardex,
+  EventoBitacora,
+  RegistroAuditoria
 } from './inventario';
 
-export type { 
-  MaterialCita, 
-  MaterialCitaConfirmacion, 
-  MaterialGeneral 
+export {
+  TipoProducto,
+  SubtipoMaterial,
+  SubtipoActivoFijo,
+  EstadoActivo,
+  TipoMovimientoKardex
+} from './inventario';
+
+export type {
+  MaterialCita,
+  MaterialCitaConfirmacion,
+  MaterialGeneral
 } from './material';
 
 export type { Tratamiento, PlanTratamiento } from './tratamiento';
