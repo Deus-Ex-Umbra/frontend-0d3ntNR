@@ -363,7 +363,7 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
 
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             {fase === 'seleccion' && (
-              <div className="flex flex-col gap-4 h-full">
+              <div className="flex flex-col gap-4">
                 <div className="relative">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input 
@@ -373,7 +373,7 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
                     className="pl-8"
                   />
                 </div>
-                <ScrollArea className="flex-1 border rounded-md p-2">
+                <ScrollArea className="h-[calc(90vh-280px)] border rounded-md p-2">
                   {cargandoPlantillas ? (
                     <div className="flex items-center justify-center p-8 text-muted-foreground">
                       <Loader2 className="h-6 w-6 animate-spin mr-2" /> Cargando plantillas...

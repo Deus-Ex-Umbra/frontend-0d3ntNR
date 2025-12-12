@@ -3,6 +3,8 @@ import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
+import { Switch } from '@/componentes/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +25,7 @@ import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { MultiSelect } from '@/componentes/ui/mulit-select';
 import { EditorRecetas } from '@/componentes/pacientes/editor-recetas';
+import { HexColorPicker } from 'react-colorful';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -82,7 +85,7 @@ const TAMANO_MAXIMO = 10 * 1024 * 1024;
 
 const validarNombreArchivo = (nombre: string): { valido: boolean; error?: string } => {
   const caracteres_invalidos = /[<>:"/\\|?*\x00-\x1F]/g;
-  
+
   if (caracteres_invalidos.test(nombre)) {
     const simbolos_encontrados = nombre.match(caracteres_invalidos)?.join(' ') || '';
     return {
@@ -141,6 +144,8 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
   const [vista_previa, setVistaPrevia] = useState(false);
   const [filtro_plantillas, setFiltroPlantillas] = useState('');
   const [filtro_etiquetas, setFiltroEtiquetas] = useState<string[]>([]);
+  const [usar_selector_color_etiquetas, setUsarSelectorColorEtiquetas] = useState(false);
+  const [color_etiquetas_temporal, setColorEtiquetasTemporal] = useState('#dbeafe');
 
   const [formulario, setFormulario] = useState({
     nombre_sin_extension: '',
@@ -213,13 +218,13 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
     const regex = /data-etiqueta="([^"]+)"/g;
     const etiquetas: string[] = [];
     let match;
-    
+
     while ((match = regex.exec(contenido)) !== null) {
       if (!etiquetas.includes(match[1])) {
         etiquetas.push(match[1]);
       }
     }
-    
+
     return etiquetas;
   };
   const etiquetasUsadasEnPlantillas = (): Array<{ valor: string; etiqueta: string }> => {
@@ -237,7 +242,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
     if (!plantilla_seleccionada) return;
 
     const codigos_etiquetas = extraerEtiquetasDelContenido(plantilla_seleccionada.contenido);
-    
+
     const valores: ValorEtiqueta[] = codigos_etiquetas.map(codigo => {
       const etiqueta_encontrada = etiquetas_personalizadas.find(e => e.codigo === codigo);
       return {
@@ -252,7 +257,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
 
   const obtenerValorPredeterminado = (codigo: string): string => {
     if (!paciente) return '';
-    
+
     switch (codigo) {
       case '[PACIENTE_NOMBRE]':
         return paciente.nombre;
@@ -272,8 +277,8 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
   };
 
   const actualizarValorEtiqueta = (codigo: string, valor: string) => {
-    setValoresEtiquetas(prev => 
-      prev.map(etiqueta => 
+    setValoresEtiquetas(prev =>
+      prev.map(etiqueta =>
         etiqueta.codigo === codigo ? { ...etiqueta, valor } : etiqueta
       )
     );
@@ -422,7 +427,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
       if (validarArchivo(archivo)) {
         const nombre_sin_ext = obtenerNombreSinExtension(archivo.name);
         const ext = obtenerExtension(archivo.name);
-        
+
         setFormulario({
           ...formulario,
           archivo,
@@ -447,7 +452,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
 
     const nombre_completo = formulario.nombre_sin_extension.trim() + formulario.extension;
     const validacion = validarNombreArchivo(nombre_completo);
-    
+
     if (!validacion.valido) {
       toast({
         title: 'Error',
@@ -462,7 +467,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
       const lector = new FileReader();
       lector.onload = async () => {
         const base64 = (lector.result as string).split(',')[1];
-        
+
         await archivosApi.subir({
           nombre_archivo: nombre_completo,
           tipo_mime: formulario.archivo!.type,
@@ -486,7 +491,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
         });
         cargarArchivos();
       };
-      
+
       lector.onerror = () => {
         toast({
           title: 'Error',
@@ -494,7 +499,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
           variant: 'destructive',
         });
       };
-      
+
       lector.readAsDataURL(formulario.archivo);
     } catch (error: any) {
       console.error('Error al subir archivo:', error);
@@ -511,7 +516,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
   const abrirDialogoEditar = (archivo: ArchivoAdjunto) => {
     const nombre_sin_ext = obtenerNombreSinExtension(archivo.nombre_archivo);
     const ext = obtenerExtension(archivo.nombre_archivo);
-    
+
     setArchivoSeleccionado(archivo);
     setFormularioEditar({
       nombre_sin_extension: nombre_sin_ext,
@@ -526,7 +531,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
 
     const nombre_completo = formulario_editar.nombre_sin_extension.trim() + formulario_editar.extension;
     const validacion = validarNombreArchivo(nombre_completo);
-    
+
     if (!validacion.valido) {
       toast({
         title: 'Error',
@@ -901,7 +906,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
               ¿Estás seguro de que deseas eliminar este archivo?
             </DialogDescription>
           </DialogHeader>
-    
+
           {archivo_a_eliminar && (
             <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
               <div className="flex items-center gap-2">
@@ -960,7 +965,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
       )}
 
       <Dialog open={dialogo_consentimiento_abierto} onOpenChange={setDialogoConsentimientoAbierto}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Generar Consentimiento Informado</DialogTitle>
             <DialogDescription>
@@ -968,43 +973,42 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 pr-4 overflow-y-auto">
-            <div className="space-y-6 py-4">
-              {!plantilla_seleccionada ? (
-                <div className="space-y-4">
-                  <Label>Seleccionar plantilla</Label>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <Input
-                      placeholder="Buscar por nombre..."
-                      value={filtro_plantillas}
-                      onChange={(e) => setFiltroPlantillas(e.target.value)}
-                    />
-                    <MultiSelect
-                      opciones={etiquetasUsadasEnPlantillas()}
-                      valores={filtro_etiquetas}
-                      onChange={setFiltroEtiquetas}
-                      placeholder="Filtrar por etiquetas (opcional)"
-                      textoVacio="Sin etiquetas"
-                    />
-                  </div>
-                  {plantillas.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground border rounded-lg">
-                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No hay plantillas disponibles</p>
-                      <p className="text-sm">Crea una plantilla primero en la sección de Inicio</p>
-                    </div>
-                  ) : (
-                    <div className="grid gap-3">
-                      {plantillas
-                        .filter((p) => {
-                          const termino = filtro_plantillas.trim().toLowerCase();
-                          const coincideNombre = termino ? p.nombre.toLowerCase().includes(termino) : true;
-                          if (filtro_etiquetas.length === 0) return coincideNombre;
-                          const codigos = extraerEtiquetasDelContenido(p.contenido);
-                          const coincideEtiquetas = filtro_etiquetas.every((sel) => codigos.includes(sel));
-                          return coincideNombre && coincideEtiquetas;
-                        })
-                        .map((plantilla) => (
+          {!plantilla_seleccionada ? (
+            <div className="space-y-4">
+              <Label>Seleccionar plantilla</Label>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input
+                  placeholder="Buscar por nombre..."
+                  value={filtro_plantillas}
+                  onChange={(e) => setFiltroPlantillas(e.target.value)}
+                />
+                <MultiSelect
+                  opciones={etiquetasUsadasEnPlantillas()}
+                  valores={filtro_etiquetas}
+                  onChange={setFiltroEtiquetas}
+                  placeholder="Filtrar por etiquetas (opcional)"
+                  textoVacio="Sin etiquetas"
+                />
+              </div>
+              {plantillas.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                  <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>No hay plantillas disponibles</p>
+                  <p className="text-sm">Crea una plantilla primero en la sección de Inicio</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[calc(90vh-320px)] border rounded-lg p-2">
+                  <div className="grid gap-3">
+                    {plantillas
+                      .filter((p) => {
+                        const termino = filtro_plantillas.trim().toLowerCase();
+                        const coincideNombre = termino ? p.nombre.toLowerCase().includes(termino) : true;
+                        if (filtro_etiquetas.length === 0) return coincideNombre;
+                        const codigos = extraerEtiquetasDelContenido(p.contenido);
+                        const coincideEtiquetas = filtro_etiquetas.every((sel) => codigos.includes(sel));
+                        return coincideNombre && coincideEtiquetas;
+                      })
+                      .map((plantilla) => (
                         <Button
                           key={plantilla.id}
                           variant="outline"
@@ -1019,81 +1023,163 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
                           </div>
                         </Button>
                       ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+              <div className="flex items-center justify-between px-4 pb-3 border-b">
+                <Label className="text-base font-semibold">
+                  Plantilla: {plantilla_seleccionada.nombre}
+                </Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setPlantillaSeleccionada(null);
+                    setValoresEtiquetas([]);
+                    setVistaPrevia(false);
+                  }}
+                >
+                  Cambiar plantilla
+                </Button>
+              </div>
+
+              <ScrollArea className="h-[calc(90vh-280px)] pr-4">
+                <div className="space-y-6 py-4">
+                  {valores_etiquetas.length > 0 && (
+                    <div className="space-y-3">
+                      <Label>Completar información</Label>
+
+                      {/* Switch para selector de color de etiquetas */}
+                      <div className="flex items-center justify-between gap-3 p-3 bg-muted/30 rounded-lg border">
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="usar-selector-color"
+                            checked={usar_selector_color_etiquetas}
+                            onCheckedChange={(checked) => {
+                              setUsarSelectorColorEtiquetas(checked);
+                              if (!checked) {
+                                setColorEtiquetasTemporal('#dbeafe');
+                              }
+                            }}
+                          />
+                          <Label htmlFor="usar-selector-color" className="cursor-pointer text-sm">
+                            Cambiar color Etiqueta
+                          </Label>
+                        </div>
+                        {usar_selector_color_etiquetas && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <div
+                                  className="w-4 h-4 rounded border mr-2"
+                                  style={{ backgroundColor: color_etiquetas_temporal }}
+                                />
+                                Seleccionar Color
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 p-3">
+                              <div className="space-y-3">
+                                <HexColorPicker
+                                  color={color_etiquetas_temporal}
+                                  onChange={setColorEtiquetasTemporal}
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full"
+                                  onClick={() => setColorEtiquetasTemporal('transparent')}
+                                >
+                                  Transparente (quitar caja)
+                                </Button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </div>
+
+                      {/* Inputs de etiquetas */}
+                      <div className="grid gap-4">
+                        {valores_etiquetas.map((etiqueta) => (
+                          <div key={etiqueta.codigo} className="space-y-2">
+                            <Label htmlFor={etiqueta.codigo}>
+                              {etiqueta.nombre}
+                              <span className="text-xs text-muted-foreground ml-2">
+                                ({etiqueta.codigo})
+                              </span>
+                            </Label>
+                            <Input
+                              id={etiqueta.codigo}
+                              value={etiqueta.valor}
+                              onChange={(e) => actualizarValorEtiqueta(etiqueta.codigo, e.target.value)}
+                              placeholder={`Ingrese ${etiqueta.nombre.toLowerCase()}`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-center py-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVistaPrevia(!vista_previa)}
+                    >
+                      {vista_previa ? 'Ocultar vista previa' : 'Mostrar vista previa'}
+                    </Button>
+                  </div>
+
+                  {vista_previa && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="bg-muted px-3 py-2">
+                        <Label className="text-sm font-medium">Vista previa del documento</Label>
+                      </div>
+                      <div className="p-4">
+                        <RenderizadorHtml
+                          contenido={plantilla_seleccionada.contenido}
+                          modoPlantilla={true}
+                          valoresEtiquetas={valores_etiquetas.map(v => {
+                            // Determinar color de la etiqueta
+                            let color: string | undefined;
+                            let mostrar_caja: boolean;
+
+                            if (usar_selector_color_etiquetas) {
+                              // Usar selector de color temporal
+                              color = color_etiquetas_temporal === 'transparent' ? undefined : color_etiquetas_temporal;
+                              mostrar_caja = color_etiquetas_temporal !== 'transparent';
+                            } else {
+                              // Sin selector, usa color por defecto
+                              color = '#dbeafe';
+                              mostrar_caja = true;
+                            }
+
+                            return {
+                              codigo: v.codigo,
+                              valor: v.valor,
+                              color: color,
+                              mostrar_caja: mostrar_caja
+                            };
+                          })}
+                          modoDocumento={true}
+                          modoInteractivo={false}
+                          escala={0.8}
+                          altura="600px"
+                          ajustarAncho
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
-              ) : (
-                <>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-base font-semibold">
-                        Plantilla: {plantilla_seleccionada.nombre}
-                      </Label>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setPlantillaSeleccionada(null);
-                          setValoresEtiquetas([]);
-                          setVistaPrevia(false);
-                        }}
-                      >
-                        Cambiar plantilla
-                      </Button>
-                    </div>
-
-                    {valores_etiquetas.length > 0 && (
-                      <div className="space-y-3">
-                        <Label>Completar información</Label>
-                        <div className="grid gap-4">
-                          {valores_etiquetas.map((etiqueta) => (
-                            <div key={etiqueta.codigo} className="space-y-2">
-                              <Label htmlFor={etiqueta.codigo}>
-                                {etiqueta.nombre}
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  ({etiqueta.codigo})
-                                </span>
-                              </Label>
-                              <Input
-                                id={etiqueta.codigo}
-                                value={etiqueta.valor}
-                                onChange={(e) => actualizarValorEtiqueta(etiqueta.codigo, e.target.value)}
-                                placeholder={`Ingrese ${etiqueta.nombre.toLowerCase()}`}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label>Vista previa</Label>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setVistaPrevia(!vista_previa)}
-                        >
-                          {vista_previa ? 'Ocultar' : 'Mostrar'} vista previa
-                        </Button>
-                      </div>
-                      
-                      {vista_previa && (
-                        <div className="border rounded-lg p-4 bg-white">
-                          <div style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '12px', lineHeight: '1.6' }}>
-                            <RenderizadorHtml contenido={procesarContenidoConValores()} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
+              </ScrollArea>
             </div>
-          </ScrollArea>
+          )}
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setDialogoConsentimientoAbierto(false);
                 setPlantillaSeleccionada(null);
@@ -1104,8 +1190,8 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
               Cancelar
             </Button>
             {plantilla_seleccionada && (
-              <Button 
-                onClick={generarYGuardarConsentimiento} 
+              <Button
+                onClick={generarYGuardarConsentimiento}
                 disabled={generando || valores_etiquetas.some(e => !e.valor.trim())}
               >
                 {generando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
