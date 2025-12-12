@@ -333,16 +333,6 @@ export function RenderizadorHtml({
             >
               <ZoomIn className="h-4 w-4" />
             </Button>
-            <div className="h-4 w-px bg-border mx-2" />
-            <Button
-              variant={mostrarMargenes ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setMostrarMargenes(!mostrarMargenes)}
-              title={mostrarMargenes ? "Ocultar Márgenes" : "Mostrar Márgenes"}
-            >
-              {mostrarMargenes ? <EyeOff className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
-              <span className="text-xs hidden sm:inline">Márgenes</span>
-            </Button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -375,6 +365,18 @@ export function RenderizadorHtml({
               onClick={() => irAPagina(paginaActual + 1)}
             >
               <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant={mostrarMargenes ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setMostrarMargenes(!mostrarMargenes)}
+              title={mostrarMargenes ? "Ocultar Márgenes" : "Mostrar Márgenes"}
+            >
+              {mostrarMargenes ? <EyeOff className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
+              <span className="text-xs hidden sm:inline">Márgenes</span>
             </Button>
           </div>
         </div>
