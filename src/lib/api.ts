@@ -875,3 +875,17 @@ export const consentimientosApi = {
     return respuesta.data;
   },
 };
+
+export const pdfApi = {
+  generarDesdeHtml: async (datos: {
+    contenido_html: string;
+    config: {
+      widthMm: number;
+      heightMm: number;
+      margenes: { top: number; right: number; bottom: number; left: number };
+    };
+  }): Promise<string> => {
+    const respuesta = await api.post('/pdf/generar-desde-html', datos);
+    return respuesta.data.pdf_base64;
+  },
+};

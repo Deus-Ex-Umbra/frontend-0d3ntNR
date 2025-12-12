@@ -11,8 +11,7 @@ import { plantillasRecetasApi, archivosApi, catalogoApi } from '@/lib/api';
 import { PlantillaReceta, ItemCatalogo } from '@/tipos';
 import { useToast } from '@/hooks/use-toast';
 import { FileText, Loader2, Pill, Settings, Sparkles, X, ArrowLeft, Search, Eye, EyeOff } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { generarPdfDesdeHtml, ConfiguracionPdf, TAMANOS_PAPEL, MARGENES_DEFECTO } from '@/lib/pdf-utils';
 
 interface EditorRecetasProps {
   paciente_id: number;
@@ -52,25 +51,25 @@ const aplicarLimiteMargenes = (cfg: DocumentoConfig): DocumentoConfig => {
 
 export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos, onRecetaGenerada }: EditorRecetasProps) {
   const { toast } = useToast();
-  
+
   // Estados principales
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [fase, setFase] = useState<'seleccion' | 'creacion' | 'edicion'>('seleccion');
-  
+
   // Datos
   const [plantillas, setPlantillas] = useState<PlantillaReceta[]>([]);
   const [plantillasFiltradas, setPlantillasFiltradas] = useState<PlantillaReceta[]>([]);
   const [medicamentos, setMedicamentos] = useState<ItemCatalogo[]>([]);
-  
+
   // Selección
   const [filtro, setFiltro] = useState('');
   const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<PlantillaReceta | null>(null);
-  
+
   // Creación
   const [valoresMedicamentos, setValoresMedicamentos] = useState<ValorMedicamento[]>([]);
   const [medicamentoParaAgregar, setMedicamentoParaAgregar] = useState<string>('');
   const [vistaPrevia, setVistaPrevia] = useState(false);
-  
+
   // Edición
   const [contenidoEditado, setContenidoEditado] = useState('');
   const [configuracionDocumento, setConfiguracionDocumento] = useState<DocumentoConfig>(() => aplicarLimiteMargenes({
@@ -137,24 +136,24 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
   const procesarContenido = useCallback((): string => {
     if (!plantillaSeleccionada) return '';
     const html = plantillaSeleccionada.contenido;
-    
+
     // Procesamiento simple con regex para reemplazar etiquetas
     const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]{}\\]/g, '\\$&');
     let contenido = html;
-    
+
     valoresMedicamentos.forEach(({ codigo, nombre, indicaciones }) => {
       const texto = indicaciones.trim() ? `${nombre}: ${indicaciones}` : nombre;
       const escapedCodigo = escapeRegExp(codigo);
-      
+
       // Reemplazar spans con data-etiqueta
       const tagRegex = new RegExp(`<span[^>]*data-etiqueta="${escapedCodigo}"[^>]*>([\\s\\S]*?)<\\/span>`, 'g');
       contenido = contenido.replace(tagRegex, () => `<span>${texto}</span>`);
-      
+
       // Reemplazar texto plano del código
       const simpleRegex = new RegExp(escapedCodigo, 'g');
       contenido = contenido.replace(simpleRegex, texto);
     });
-    
+
     // Limpiar etiquetas restantes no encontradas
     contenido = contenido.replace(/data-etiqueta="[^"]*"/g, '');
     return contenido;
@@ -233,77 +232,21 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     if (!plantillaSeleccionada) return;
     setCargando(true);
     try {
-      const contenedor = document.createElement('div');
-      
       // Configuración de dimensiones y márgenes
       const cfgAjustado = aplicarLimiteMargenes(config || {
         widthMm: 216,
         heightMm: 279,
         margenes: { top: 20, right: 20, bottom: 20, left: 20 },
       });
-      const widthMm = cfgAjustado.widthMm || 216; // Carta por defecto
-      const heightMm = cfgAjustado.heightMm || 279;
-      const margenes = cfgAjustado.margenes;
-      
-      // Convertir mm a px (aprox 3.78 px por mm)
-      const mmToPx = 3.78;
-      const widthPx = widthMm * mmToPx;
-      
-      contenedor.style.cssText = `
-        position: fixed; 
-        left: -9999px; 
-        top: 0; 
-        width: ${widthPx}px; 
-        background: white; 
-        padding: ${margenes.top}mm ${margenes.right}mm ${margenes.bottom}mm ${margenes.left}mm; 
-        font-family: "Times New Roman", Times, serif;
-        box-sizing: border-box;
-        z-index: -1000;
-      `;
-      
-      contenedor.innerHTML = contenidoHtml;
-      document.body.appendChild(contenedor);
 
-      // Esperar un momento para asegurar renderizado
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Usar la utilidad centralizada que aplica los mismos estilos que RenderizadorHtml
+      const configPdf: ConfiguracionPdf = {
+        widthMm: cfgAjustado.widthMm || TAMANOS_PAPEL.carta.widthMm,
+        heightMm: cfgAjustado.heightMm || TAMANOS_PAPEL.carta.heightMm,
+        margenes: cfgAjustado.margenes,
+      };
 
-      const canvas = await html2canvas(contenedor, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: widthPx,
-      });
-
-      document.body.removeChild(contenedor);
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ 
-        orientation: widthMm > heightMm ? 'landscape' : 'portrait', 
-        unit: 'mm', 
-        format: [widthMm, heightMm] 
-      });
-      
-      const imgWidth = widthMm;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      let alturaRestante = imgHeight;
-      let posicion = 0;
-      
-      // Primera página
-      pdf.addImage(imgData, 'PNG', 0, posicion, imgWidth, imgHeight);
-      alturaRestante -= heightMm;
-      posicion -= heightMm;
-      
-      // Páginas adicionales si es necesario
-      while (alturaRestante > 0) {
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, posicion, imgWidth, imgHeight);
-        alturaRestante -= heightMm;
-        posicion -= heightMm;
-      }
-
-      const base64 = pdf.output('dataurlstring').split(',')[1];
+      const base64 = await generarPdfDesdeHtml(contenidoHtml, configPdf);
       const nombre_archivo = generarNombreArchivo();
 
       await archivosApi.subir({
@@ -332,10 +275,10 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
 
   return (
     <>
-      <Button 
-        onClick={() => setDialogoAbierto(true)} 
-        variant="outline" 
-        size="sm" 
+      <Button
+        onClick={() => setDialogoAbierto(true)}
+        variant="outline"
+        size="sm"
         className="hover:scale-105 transition-all duration-200"
       >
         <Pill className="h-4 w-4 mr-2" />
@@ -344,9 +287,8 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
 
       <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
         <DialogContent
-          className={`max-w-5xl max-h-[90vh] overflow-hidden flex flex-col ${
-            fase === 'edicion' || (fase === 'creacion' && vistaPrevia) ? 'h-[90vh]' : ''
-          }`}
+          className={`max-w-5xl max-h-[90vh] overflow-hidden flex flex-col ${fase === 'edicion' || (fase === 'creacion' && vistaPrevia) ? 'h-[90vh]' : ''
+            }`}
         >
           <DialogHeader>
             <DialogTitle>
@@ -366,10 +308,10 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
               <div className="flex flex-col gap-4">
                 <div className="relative">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Buscar plantilla por nombre..." 
-                    value={filtro} 
-                    onChange={(e) => setFiltro(e.target.value)} 
+                  <Input
+                    placeholder="Buscar plantilla por nombre..."
+                    value={filtro}
+                    onChange={(e) => setFiltro(e.target.value)}
                     className="pl-8"
                   />
                 </div>
@@ -405,9 +347,8 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
 
             {fase === 'creacion' && plantillaSeleccionada && (
               <div
-                className={`flex flex-col overflow-hidden min-h-0 ${
-                  vistaPrevia ? 'max-h-[70vh]' : ''
-                }`}
+                className={`flex flex-col overflow-hidden min-h-0 ${vistaPrevia ? 'max-h-[70vh]' : ''
+                  }`}
               >
                 <ScrollArea className="flex-1 pr-3 h-full min-h-0">
                   <div className="space-y-4 p-1">
@@ -443,9 +384,9 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
                     <div className="space-y-2 pt-4">
                       <div className="flex items-center justify-between">
                         <Label>Vista Previa</Label>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => setVistaPrevia(!vistaPrevia)}
                           className="h-8 gap-2"
                         >
@@ -453,7 +394,7 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
                           {vistaPrevia ? 'Ocultar' : 'Mostrar'}
                         </Button>
                       </div>
-                      
+
                       {vistaPrevia && (
                         <div className="border rounded-lg p-4 bg-white shadow-sm min-h-[200px]">
                           <RenderizadorHtml contenido={contenidoProcesado} modoDocumento />
@@ -467,13 +408,13 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
                   <Button variant="outline" onClick={() => setDialogoAbierto(false)}>
                     Cancelar
                   </Button>
-                  <Button 
-                    variant="secondary" 
+                  <Button
+                    variant="secondary"
                     onClick={irAEdicion}
                   >
                     <Settings className="h-4 w-4 mr-2" /> Editar y Generar
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => generarPdf(contenidoProcesado)}
                     disabled={cargando}
                   >

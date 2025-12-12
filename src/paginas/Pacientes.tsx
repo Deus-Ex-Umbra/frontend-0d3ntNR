@@ -10,11 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs'
 import { Badge } from '@/componentes/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
-import { Users, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, UserCircle, MessageCircle, Palette, Calendar, FileText } from 'lucide-react';
-import { pacientesApi, catalogoApi, historiasClinicasApi } from '@/lib/api';
+import { Users, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, UserCircle, MessageCircle, Palette, Calendar, FileText, Download } from 'lucide-react';
+import { generarPdfDesdeHtml, TAMANOS_PAPEL, MARGENES_DEFECTO } from '@/lib/pdf-utils';
+import { pacientesApi, catalogoApi, historiasClinicasApi, archivosApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { SelectConAgregar } from '@/componentes/ui/select-with-add';
+import { Combobox } from '@/componentes/ui/combobox';
 import { GestorArchivos } from '@/componentes/archivos/gestor-archivos';
 import { PhoneInput, formatearTelefonoCompleto, separarTelefono } from '@/componentes/ui/phone-input';
 import { EditorDocumento, type DocumentoConfig } from '@/componentes/ui/editor-documento';
@@ -1072,8 +1074,8 @@ export default function Pacientes() {
                           key={color.id}
                           type="button"
                           className={`group relative w-12 h-12 rounded-lg border-2 transition-all hover:scale-110 ${formulario.color_categoria === color.color
-                              ? 'border-foreground scale-110 shadow-lg'
-                              : 'border-transparent hover:border-border'
+                            ? 'border-foreground scale-110 shadow-lg'
+                            : 'border-transparent hover:border-border'
                             }`}
                           style={{ backgroundColor: color.color! }}
                           onClick={() => setFormulario({ ...formulario, color_categoria: color.color! })}
@@ -1263,17 +1265,16 @@ export default function Pacientes() {
                           <div className="grid md:grid-cols-3 gap-3">
                             <div className="space-y-1">
                               <Label className="text-sm">Seleccionar versión</Label>
-                              <select
-                                className="w-full border rounded-md h-10 bg-background"
-                                value={version_visualizada?.id ?? ''}
-                                onChange={(e) => seleccionarVersionHistoria(Number(e.target.value))}
-                              >
-                                {versiones_historia.map((v) => (
-                                  <option key={v.id} value={v.id}>
-                                    Versión {v.numero_version}: {v.nombre || 'Sin nombre'}{v.id === version_activa?.id ? ' (actual)' : ''}
-                                  </option>
-                                ))}
-                              </select>
+                              <Combobox
+                                opciones={versiones_historia.map((v) => ({
+                                  valor: v.id.toString(),
+                                  etiqueta: `Versión ${v.numero_version}: ${v.nombre || 'Sin nombre'}${v.id === version_activa?.id ? ' (actual)' : ''}`
+                                }))}
+                                valor={version_visualizada?.id?.toString() ?? ''}
+                                onChange={(valor) => seleccionarVersionHistoria(Number(valor))}
+                                placeholder="Seleccionar versión"
+                                textoVacio="No hay versiones disponibles"
+                              />
                               {version_visualizada && (
                                 <p className="text-xs text-muted-foreground">
                                   {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
@@ -1577,384 +1578,423 @@ export default function Pacientes() {
 
           <div className="flex-1 overflow-y-auto pr-2">
             {paciente_seleccionado && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-4 p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors duration-200">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
-                  {paciente_seleccionado.nombre.charAt(0)}{paciente_seleccionado.apellidos.charAt(0)}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-foreground">
-                    {paciente_seleccionado.nombre} {paciente_seleccionado.apellidos}
-                  </h3>
-                  {paciente_seleccionado.color_categoria && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: paciente_seleccionado.color_categoria }}
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        {obtenerColorPorId(paciente_seleccionado.color_categoria)?.nombre || 'Color de categoría'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <Tabs defaultValue="contacto" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="contacto">Contacto</TabsTrigger>
-                  <TabsTrigger value="medico">Información Médica</TabsTrigger>
-                  <TabsTrigger value="archivos">Archivos</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="contacto" className="space-y-4 mt-4">
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-muted-foreground">Teléfono</Label>
-                      {paciente_seleccionado.telefono ? (
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-foreground font-medium">
-                            {paciente_seleccionado.telefono}
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => prepararWhatsApp(
-                              paciente_seleccionado.telefono!,
-                              paciente_seleccionado.nombre,
-                              paciente_seleccionado.apellidos
-                            )}
-                            className="hover:bg-green-500/20 hover:text-green-500 hover:border-green-500 transition-all duration-200"
-                          >
-                            <MessageCircle className="h-4 w-4 mr-2" />
-                            WhatsApp
-                          </Button>
-                        </div>
-                      ) : (
-                        <p className="text-foreground font-medium">No registrado</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Correo</Label>
-                      <p className="text-foreground font-medium">
-                        {paciente_seleccionado.correo || 'No registrado'}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Dirección</Label>
-                      <p className="text-foreground font-medium">
-                        {paciente_seleccionado.direccion || 'No registrada'}
-                      </p>
-                    </div>
-                    {paciente_seleccionado.notas_generales && (
-                      <div>
-                        <Label className="text-muted-foreground">Notas Generales</Label>
-                        <div className="mt-2 p-3 rounded-lg bg-secondary/30 border border-border">
-                          <RenderizadorHtml
-                            contenido={paciente_seleccionado.notas_generales}
-                          />
-                        </div>
+              <div className="space-y-6">
+                <div className="flex items-center gap-4 p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors duration-200">
+                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
+                    {paciente_seleccionado.nombre.charAt(0)}{paciente_seleccionado.apellidos.charAt(0)}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-foreground">
+                      {paciente_seleccionado.nombre} {paciente_seleccionado.apellidos}
+                    </h3>
+                    {paciente_seleccionado.color_categoria && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: paciente_seleccionado.color_categoria }}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {obtenerColorPorId(paciente_seleccionado.color_categoria)?.nombre || 'Color de categoría'}
+                        </span>
                       </div>
                     )}
                   </div>
-                </TabsContent>
+                </div>
 
-                <TabsContent value="medico" className="space-y-4 mt-4">
-                  {cargando_info_adicional ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Tabs defaultValue="contacto" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="contacto">Contacto</TabsTrigger>
+                    <TabsTrigger value="medico">Información Médica</TabsTrigger>
+                    <TabsTrigger value="archivos">Archivos</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="contacto" className="space-y-4 mt-4">
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-muted-foreground">Teléfono</Label>
+                        {paciente_seleccionado.telefono ? (
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-foreground font-medium">
+                              {paciente_seleccionado.telefono}
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => prepararWhatsApp(
+                                paciente_seleccionado.telefono!,
+                                paciente_seleccionado.nombre,
+                                paciente_seleccionado.apellidos
+                              )}
+                              className="hover:bg-green-500/20 hover:text-green-500 hover:border-green-500 transition-all duration-200"
+                            >
+                              <MessageCircle className="h-4 w-4 mr-2" />
+                              WhatsApp
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="text-foreground font-medium">No registrado</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">Correo</Label>
+                        <p className="text-foreground font-medium">
+                          {paciente_seleccionado.correo || 'No registrado'}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">Dirección</Label>
+                        <p className="text-foreground font-medium">
+                          {paciente_seleccionado.direccion || 'No registrada'}
+                        </p>
+                      </div>
+                      {paciente_seleccionado.notas_generales && (
+                        <div>
+                          <Label className="text-muted-foreground">Notas Generales</Label>
+                          <div className="mt-2 p-3 rounded-lg bg-secondary/30 border border-border">
+                            <RenderizadorHtml
+                              contenido={paciente_seleccionado.notas_generales}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-3">
-                        <Card className="border">
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-primary" />
-                              Última Cita
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pb-3">
-                            {ultima_cita ? (
-                              <div className="space-y-2">
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Fecha</Label>
-                                  <p className="text-xs font-medium">
-                                    {new Date(ultima_cita.fecha).toLocaleDateString('es-ES', {
-                                      day: '2-digit',
-                                      month: 'short',
-                                      year: 'numeric',
-                                    })}
-                                  </p>
-                                </div>
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Estado</Label>
-                                  <div className="mt-1">
-                                    <Badge
-                                      variant={
-                                        ultima_cita.estado_pago === 'pagado' ? 'default' :
-                                          ultima_cita.estado_pago === 'pendiente' ? 'secondary' :
-                                            'destructive'
-                                      }
-                                      className="text-xs"
-                                    >
-                                      {ultima_cita.estado_pago === 'pagado' ? 'Pagado' :
-                                        ultima_cita.estado_pago === 'pendiente' ? 'Pendiente' :
-                                          'Cancelado'}
-                                    </Badge>
-                                  </div>
-                                </div>
-                                {ultima_cita.monto_esperado && (
+                  </TabsContent>
+
+                  <TabsContent value="medico" className="space-y-4 mt-4">
+                    {cargando_info_adicional ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                          <Card className="border">
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-sm flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-primary" />
+                                Última Cita
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pb-3">
+                              {ultima_cita ? (
+                                <div className="space-y-2">
                                   <div>
-                                    <Label className="text-xs text-muted-foreground">Monto</Label>
-                                    <p className="text-xs font-semibold">
-                                      Bs. {Number(ultima_cita.monto_esperado).toFixed(2)}
+                                    <Label className="text-xs text-muted-foreground">Fecha</Label>
+                                    <p className="text-xs font-medium">
+                                      {new Date(ultima_cita.fecha).toLocaleDateString('es-ES', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric',
+                                      })}
                                     </p>
                                   </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="text-center py-4">
-                                <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
-                                <p className="text-xs text-muted-foreground">
-                                  Sin citas
-                                </p>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                        <Card className="border">
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-primary" />
-                              Último Tratamiento
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pb-3">
-                            {ultimo_tratamiento ? (
-                              <div className="space-y-2">
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Tratamiento</Label>
-                                  <p className="text-xs font-semibold">{ultimo_tratamiento.tratamiento.nombre}</p>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Estado</Label>
+                                    <div className="mt-1">
+                                      <Badge
+                                        variant={
+                                          ultima_cita.estado_pago === 'pagado' ? 'default' :
+                                            ultima_cita.estado_pago === 'pendiente' ? 'secondary' :
+                                              'destructive'
+                                        }
+                                        className="text-xs"
+                                      >
+                                        {ultima_cita.estado_pago === 'pagado' ? 'Pagado' :
+                                          ultima_cita.estado_pago === 'pendiente' ? 'Pendiente' :
+                                            'Cancelado'}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  {ultima_cita.monto_esperado && (
+                                    <div>
+                                      <Label className="text-xs text-muted-foreground">Monto</Label>
+                                      <p className="text-xs font-semibold">
+                                        Bs. {Number(ultima_cita.monto_esperado).toFixed(2)}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Estado</Label>
-                                  <div className="mt-1">
-                                    <Badge
-                                      variant={
-                                        ultimo_tratamiento.estado === 'completado' ? 'default' :
-                                          ultimo_tratamiento.estado === 'en_progreso' ? 'secondary' :
-                                            'outline'
-                                      }
-                                      className="text-xs"
-                                    >
-                                      {ultimo_tratamiento.estado === 'completado' ? 'Completado' :
-                                        ultimo_tratamiento.estado === 'en_progreso' ? 'En Progreso' :
-                                          ultimo_tratamiento.estado}
-                                    </Badge>
+                              ) : (
+                                <div className="text-center py-4">
+                                  <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
+                                  <p className="text-xs text-muted-foreground">
+                                    Sin citas
+                                  </p>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                          <Card className="border">
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-sm flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-primary" />
+                                Último Tratamiento
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pb-3">
+                              {ultimo_tratamiento ? (
+                                <div className="space-y-2">
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Tratamiento</Label>
+                                    <p className="text-xs font-semibold">{ultimo_tratamiento.tratamiento.nombre}</p>
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Estado</Label>
+                                    <div className="mt-1">
+                                      <Badge
+                                        variant={
+                                          ultimo_tratamiento.estado === 'completado' ? 'default' :
+                                            ultimo_tratamiento.estado === 'en_progreso' ? 'secondary' :
+                                              'outline'
+                                        }
+                                        className="text-xs"
+                                      >
+                                        {ultimo_tratamiento.estado === 'completado' ? 'Completado' :
+                                          ultimo_tratamiento.estado === 'en_progreso' ? 'En Progreso' :
+                                            ultimo_tratamiento.estado}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Costo</Label>
+                                    <p className="text-xs font-semibold">
+                                      Bs. {Number(ultimo_tratamiento.costo_total).toFixed(2)}
+                                    </p>
                                   </div>
                                 </div>
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Costo</Label>
-                                  <p className="text-xs font-semibold">
-                                    Bs. {Number(ultimo_tratamiento.costo_total).toFixed(2)}
+                              ) : (
+                                <div className="text-center py-4">
+                                  <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
+                                  <p className="text-xs text-muted-foreground">
+                                    Sin tratamientos
                                   </p>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </div>
+                        {paciente_seleccionado.alergias && paciente_seleccionado.alergias.length > 0 && (
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground">Alergias</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {obtenerAlergiasPorIds(paciente_seleccionado.alergias).map((alergia) => (
+                                <Badge key={alergia.id} variant="destructive">
+                                  {alergia.nombre}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {paciente_seleccionado.enfermedades && paciente_seleccionado.enfermedades.length > 0 && (
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground">Enfermedades Preexistentes</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {obtenerEnfermedadesPorIds(paciente_seleccionado.enfermedades).map((enfermedad) => (
+                                <Badge key={enfermedad.id} variant="secondary">
+                                  {enfermedad.nombre}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {paciente_seleccionado.medicamentos && paciente_seleccionado.medicamentos.length > 0 && (
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground">Medicamentos Actuales</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {obtenerMedicamentosPorIds(paciente_seleccionado.medicamentos).map((medicamento) => (
+                                <Badge key={medicamento.id}>
+                                  {medicamento.nombre}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                              <div className="space-y-1">
+                                <Label className="text-muted-foreground">Historia Clínica</Label>
+                                <p className="text-xs text-muted-foreground">Selecciona una versión para visualizarla. Solo el nombre puede modificarse aquí.</p>
+                              </div>
+                              {!version_visualizada && paciente_seleccionado && (
+                                <Button onClick={() => crearPrimeraHistoria(paciente_seleccionado.id, false)} disabled={creando_historia}>
+                                  {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                  Crear primera versión
+                                </Button>
+                              )}
+                            </div>
+
+                            {cargando_historias ? (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin" /> Cargando versiones...
+                              </div>
+                            ) : version_visualizada ? (
+                              <div className="space-y-3">
+                                <div className="grid md:grid-cols-3 gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-sm">Seleccionar versión</Label>
+                                    <Combobox
+                                      opciones={versiones_historia.map((v) => ({
+                                        valor: v.id.toString(),
+                                        etiqueta: `Versión ${v.numero_version}: ${v.nombre || 'Sin nombre'}${v.id === version_activa?.id ? ' (actual)' : ''}`
+                                      }))}
+                                      valor={version_visualizada?.id?.toString() ?? ''}
+                                      onChange={(valor) => seleccionarVersionHistoria(Number(valor))}
+                                      placeholder="Seleccionar versión"
+                                      textoVacio="No hay versiones disponibles"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
+                                    </p>
+                                  </div>
+                                  <div className="space-y-1 md:col-span-2">
+                                    <Label className="text-sm">Nombre de la versión</Label>
+                                    <Input
+                                      value={version_visualizada?.nombre || ''}
+                                      onChange={(e) => {
+                                        if (!version_visualizada) return;
+                                        const nuevoNombre = e.target.value;
+                                        setVersionVisualizada({ ...version_visualizada, nombre: nuevoNombre });
+                                        setVersionesHistoria((prev) => prev.map((v) => (v.id === version_visualizada.id ? { ...v, nombre: nuevoNombre } : v)));
+                                        setVersionActiva((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
+                                      }}
+                                      disabled={guardando_historia}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="mt-1"
+                                      onClick={async () => {
+                                        if (!paciente_seleccionado || !version_visualizada) return;
+                                        setGuardandoHistoria(true);
+                                        try {
+                                          await historiasClinicasApi.actualizar(paciente_seleccionado.id, version_visualizada.id, {
+                                            nombre: version_visualizada.nombre,
+                                            contenido_html: version_visualizada.contenido_html,
+                                            config: (version_visualizada as any)?.config,
+                                          });
+                                          await cargarHistoriasClinicas(paciente_seleccionado.id);
+                                          seleccionarVersionHistoria(version_visualizada.id);
+                                          toast({ title: 'Nombre actualizado', description: 'La versión se renombró correctamente.' });
+                                        } catch (error: any) {
+                                          toast({
+                                            title: 'Error',
+                                            description: error.response?.data?.message || 'No se pudo actualizar el nombre de la versión',
+                                            variant: 'destructive',
+                                          });
+                                        }
+                                        setGuardandoHistoria(false);
+                                      }}
+                                      disabled={guardando_historia}
+                                    >
+                                      {guardando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                      Guardar nombre
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="mt-1"
+                                      onClick={async () => {
+                                        if (!version_visualizada || !paciente_seleccionado) return;
+                                        setGuardandoHistoria(true);
+                                        try {
+                                          const config = (version_visualizada as any).config || {};
+                                          const pdfConfig = {
+                                            widthMm: config.widthMm || TAMANOS_PAPEL.carta.widthMm,
+                                            heightMm: config.heightMm || TAMANOS_PAPEL.carta.heightMm,
+                                            margenes: config.margenes || MARGENES_DEFECTO,
+                                          };
+                                          const base64 = await generarPdfDesdeHtml(version_visualizada.contenido_html || '', pdfConfig);
+
+                                          const nombre_archivo = `Historia_Clinica_${paciente_seleccionado.nombre}_${paciente_seleccionado.apellidos}_v${version_visualizada.numero_version}.pdf`;
+
+                                          // Guardar en archivos del paciente
+                                          await archivosApi.subir({
+                                            nombre_archivo,
+                                            tipo_mime: 'application/pdf',
+                                            descripcion: `Historia clínica versión ${version_visualizada.numero_version}${version_visualizada.nombre ? ': ' + version_visualizada.nombre : ''}`,
+                                            contenido_base64: base64,
+                                            paciente_id: paciente_seleccionado.id,
+                                          });
+
+                                          toast({ title: 'PDF guardado', description: 'La historia clínica se guardó en archivos del paciente.' });
+                                        } catch (error) {
+                                          console.error('Error al exportar PDF:', error);
+                                          toast({ title: 'Error', description: 'No se pudo exportar el PDF', variant: 'destructive' });
+                                        } finally {
+                                          setGuardandoHistoria(false);
+                                        }
+                                      }}
+                                      disabled={guardando_historia}
+                                    >
+                                      {guardando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                      Exportar PDF
+                                    </Button>
+                                  </div>
+                                </div>
+
+                                <div className="overflow-hidden">
+                                  <RenderizadorHtml
+                                    contenido={version_visualizada.contenido_html || ''}
+                                    modoDocumento
+                                    escala={0.7}
+                                    altura="500px"
+                                    ajustarAncho
+                                    className="max-w-full"
+                                    tamanoPersonalizado={{
+                                      widthMm: (version_visualizada as any).config?.widthMm ?? 216,
+                                      heightMm: (version_visualizada as any).config?.heightMm ?? 279,
+                                    }}
+                                    margenes={(version_visualizada as any).config?.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 }}
+                                  />
                                 </div>
                               </div>
                             ) : (
-                              <div className="text-center py-4">
-                                <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
-                                <p className="text-xs text-muted-foreground">
-                                  Sin tratamientos
-                                </p>
+                              <div className="p-3 rounded-lg bg-secondary/30 border border-dashed text-sm text-muted-foreground">
+                                Crea la primera versión para registrar la historia clínica.
                               </div>
                             )}
-                          </CardContent>
-                        </Card>
-                      </div>
-                      {paciente_seleccionado.alergias && paciente_seleccionado.alergias.length > 0 && (
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground">Alergias</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {obtenerAlergiasPorIds(paciente_seleccionado.alergias).map((alergia) => (
-                              <Badge key={alergia.id} variant="destructive">
-                                {alergia.nombre}
-                              </Badge>
-                            ))}
                           </div>
                         </div>
-                      )}
 
-                      {paciente_seleccionado.enfermedades && paciente_seleccionado.enfermedades.length > 0 && (
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground">Enfermedades Preexistentes</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {obtenerEnfermedadesPorIds(paciente_seleccionado.enfermedades).map((enfermedad) => (
-                              <Badge key={enfermedad.id} variant="secondary">
-                                {enfermedad.nombre}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {paciente_seleccionado.medicamentos && paciente_seleccionado.medicamentos.length > 0 && (
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground">Medicamentos Actuales</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {obtenerMedicamentosPorIds(paciente_seleccionado.medicamentos).map((medicamento) => (
-                              <Badge key={medicamento.id}>
-                                {medicamento.nombre}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-3">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between gap-3 flex-wrap">
-                            <div className="space-y-1">
-                              <Label className="text-muted-foreground">Historia Clínica</Label>
-                              <p className="text-xs text-muted-foreground">Selecciona una versión para visualizarla. Solo el nombre puede modificarse aquí.</p>
-                            </div>
-                            {!version_visualizada && paciente_seleccionado && (
-                              <Button onClick={() => crearPrimeraHistoria(paciente_seleccionado.id, false)} disabled={creando_historia}>
-                                {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Crear primera versión
-                              </Button>
-                            )}
-                          </div>
-
-                          {cargando_historias ? (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Loader2 className="h-4 w-4 animate-spin" /> Cargando versiones...
-                            </div>
-                          ) : version_visualizada ? (
-                            <div className="space-y-3">
-                              <div className="grid md:grid-cols-3 gap-3">
-                                <div className="space-y-1">
-                                  <Label className="text-sm">Seleccionar versión</Label>
-                                  <select
-                                    className="w-full border rounded-md h-10 bg-background"
-                                    value={version_visualizada?.id ?? ''}
-                                    onChange={(e) => seleccionarVersionHistoria(Number(e.target.value))}
-                                  >
-                                    {versiones_historia.map((v) => (
-                                      <option key={v.id} value={v.id}>
-                                        Versión {v.numero_version}: {v.nombre || 'Sin nombre'}{v.id === version_activa?.id ? ' (actual)' : ''}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <p className="text-xs text-muted-foreground">
-                                    {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
-                                  </p>
-                                </div>
-                                <div className="space-y-1 md:col-span-2">
-                                  <Label className="text-sm">Nombre de la versión</Label>
-                                  <Input
-                                    value={version_visualizada?.nombre || ''}
-                                    onChange={(e) => {
-                                      if (!version_visualizada) return;
-                                      const nuevoNombre = e.target.value;
-                                      setVersionVisualizada({ ...version_visualizada, nombre: nuevoNombre });
-                                      setVersionesHistoria((prev) => prev.map((v) => (v.id === version_visualizada.id ? { ...v, nombre: nuevoNombre } : v)));
-                                      setVersionActiva((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
-                                    }}
-                                    disabled={guardando_historia}
-                                  />
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="mt-1"
-                                    onClick={async () => {
-                                      if (!paciente_seleccionado || !version_visualizada) return;
-                                      setGuardandoHistoria(true);
-                                      try {
-                                        await historiasClinicasApi.actualizar(paciente_seleccionado.id, version_visualizada.id, {
-                                          nombre: version_visualizada.nombre,
-                                          contenido_html: version_visualizada.contenido_html,
-                                          config: (version_visualizada as any)?.config,
-                                        });
-                                        await cargarHistoriasClinicas(paciente_seleccionado.id);
-                                        seleccionarVersionHistoria(version_visualizada.id);
-                                        toast({ title: 'Nombre actualizado', description: 'La versión se renombró correctamente.' });
-                                      } catch (error: any) {
-                                        toast({
-                                          title: 'Error',
-                                          description: error.response?.data?.message || 'No se pudo actualizar el nombre de la versión',
-                                          variant: 'destructive',
-                                        });
-                                      }
-                                      setGuardandoHistoria(false);
-                                    }}
-                                    disabled={guardando_historia}
-                                  >
-                                    {guardando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Guardar nombre
-                                  </Button>
-                                </div>
+                        {(!paciente_seleccionado.alergias || paciente_seleccionado.alergias.length === 0) &&
+                          (!paciente_seleccionado.enfermedades || paciente_seleccionado.enfermedades.length === 0) &&
+                          (!paciente_seleccionado.medicamentos || paciente_seleccionado.medicamentos.length === 0) &&
+                          !paciente_seleccionado.notas_medicas &&
+                          !ultima_cita &&
+                          !ultimo_tratamiento && (
+                            <div className="text-center py-8">
+                              <div className="mx-auto w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center mb-3">
+                                <AlertCircle className="h-6 w-6 text-muted-foreground" />
                               </div>
-
-                              <div className="overflow-hidden">
-                                <RenderizadorHtml
-                                  contenido={version_visualizada.contenido_html || ''}
-                                  modoDocumento
-                                  escala={0.7}
-                                  altura="500px"
-                                  ajustarAncho
-                                  className="max-w-full"
-                                  tamanoPersonalizado={{
-                                    widthMm: (version_visualizada as any).config?.widthMm ?? 216,
-                                    heightMm: (version_visualizada as any).config?.heightMm ?? 279,
-                                  }}
-                                  margenes={(version_visualizada as any).config?.margenes ?? { top: 20, right: 20, bottom: 20, left: 20 }}
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="p-3 rounded-lg bg-secondary/30 border border-dashed text-sm text-muted-foreground">
-                              Crea la primera versión para registrar la historia clínica.
+                              <p className="text-muted-foreground">
+                                No hay información médica registrada
+                              </p>
                             </div>
                           )}
-                        </div>
                       </div>
+                    )}
+                  </TabsContent>
 
-                      {(!paciente_seleccionado.alergias || paciente_seleccionado.alergias.length === 0) &&
-                        (!paciente_seleccionado.enfermedades || paciente_seleccionado.enfermedades.length === 0) &&
-                        (!paciente_seleccionado.medicamentos || paciente_seleccionado.medicamentos.length === 0) &&
-                        !paciente_seleccionado.notas_medicas &&
-                        !ultima_cita &&
-                        !ultimo_tratamiento && (
-                          <div className="text-center py-8">
-                            <div className="mx-auto w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center mb-3">
-                              <AlertCircle className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                            <p className="text-muted-foreground">
-                              No hay información médica registrada
-                            </p>
-                          </div>
-                        )}
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="archivos" className="space-y-4 mt-4">
-                  <GestorArchivos
-                    paciente_id={paciente_seleccionado.id}
-                    paciente={{
-                      nombre: paciente_seleccionado.nombre,
-                      apellidos: paciente_seleccionado.apellidos,
-                      telefono: paciente_seleccionado.telefono,
-                      correo: paciente_seleccionado.correo,
-                      direccion: paciente_seleccionado.direccion,
-                    }}
-                    modo="paciente"
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
+                  <TabsContent value="archivos" className="space-y-4 mt-4">
+                    <GestorArchivos
+                      paciente_id={paciente_seleccionado.id}
+                      paciente={{
+                        nombre: paciente_seleccionado.nombre,
+                        apellidos: paciente_seleccionado.apellidos,
+                        telefono: paciente_seleccionado.telefono,
+                        correo: paciente_seleccionado.correo,
+                        direccion: paciente_seleccionado.direccion,
+                      }}
+                      modo="paciente"
+                    />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

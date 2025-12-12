@@ -26,8 +26,7 @@ import { ScrollArea } from '@/componentes/ui/scroll-area';
 import { MultiSelect } from '@/componentes/ui/mulit-select';
 import { EditorRecetas } from '@/componentes/pacientes/editor-recetas';
 import { HexColorPicker } from 'react-colorful';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { generarPdfDesdeHtml, TAMANOS_PAPEL, MARGENES_DEFECTO } from '@/lib/pdf-utils';
 
 interface ArchivoAdjunto {
   id: number;
@@ -289,14 +288,56 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
 
     let contenido_procesado = plantilla_seleccionada.contenido;
 
+    // Aplicar la misma lógica de colores que usa RenderizadorHtml
     valores_etiquetas.forEach(({ codigo, valor }) => {
-      const regex = new RegExp(codigo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-      contenido_procesado = contenido_procesado.replace(regex, valor);
+      // Determinar color según la configuración del selector
+      let color: string | undefined;
+      let mostrar_caja: boolean;
+
+      if (usar_selector_color_etiquetas) {
+        // Switch activado: usar el color seleccionado
+        color = color_etiquetas_temporal === 'transparent' ? undefined : color_etiquetas_temporal;
+        mostrar_caja = color_etiquetas_temporal !== 'transparent';
+      } else {
+        // Switch desactivado: usar color por defecto (celeste claro)
+        color = '#dbeafe';
+        mostrar_caja = true;
+      }
+
+      // Reemplazar spans con data-etiqueta (misma lógica que RenderizadorHtml)
+      const regexEtiqueta = new RegExp(
+        `<span[^>]*data-etiqueta="${codigo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>([^<]*)<\\/span>`,
+        'g'
+      );
+
+      contenido_procesado = contenido_procesado.replace(regexEtiqueta, (match) => {
+        const styleMatch = match.match(/style="([^"]*)"/);
+        let existingStyles = styleMatch ? styleMatch[1] : '';
+        existingStyles = existingStyles.replace(/background-color:[^;]+(;|$)/g, '');
+
+        if (mostrar_caja && color) {
+          existingStyles += `; background-color: ${color};`;
+          if (!existingStyles.includes('padding')) existingStyles += '; padding: 0 4px; border-radius: 4px;';
+        } else {
+          existingStyles = existingStyles.replace(/border:[^;]+(;|$)/g, '');
+          existingStyles = existingStyles.replace(/padding:[^;]+(;|$)/g, '');
+          existingStyles = existingStyles.replace(/border-radius:[^;]+(;|$)/g, '');
+        }
+
+        return match
+          .replace(/style="[^"]*"/, `style="${existingStyles}"`)
+          .replace(/>[^<]*<\/span>/, `>${valor}<\/span>`);
+      });
+
+      // También reemplazar texto plano del código
+      const regexSimple = new RegExp(codigo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      contenido_procesado = contenido_procesado.replace(regexSimple, valor);
     });
+
+    // Limpiar atributos que no deberían estar en el PDF
     contenido_procesado = contenido_procesado.replace(/data-etiqueta="[^"]*"/g, '');
     contenido_procesado = contenido_procesado.replace(/contenteditable="[^"]*"/g, '');
     contenido_procesado = contenido_procesado.replace(/class="[^"]*editable[^"]*"/g, '');
-    contenido_procesado = contenido_procesado.replace(/style="[^"]*border[^"]*dashed[^"]*"/g, '');
 
     return contenido_procesado;
   };
@@ -330,41 +371,12 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
     setGenerando(true);
     try {
       const contenido_procesado = procesarContenidoConValores();
-      const elemento_temporal = document.createElement('div');
-      elemento_temporal.style.cssText = 'position: absolute; left: -9999px; width: 800px; background: white; padding: 40px; font-family: "Times New Roman", Times, serif; font-size: 12px; line-height: 1.6;';
-      elemento_temporal.innerHTML = contenido_procesado;
-      document.body.appendChild(elemento_temporal);
-      const canvas = await html2canvas(elemento_temporal, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
+
+      // Usar la utilidad centralizada que aplica los mismos estilos que RenderizadorHtml
+      const pdf_base64 = await generarPdfDesdeHtml(contenido_procesado, {
+        ...TAMANOS_PAPEL.carta,
+        margenes: MARGENES_DEFECTO,
       });
-
-      document.body.removeChild(elemento_temporal);
-
-      const img_data = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-
-      const img_width = 210;
-      const img_height = (canvas.height * img_width) / canvas.width;
-      let altura_restante = img_height;
-      let posicion = 0;
-
-      while (altura_restante > 0) {
-        pdf.addImage(img_data, 'PNG', 0, posicion, img_width, img_height);
-        altura_restante -= 297;
-        posicion -= 297;
-        if (altura_restante > 0) {
-          pdf.addPage();
-        }
-      }
-
-      const pdf_base64 = pdf.output('dataurlstring').split(',')[1];
       const fecha_actual = new Date().toISOString().split('T')[0];
       const nombre_archivo = `Consentimiento_${plantilla_seleccionada.nombre}_${fecha_actual}.pdf`;
 
