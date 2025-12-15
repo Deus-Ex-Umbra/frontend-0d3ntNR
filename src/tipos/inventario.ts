@@ -87,6 +87,9 @@ export interface Producto {
   activos?: Activo[];
   inventario_id?: number;
   en_catalogo?: boolean;
+  // Propiedades adicionales para compatibilidad con UI
+  tipo_gestion?: 'consumible' | 'activo_individual' | 'activo_general';
+  lotes?: Material[];
 }
 
 export interface Material {

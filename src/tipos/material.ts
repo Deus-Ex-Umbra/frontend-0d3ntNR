@@ -50,5 +50,6 @@ export interface MaterialGeneral {
   tipo_gestion?: string;
   unidad_medida?: string;
   items: ItemMaterialGeneral[];
+  momento_confirmacion?: 'primera_cita' | 'fin_tratamiento';
 }
 

@@ -50,7 +50,7 @@ export function DateTimePicker({
   const manejarCambioHora = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nueva_hora = e.target.value
     setHora(nueva_hora)
-    
+
     if (valor && nueva_hora) {
       const [horas, minutos] = nueva_hora.split(':').map(Number)
       const fecha_actualizada = new Date(valor)
@@ -86,10 +86,12 @@ export function DateTimePicker({
             initialFocus
             locale={es}
             captionLayout="dropdown"
+            fromYear={1900}
+            toYear={2100}
           />
         </PopoverContent>
       </Popover>
-      
+
       <div className="flex items-center gap-2 min-w-[120px]">
         <Clock className="h-4 w-4 text-muted-foreground" />
         <Input

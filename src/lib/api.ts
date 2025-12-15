@@ -308,6 +308,10 @@ export const finanzasApi = {
     const respuesta = await api.get(`/finanzas/grafico?${params.toString()}`);
     return respuesta.data;
   },
+  obtenerAnalisis: async (filtros: { fecha_inicio: string; fecha_fin: string; glosa?: string; sensible_mayusculas?: boolean; nivel_precision?: 'alta' | 'equilibrio' | 'global' }) => {
+    const respuesta = await api.post('/finanzas/analisis', filtros);
+    return respuesta.data;
+  },
 };
 
 export const estadisticasApi = {
@@ -784,7 +788,12 @@ export const inventarioApi = {
     return respuesta.data;
   },
   asignarMaterialesTratamiento: async (plan_tratamiento_id: number, datos: {
-    materiales: Array<{ producto_id: number; tipo: string; cantidad_planeada: number }>;
+    materiales: Array<{
+      producto_id: number;
+      tipo: string;
+      cantidad_planeada: number;
+      momento_confirmacion?: string;
+    }>;
   }) => {
     const respuesta = await api.post(`/inventario/tratamientos/${plan_tratamiento_id}/asignar-materiales`, datos);
     return respuesta.data;

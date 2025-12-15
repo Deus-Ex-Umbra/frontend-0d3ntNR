@@ -5,6 +5,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Combobox } from '../ui/combobox';
+import { Switch } from '../ui/switch';
 import { Inventario, Producto } from '@/tipos';
 import { MaterialCita, MaterialGeneral } from '@/tipos/material';
 
@@ -21,6 +22,7 @@ interface SelectorMaterialesProps {
   onActualizarItem: (material_index: number, item_index: number, campo: string, valor: any) => void;
   texto_boton_agregar?: string;
   cargando?: boolean;
+  mostrarConfirmacion?: boolean;
 }
 
 interface MaterialesAgrupadosPorInventario {
@@ -42,8 +44,9 @@ export default function SelectorMateriales({
   onActualizarItem,
   texto_boton_agregar = 'Agregar Material',
   cargando = false,
+  mostrarConfirmacion = false,
 }: SelectorMaterialesProps) {
-  
+
   const agregarProductoAlInventario = (inventario_id: number) => {
     onAgregarMaterial();
     setTimeout(() => {
@@ -52,7 +55,7 @@ export default function SelectorMateriales({
       cargarProductos(inventario_id);
     }, 0);
   };
-  
+
   const inventarios_seleccionados = new Set(
     materiales
       .map(m => m.inventario_id)
@@ -61,13 +64,13 @@ export default function SelectorMateriales({
   const inventarios_disponibles = inventarios.filter(
     inv => !inventarios_seleccionados.has(inv.id)
   );
-  
+
   const agruparMaterialesPorInventario = (): MaterialesAgrupadosPorInventario[] => {
     const grupos: Record<number, MaterialesAgrupadosPorInventario> = {};
-    
+
     materiales.forEach((material, index) => {
       const inv_id = material.inventario_id || 0;
-      
+
       if (!grupos[inv_id]) {
         grupos[inv_id] = {
           inventario_id: inv_id,
@@ -75,17 +78,17 @@ export default function SelectorMateriales({
           materiales_indices: [],
         };
       }
-      
+
       grupos[inv_id].materiales_indices.push(index);
     });
-    
+
     return Object.values(grupos).sort((a, b) => {
       if (a.inventario_id === 0) return 1;
       if (b.inventario_id === 0) return -1;
       return a.inventario_nombre.localeCompare(b.inventario_nombre);
     });
   };
-  
+
   const obtenerProductosSeleccionados = (inventario_id: number): Set<number> => {
     return new Set(
       materiales
@@ -94,16 +97,16 @@ export default function SelectorMateriales({
         .filter(id => id && id > 0)
     );
   };
-  
+
   const obtenerItemsSeleccionados = (material_idx: number): Set<number> => {
     const material = materiales[material_idx];
     const ids = new Set<number>();
-    
+
     material.items.forEach(item => {
       if (item.lote_id) ids.add(item.lote_id);
       if (item.activo_id) ids.add(item.activo_id);
     });
-    
+
     return ids;
   };
 
@@ -125,12 +128,12 @@ export default function SelectorMateriales({
         const productos_seleccionados = obtenerProductosSeleccionados(grupo.inventario_id);
         const productos = productos_por_inventario[grupo.inventario_id] || [];
         const productos_disponibles = productos.filter(p => !productos_seleccionados.has(p.id));
-        
+
         return (
           <Card key={grupo.inventario_id} className="p-4 space-y-4 border-2 border-primary/20">
-            {}
+            { }
             <div className="space-y-3">
-              {}
+              { }
               {grupo.inventario_id === 0 && grupo.materiales_indices.length === 1 && (
                 <div className="space-y-1">
                   <Label className="text-sm font-semibold text-primary">Inventario *</Label>
@@ -164,8 +167,8 @@ export default function SelectorMateriales({
                   </div>
                 </div>
               )}
-              
-              {}
+
+              { }
               {grupo.inventario_id !== 0 && (
                 <div className="flex items-center justify-between pb-3 border-b-2 border-primary/20">
                   <div className="flex items-center gap-2">
@@ -205,7 +208,7 @@ export default function SelectorMateriales({
               )}
             </div>
 
-            {}
+            { }
             {grupo.inventario_id !== 0 && (
               <div className="space-y-3 ml-6 border-l-2 border-primary/30 pl-4">
                 {grupo.materiales_indices.map((material_idx) => {
@@ -223,7 +226,7 @@ export default function SelectorMateriales({
                               .concat(producto ? [producto] : [])
                               .map(prod => ({
                                 valor: prod.id.toString(),
-                                etiqueta: `${prod.nombre} (${prod.tipo_gestion === 'consumible' ? 'Consumible' : prod.tipo_gestion === 'activo_serializado' ? 'Serializado' : 'General'})`
+                                etiqueta: `${prod.nombre} (${prod.tipo_gestion === 'consumible' ? 'Consumible' : prod.tipo_gestion === 'activo_individual' ? 'Individual' : 'General'})`
                               }))}
                             valor={material.producto_id > 0 ? material.producto_id.toString() : undefined}
                             onChange={(valor) => onActualizarMaterial(material_idx, 'producto_id', parseInt(valor))}
@@ -241,18 +244,18 @@ export default function SelectorMateriales({
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      
+
                       {material.producto_id > 0 && producto && (
                         <div className="space-y-2 ml-6 border-l-2 border-muted-foreground/30 pl-4">
                           <Label className="text-xs font-semibold text-muted-foreground">
-                            {producto.tipo_gestion === 'consumible' ? '📦 Lotes' : 
-                             producto.tipo_gestion === 'activo_serializado' ? '🔧 Activos Serializados' : 
-                             '⚙️ Activos Generales'}
+                            {producto.tipo_gestion === 'consumible' ? '📦 Lotes' :
+                              producto.tipo_gestion === 'activo_individual' ? '🔧 Activos Individuales' :
+                                '⚙️ Activos Generales'}
                           </Label>
 
                           {material.items.map((item, item_idx) => {
                             const item_actual_id = item.lote_id || item.activo_id;
-                            
+
                             return (
                               <div key={item_idx} className="flex items-start gap-2 p-2 bg-background rounded border">
                                 {producto.tipo_gestion === 'consumible' && (
@@ -288,9 +291,9 @@ export default function SelectorMateriales({
                                   </>
                                 )}
 
-                                {producto.tipo_gestion === 'activo_serializado' && (
+                                {producto.tipo_gestion === 'activo_individual' && (
                                   <div className="flex-1 space-y-1">
-                                    <Label className="text-xs">Activo Serializado (Reserva)</Label>
+                                    <Label className="text-xs">Activo Individual (Reserva)</Label>
                                     <Combobox
                                       opciones={(producto.activos || [])
                                         .filter(a => a.estado === 'disponible')
@@ -325,7 +328,7 @@ export default function SelectorMateriales({
                                     />
                                   </div>
                                 )}
-                                
+
                                 <Button
                                   type="button"
                                   size="sm"
@@ -345,7 +348,7 @@ export default function SelectorMateriales({
                             onClick={() => onAgregarItem(material_idx)}
                             className="w-full h-8 text-xs"
                             disabled={
-                              producto.tipo_gestion === 'consumible' 
+                              producto.tipo_gestion === 'consumible'
                                 ? (producto.lotes?.filter(l => !items_seleccionados.has(l.id)).length || 0) === 0
                                 : (producto.activos?.filter(a => a.estado === 'disponible' && !items_seleccionados.has(a.id)).length || 0) === 0
                             }
@@ -353,6 +356,21 @@ export default function SelectorMateriales({
                             <Plus className="h-3 w-3 mr-1" />
                             Agregar {producto.tipo_gestion === 'consumible' ? 'Lote' : 'Activo'}
                           </Button>
+                        </div>
+                      )}
+
+                      {mostrarConfirmacion && (
+                        <div className="flex items-center space-x-2 pt-2 border-t border-border mt-2">
+                          <Switch
+                            id={`confirmacion-${material_idx}`}
+                            checked={(material as MaterialGeneral).momento_confirmacion === 'fin_tratamiento'}
+                            onCheckedChange={(checked) =>
+                              onActualizarMaterial(material_idx, 'momento_confirmacion', checked ? 'fin_tratamiento' : 'primera_cita')
+                            }
+                          />
+                          <Label htmlFor={`confirmacion-${material_idx}`} className="text-sm text-muted-foreground">
+                            Confirmar al finalizar el tratamiento (pago ≥ 100%)
+                          </Label>
                         </div>
                       )}
                     </Card>

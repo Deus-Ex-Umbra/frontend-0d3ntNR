@@ -31,7 +31,7 @@ export type {
 
 export type { Tratamiento, PlanTratamiento } from './tratamiento';
 
-export type { Movimiento, ReporteFinanzas, DatosGrafico } from './finanzas';
+export type { Movimiento, ReporteFinanzas, DatosGrafico, FiltrosAnalisis, RespuestaAnalisis } from './finanzas';
 
 export type { ItemCatalogo } from './catalogo';
 

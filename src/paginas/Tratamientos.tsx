@@ -48,6 +48,7 @@ import {
   Loader2,
   AlertCircle,
   Calendar,
+  Eye,
   DollarSign,
   Clock,
   User,
@@ -65,8 +66,14 @@ import { Combobox, OpcionCombobox } from "@/componentes/ui/combobox";
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { SearchInput } from "@/componentes/ui/search-input";
 import { ajustarFechaParaBackend } from "@/lib/utilidades";
-import { Tratamiento } from '@/tipos';
-import type { Paciente, Inventario, Producto, MaterialGeneral, MaterialCita } from '@/tipos';
+import {
+  Tratamiento,
+
+  Inventario,
+  Producto,
+  Paciente,
+} from '@/tipos';
+import { MaterialCita, MaterialGeneral } from '@/tipos/material';
 import SelectorMateriales from '@/componentes/materiales/selector-materiales';
 import WizardConsumibles from '@/componentes/materiales/wizard-consumibles';
 import WizardActivosFijos from '@/componentes/materiales/wizard-activos-fijos';
@@ -85,6 +92,11 @@ interface PlanTratamiento {
     id: number;
     nombre: string;
     numero_citas: number;
+    intervalo_dias?: number;
+    intervalo_semanas?: number;
+    intervalo_meses?: number;
+    horas_aproximadas_citas?: number;
+    minutos_aproximados_citas?: number;
   };
   fecha_inicio: Date;
   estado: string;
@@ -132,10 +144,9 @@ export default function Tratamientos() {
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
   const [productos_por_inventario, setProductosPorInventario] = useState<Record<number, Producto[]>>({});
   const [materiales_generales, setMaterialesGenerales] = useState<MaterialGeneral[]>([]);
-  const [materiales_por_cita, setMaterialesPorCita] = useState<MaterialCita[]>([]);
-  const [materiales_cita_edicion, setMaterialesCitaEdicion] = useState<MaterialCita[]>([]);
-  const [materiales_cita_edicion_iniciales, setMaterialesCitaEdicionIniciales] = useState<MaterialCita[]>([]);
+
   const [cargando_materiales, setCargandoMateriales] = useState(false);
+
   const [materiales_generales_confirmados, setMaterialesGeneralesConfirmados] = useState(false);
   const [dialogo_confirmar_materiales_tratamiento_abierto, setDialogoConfirmarMaterialesTratamientoAbierto] = useState(false);
   const [materiales_tratamiento_confirmacion, setMaterialesTratamientoConfirmacion] = useState<any[]>([]);
@@ -297,8 +308,8 @@ export default function Tratamientos() {
       formulario_cita.minutos_aproximados !== formulario_cita_inicial.minutos_aproximados;
   };
 
-  const materialesCitaCambiaron = (): boolean => {
-    return JSON.stringify(materiales_cita_edicion) !== JSON.stringify(materiales_cita_edicion_iniciales);
+  const materialesCitaCambiaron = () => {
+    return consumibles_seleccionados_cita.length > 0 || activos_seleccionados_cita.length > 0;
   };
 
   const formularioCostoCambio = (): boolean => {
@@ -394,93 +405,7 @@ export default function Tratamientos() {
     }
   };
 
-  const validarDisponibilidadMateriales = (): { valido: boolean; advertencias: string[] } => {
-    const advertencias: string[] = [];
 
-    for (const material of materiales_cita_edicion) {
-      if (material.inventario_id === 0) {
-        advertencias.push('Hay materiales sin inventario seleccionado');
-        continue;
-      }
-
-      if (material.producto_id === 0) {
-        advertencias.push('Hay materiales sin producto seleccionado');
-        continue;
-      }
-
-      const productos = productos_por_inventario[material.inventario_id] || [];
-      const producto = productos.find(p => p.id === material.producto_id);
-      if (!producto) continue;
-
-      for (const item of material.items) {
-        if (producto.tipo_gestion === 'consumible') {
-          if (!item.lote_id) {
-            advertencias.push(`${producto.nombre}: Debe seleccionar un lote para todos los items`);
-            break;
-          }
-          if (item.cantidad_planeada <= 0) {
-            advertencias.push(`${producto.nombre}: La cantidad debe ser mayor a 0 en todos los lotes`);
-            break;
-          }
-        } else if (producto.tipo_gestion === 'activo_serializado' || producto.tipo_gestion === 'activo_general') {
-          if (!item.activo_id) {
-            advertencias.push(`${producto.nombre}: Debe seleccionar un activo para todos los items`);
-            break;
-          }
-        }
-      }
-    }
-
-    return { valido: true, advertencias };
-  };
-
-  const cargarMaterialesCita = async (cita_id: number) => {
-    setCargandoMateriales(true);
-    try {
-      const respuesta = await inventarioApi.obtenerMaterialesCita(cita_id);
-      const materiales = respuesta.materiales || [];
-
-      const materiales_agrupados: Record<string, MaterialCita> = {};
-
-      for (const material of materiales) {
-        const key = `${material.inventario_id}-${material.producto_id}`;
-
-        if (!materiales_agrupados[key]) {
-          materiales_agrupados[key] = {
-            producto_id: material.producto_id,
-            inventario_id: material.inventario_id,
-            inventario_nombre: material.inventario_nombre,
-            producto_nombre: material.producto_nombre,
-            tipo_gestion: material.tipo_gestion,
-            unidad_medida: material.unidad_medida,
-            items: []
-          };
-        }
-
-        if (material.items && material.items.length > 0) {
-          materiales_agrupados[key].items = material.items.map((item: any) => ({
-            lote_id: item.lote_id,
-            activo_id: item.activo_id,
-            cantidad_planeada: item.cantidad_planeada,
-            nro_lote: item.nro_lote,
-            nro_serie: item.nro_serie,
-            nombre_asignado: item.nombre_asignado,
-          }));
-        } else {
-          materiales_agrupados[key].items.push({
-            cantidad_planeada: material.cantidad_planeada,
-          });
-        }
-      }
-
-      setMaterialesCitaEdicion(Object.values(materiales_agrupados));
-      setMaterialesCitaEdicionIniciales(JSON.parse(JSON.stringify(Object.values(materiales_agrupados))));
-    } catch (error) {
-      console.error('Error al cargar materiales de la cita:', error);
-    } finally {
-      setCargandoMateriales(false);
-    }
-  };
 
   const cargarMaterialesTratamiento = async (plan_tratamiento_id: number) => {
     setCargandoMateriales(true);
@@ -514,7 +439,7 @@ export default function Tratamientos() {
         });
       }
 
-      setMaterialesGenerales(Object.values(materiales_agrupados));
+      setMaterialesGenerales(Object.values(materiales_agrupados) as any);
     } catch (error) {
       console.error('Error al cargar materiales del tratamiento:', error);
     } finally {
@@ -593,7 +518,7 @@ export default function Tratamientos() {
       if (producto) {
         const activo = producto.activos?.find(a => a.id === parseInt(valor));
         if (activo) {
-          if (producto.tipo_gestion === 'activo_serializado') {
+          if (producto.tipo_gestion === 'activo_individual') {
             nuevos_materiales[material_index].items[item_index].nro_serie = activo.nro_serie;
           } else if (producto.tipo_gestion === 'activo_general') {
             nuevos_materiales[material_index].items[item_index].nombre_asignado = activo.nombre_asignado;
@@ -619,180 +544,7 @@ export default function Tratamientos() {
     setMaterialesGenerales(nuevos_materiales);
   };
 
-  const agregarMaterialPorCita = () => {
-    setMaterialesPorCita([...materiales_por_cita, {
-      producto_id: 0,
-      inventario_id: 0,
-      items: [{ cantidad_planeada: 1 }],
-    }]);
-  };
 
-  const actualizarMaterialPorCita = (index: number, campo: string, valor: any) => {
-    const nuevos_materiales = [...materiales_por_cita];
-    const valor_procesado = (campo === 'producto_id' || campo === 'inventario_id') ? parseInt(valor) : valor;
-    nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor_procesado };
-    if (campo === 'inventario_id') {
-      const inventario_id = parseInt(valor);
-      const inventario = inventarios.find(inv => inv.id === inventario_id);
-      if (inventario) {
-        nuevos_materiales[index].inventario_nombre = inventario.nombre;
-        nuevos_materiales[index].producto_id = 0;
-        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
-        if (inventario_id > 0) {
-          cargarProductosInventario(inventario_id);
-        }
-      }
-    }
-
-    if (campo === 'producto_id') {
-      const producto_id = parseInt(valor);
-      const inventario_id = nuevos_materiales[index].inventario_id;
-      const productos = productos_por_inventario[inventario_id] || [];
-      const producto = productos.find(p => p.id === producto_id);
-      if (producto) {
-        nuevos_materiales[index].producto_nombre = producto.nombre;
-        nuevos_materiales[index].tipo_gestion = producto.tipo_gestion;
-        nuevos_materiales[index].unidad_medida = producto.unidad_medida;
-        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
-      }
-    }
-
-    setMaterialesPorCita(nuevos_materiales);
-  };
-
-  const agregarItemMaterialPorCita = (material_index: number) => {
-    const nuevos_materiales = [...materiales_por_cita];
-    nuevos_materiales[material_index].items.push({ cantidad_planeada: 1 });
-    setMaterialesPorCita(nuevos_materiales);
-  };
-
-  const actualizarItemMaterialPorCita = (material_index: number, item_index: number, campo: string, valor: any) => {
-    const nuevos_materiales = [...materiales_por_cita];
-    const valor_procesado = (campo === 'lote_id' || campo === 'activo_id') ? parseInt(valor) : valor;
-
-    nuevos_materiales[material_index].items[item_index] = {
-      ...nuevos_materiales[material_index].items[item_index],
-      [campo]: valor_procesado
-    };
-    if (campo === 'lote_id' && valor) {
-      const material = nuevos_materiales[material_index];
-      const producto = productos_por_inventario[material.inventario_id]?.find(p => p.id === material.producto_id);
-      if (producto) {
-        const lote = producto.lotes?.find(l => l.id === parseInt(valor));
-        if (lote) {
-          nuevos_materiales[material_index].items[item_index].nro_lote = lote.nro_lote;
-        }
-      }
-    }
-
-    if (campo === 'activo_id' && valor) {
-      const material = nuevos_materiales[material_index];
-      const producto = productos_por_inventario[material.inventario_id]?.find(p => p.id === material.producto_id);
-      if (producto) {
-        const activo = producto.activos?.find(a => a.id === parseInt(valor));
-        if (activo) {
-          if (producto.tipo_gestion === 'activo_serializado') {
-            nuevos_materiales[material_index].items[item_index].nro_serie = activo.nro_serie;
-          } else if (producto.tipo_gestion === 'activo_general') {
-            nuevos_materiales[material_index].items[item_index].nombre_asignado = activo.nombre_asignado;
-          }
-        }
-      }
-    }
-
-    setMaterialesPorCita(nuevos_materiales);
-  };
-
-  const eliminarItemMaterialPorCita = (material_index: number, item_index: number) => {
-    const nuevos_materiales = [...materiales_por_cita];
-    nuevos_materiales[material_index].items = nuevos_materiales[material_index].items.filter((_, i) => i !== item_index);
-    if (nuevos_materiales[material_index].items.length === 0) {
-      nuevos_materiales.splice(material_index, 1);
-    }
-    setMaterialesPorCita(nuevos_materiales);
-  };
-
-  const eliminarMaterialPorCita = (index: number) => {
-    const nuevos_materiales = materiales_por_cita.filter((_, i) => i !== index);
-    setMaterialesPorCita(nuevos_materiales);
-  };
-
-  const agregarMaterialCitaEdicion = () => {
-    setMaterialesCitaEdicion([...materiales_cita_edicion, {
-      producto_id: 0,
-      inventario_id: 0,
-      items: [{ cantidad_planeada: 1 }],
-    }]);
-  };
-
-  const actualizarMaterialCitaEdicion = (index: number, campo: string, valor: any) => {
-    const nuevos_materiales = [...materiales_cita_edicion];
-    const valor_procesado = (campo === 'producto_id' || campo === 'inventario_id') ? parseInt(valor) : valor;
-    nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor_procesado };
-
-    if (campo === 'inventario_id') {
-      const inventario_id = parseInt(valor);
-      const inventario = inventarios.find(inv => inv.id === inventario_id);
-      if (inventario) {
-        nuevos_materiales[index].inventario_nombre = inventario.nombre;
-        nuevos_materiales[index].producto_id = 0;
-        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
-        if (inventario_id > 0) {
-          cargarProductosInventario(inventario_id);
-        }
-      }
-    }
-
-    if (campo === 'producto_id') {
-      const producto_id = parseInt(valor);
-      const inventario_id = nuevos_materiales[index].inventario_id;
-      const productos = productos_por_inventario[inventario_id] || [];
-      const producto = productos.find(p => p.id === producto_id);
-      if (producto) {
-        nuevos_materiales[index].producto_nombre = producto.nombre;
-        nuevos_materiales[index].tipo_gestion = producto.tipo_gestion;
-        nuevos_materiales[index].unidad_medida = producto.unidad_medida;
-        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
-      }
-    }
-
-    setMaterialesCitaEdicion(nuevos_materiales);
-  };
-
-  const agregarItemMaterialCitaEdicion = (material_index: number) => {
-    const nuevos_materiales = [...materiales_cita_edicion];
-    nuevos_materiales[material_index].items.push({ cantidad_planeada: 1 });
-    setMaterialesCitaEdicion(nuevos_materiales);
-  };
-
-  const actualizarItemMaterialCitaEdicion = (material_index: number, item_index: number, campo: string, valor: any) => {
-    const nuevos_materiales = [...materiales_cita_edicion];
-    nuevos_materiales[material_index] = {
-      ...nuevos_materiales[material_index],
-      items: [...nuevos_materiales[material_index].items]
-    };
-    const valor_procesado = (campo === 'lote_id' || campo === 'activo_id') ? parseInt(valor) : valor;
-
-    nuevos_materiales[material_index].items[item_index] = {
-      ...nuevos_materiales[material_index].items[item_index],
-      [campo]: valor_procesado
-    };
-    setMaterialesCitaEdicion(nuevos_materiales);
-  };
-
-  const eliminarItemMaterialCitaEdicion = (material_index: number, item_index: number) => {
-    const nuevos_materiales = [...materiales_cita_edicion];
-    nuevos_materiales[material_index].items = nuevos_materiales[material_index].items.filter((_, i) => i !== item_index);
-    if (nuevos_materiales[material_index].items.length === 0) {
-      nuevos_materiales.splice(material_index, 1);
-    }
-    setMaterialesCitaEdicion(nuevos_materiales);
-  };
-
-  const eliminarMaterialCitaEdicion = (index: number) => {
-    const nuevos_materiales = materiales_cita_edicion.filter((_, i) => i !== index);
-    setMaterialesCitaEdicion(nuevos_materiales);
-  };
 
   const agregarMaterialAdicionalConfirmacion = () => {
     setMaterialesAdicionalesConfirmacion([...materiales_adicionales_confirmacion, {
@@ -866,8 +618,10 @@ export default function Tratamientos() {
       horas_aproximadas_citas: "0",
       minutos_aproximados_citas: "30",
     });
+
     setMaterialesGenerales([]);
-    setMaterialesPorCita([]);
+    setConsumiblesPlantilla([]);
+    setActivosPlantilla([]);
     setProductosPorInventario({});
     setModoEdicion(false);
     setDialogoPlantillaAbierto(true);
@@ -881,69 +635,64 @@ export default function Tratamientos() {
       intervalo_dias: (tratamiento.intervalo_dias || 0).toString(),
       intervalo_semanas: (tratamiento.intervalo_semanas || 0).toString(),
       intervalo_meses: (tratamiento.intervalo_meses || 0).toString(),
-      horas_aproximadas_citas: (tratamiento.horas_aproximadas_citas || 0).toString(),
-      minutos_aproximados_citas: (tratamiento.minutos_aproximados_citas || 30).toString(),
+      horas_aproximadas_citas: ((tratamiento as any).horas_aproximadas_citas || 0).toString(),
+      minutos_aproximados_citas: ((tratamiento as any).minutos_aproximados_citas || 30).toString(),
     };
     setFormularioPlantilla(formulario_inicial);
     setFormularioPlantillaInicial(formulario_inicial);
     setMaterialesGenerales([]);
-    setMaterialesPorCita([]);
+    setConsumiblesPlantilla([]);
+    setActivosPlantilla([]);
     setProductosPorInventario({});
     setTratamientoSeleccionado(tratamiento);
     setModoEdicion(true);
+    setCargandoMateriales(true);
     setDialogoPlantillaAbierto(true);
+
     try {
       const materiales = await tratamientosApi.obtenerMaterialesPlantilla(tratamiento.id);
+
       if (materiales && materiales.length > 0) {
-        const materiales_por_inv: { [key: number]: Producto[] } = {};
-        const generales: MaterialGeneral[] = [];
-        const por_cita: MaterialCita[] = [];
+        // Generales (unica vez)
+        const generales = materiales.filter((m: any) => m.es_general);
+        const nuevosGenerales = generales.map((m: any) => ({
+          inventario_id: m.inventario_id,
+          producto_id: m.producto_id,
+          material_id: m.material_id || 0,
+          cantidad: m.cantidad,
+          nombre_producto: m.producto?.nombre || 'Cargando...',
+          stock_disponible: 0,
+          unidad_medida: m.producto?.unidad_medida || 'unidades',
+          items: [{ cantidad_por_cita: m.cantidad }],
+          tipo: 'material'
+        }));
+        setMaterialesGenerales(nuevosGenerales as any);
 
-        materiales.forEach((mat: any) => {
-          const inv_id = mat.inventario_id;
-          if (!materiales_por_inv[inv_id]) {
-            materiales_por_inv[inv_id] = [];
-          }
+        // Por Cita (recurrentes)
+        const porCita = materiales.filter((m: any) => !m.es_general);
 
-          const producto: Producto = {
-            id: mat.producto_id,
-            inventario_id: mat.inventario_id,
-            nombre: mat.producto_nombre,
-            tipo_gestion: mat.tipo_gestion,
-            unidad_medida: mat.unidad_medida,
-          };
-          materiales_por_inv[inv_id].push(producto);
+        // Separar en Consumibles y Activos
+        const cons = porCita.filter((m: any) => m.tipo === 'material' || m.tipo === 'consumible' || !m.tipo);
+        const acts = porCita.filter((m: any) => m.tipo === 'activo_fijo');
 
-          if (mat.tipo === 'general') {
-            generales.push({
-              producto_id: mat.producto_id,
-              inventario_id: mat.inventario_id,
-              inventario_nombre: mat.inventario_nombre,
-              producto_nombre: mat.producto_nombre,
-              tipo_gestion: mat.tipo_gestion,
-              unidad_medida: mat.unidad_medida,
-              items: [{
-                cantidad_por_cita: mat.cantidad,
-              }],
-            });
-          } else if (mat.tipo === 'por_cita') {
-            por_cita.push({
-              producto_id: mat.producto_id,
-              inventario_id: mat.inventario_id,
-              inventario_nombre: mat.inventario_nombre,
-              producto_nombre: mat.producto_nombre,
-              tipo_gestion: mat.tipo_gestion,
-              unidad_medida: mat.unidad_medida,
-              items: [{
-                cantidad_planeada: mat.cantidad,
-              }],
-            });
-          }
-        });
+        setConsumiblesPlantilla(cons.map((m: any) => ({
+          inventario_id: m.inventario_id,
+          producto_id: m.producto_id,
+          material_id: m.material_id || 0,
+          cantidad: m.cantidad,
+          nombre_producto: m.producto?.nombre || 'Producto',
+          stock_disponible: 0,
+          unidad_medida: m.producto?.unidad_medida || 'unidades'
+        })));
 
-        setProductosPorInventario(materiales_por_inv);
-        setMaterialesGenerales(generales);
-        setMaterialesPorCita(por_cita);
+        setActivosPlantilla(acts.map((m: any) => ({
+          inventario_id: m.inventario_id,
+          producto_id: m.producto_id,
+          activo_id: m.activo_id || 0,
+          codigo: m.activo?.codigo || '',
+          nombre_producto: m.producto?.nombre || 'Activo',
+          estado: 'disponible'
+        })));
       }
     } catch (error) {
       console.error('Error al cargar materiales de la plantilla:', error);
@@ -952,6 +701,8 @@ export default function Tratamientos() {
         description: "No se pudieron cargar los materiales de la plantilla.",
         variant: "destructive",
       });
+    } finally {
+      setCargandoMateriales(false);
     }
   };
 
@@ -1020,32 +771,21 @@ export default function Tratamientos() {
 
     setGuardando(true);
     try {
-      const materiales: Array<{ producto_id: number; tipo: string; cantidad: number }> = [];
+      const consumibles_generales_payload: any[] = [];
       materiales_generales.forEach((mat) => {
         const cantidad_total = mat.items.reduce((sum, item) => {
           return sum + (item.cantidad_por_cita || 0);
         }, 0);
         if (cantidad_total > 0) {
-          materiales.push({
+          consumibles_generales_payload.push({
             producto_id: mat.producto_id,
-            tipo: 'general',
             cantidad: cantidad_total,
+            momento_confirmacion: mat.momento_confirmacion || 'primera_cita',
           });
         }
       });
 
-      materiales_por_cita.forEach((mat) => {
-        const cantidad_total = mat.items.reduce((sum, item) => {
-          return sum + (item.cantidad_planeada || 0);
-        }, 0);
-        if (cantidad_total > 0) {
-          materiales.push({
-            producto_id: mat.producto_id,
-            tipo: 'por_cita',
-            cantidad: cantidad_total,
-          });
-        }
-      });
+
 
       const datos = {
         nombre: formulario_plantilla.nombre,
@@ -1056,7 +796,20 @@ export default function Tratamientos() {
         intervalo_meses,
         horas_aproximadas_citas,
         minutos_aproximados_citas,
-        materiales,
+        consumibles_generales: consumibles_generales_payload,
+
+        recursos_por_cita: [
+          ...consumibles_plantilla.map(c => ({
+            producto_id: c.producto_id,
+            cantidad: c.cantidad,
+            tipo: 'material'
+          })),
+          ...activos_plantilla.map(a => ({
+            producto_id: a.producto_id,
+            cantidad: 1, // Los activos fijos son unitarios por definición en asignación
+            tipo: 'activo_fijo'
+          }))
+        ],
       };
 
       if (modo_edicion && tratamiento_seleccionado) {
@@ -1231,63 +984,19 @@ export default function Tratamientos() {
     setActivosSeleccionadosCita([]);
 
     if (!es_pasada && cita.id) {
-      setMaterialesCitaEdicion([]);
       setCargandoMateriales(true);
       try {
-        const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
-        const materiales = respuesta.materiales || [];
+        // const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
+        // const materiales = respuesta.materiales || [];
+        // Mapear materiales a la estructura de Wizards
+        // Implementación pendiente para edición de materiales existentes
 
-        const consumibles_transformados: typeof consumibles_seleccionados_cita = [];
-        const activos_transformados: typeof activos_seleccionados_cita = [];
-
-        for (const material of materiales) {
-          if (!productos_por_inventario[material.inventario_id]) {
-            await cargarProductosInventario(material.inventario_id);
-          }
-
-          const items = material.items && material.items.length > 0 ? material.items : [material];
-
-          if (material.tipo_gestion === 'material' || material.tipo_gestion === 'MATERIAL') {
-            for (const item of items) {
-              consumibles_transformados.push({
-                inventario_id: material.inventario_id,
-                inventario_nombre: material.inventario_nombre,
-                producto_id: material.producto_id,
-                producto_nombre: material.producto_nombre,
-                material_id: item.lote_id || item.material_id || 0,
-                nro_lote: item.nro_lote,
-                cantidad: parseFloat(item.cantidad_planeada?.toString() || '1'),
-                stock_disponible: item.stock_disponible || 0,
-                unidad_medida: material.unidad_medida,
-                permite_decimales: material.permite_decimales,
-              });
-            }
-          } else if (material.tipo_gestion === 'activo_fijo' || material.tipo_gestion === 'ACTIVO_FIJO') {
-            for (const item of items) {
-              activos_transformados.push({
-                inventario_id: material.inventario_id,
-                inventario_nombre: material.inventario_nombre,
-                producto_id: material.producto_id,
-                producto_nombre: material.producto_nombre,
-                activo_id: item.activo_id || 0,
-                codigo_interno: item.codigo_interno,
-                nro_serie: item.nro_serie,
-                nombre_asignado: item.nombre_asignado,
-                estado: item.estado || 'disponible',
-              });
-            }
-          }
-        }
-
-        setConsumiblesSeleccionadosCita(consumibles_transformados);
-        setActivosSeleccionadosCita(activos_transformados);
       } catch (error) {
         console.error('Error al cargar materiales de la cita:', error);
       } finally {
         setCargandoMateriales(false);
       }
     }
-
     setDialogoCitaAbierto(true);
   };
 
@@ -1323,25 +1032,7 @@ export default function Tratamientos() {
       return;
     }
 
-    if (materiales_cita_edicion.length > 0) {
-      const { valido, advertencias } = validarDisponibilidadMateriales();
-      if (!valido) {
-        toast({
-          title: 'Error de Validación',
-          description: advertencias.join('\n'),
-          variant: 'destructive',
-        });
-        return;
-      }
-      if (advertencias.length > 0) {
-        toast({
-          title: 'Advertencias',
-          description: advertencias.join('\n'),
-          variant: 'default',
-          duration: 5000,
-        });
-      }
-    }
+
 
     setGuardando(true);
     try {
@@ -1365,16 +1056,20 @@ export default function Tratamientos() {
         const estado_cambio = cita_seleccionada.estado_pago !== formulario_cita.estado_pago;
         const cambio_a_pagado = cita_seleccionada.estado_pago !== 'pagado' && formulario_cita.estado_pago === 'pagado';
         const cambio_desde_pagado = cita_seleccionada.estado_pago === 'pagado' && formulario_cita.estado_pago !== 'pagado';
-        if (materiales_cita_edicion.length > 0) {
+        if ((consumibles_seleccionados_cita.length > 0 || activos_seleccionados_cita.length > 0) && cita_id) {
           try {
-            const materiales_para_guardar = materiales_cita_edicion
-              .filter(m => m.producto_id > 0)
-              .flatMap(m =>
-                m.items.map(item => ({
-                  producto_id: m.producto_id,
-                  cantidad_planeada: item.cantidad_planeada,
-                }))
-              );
+            const materiales_para_guardar = [
+              ...consumibles_seleccionados_cita.map(c => ({
+                producto_id: c.producto_id,
+                cantidad_planeada: c.cantidad,
+                lote_id: c.material_id || undefined
+              })),
+              ...activos_seleccionados_cita.map(a => ({
+                producto_id: a.producto_id,
+                cantidad_planeada: 1,
+                activo_id: a.activo_id || undefined
+              }))
+            ];
 
             if (materiales_para_guardar.length > 0) {
               await inventarioApi.asignarMaterialesCita(cita_id, {
@@ -1390,43 +1085,28 @@ export default function Tratamientos() {
             });
           }
         }
-
-        if (estado_cambio && plan_seleccionado) {
-          if (cambio_a_pagado) {
-            toast({
-              title: 'Éxito',
-              description: 'Cita actualizada y pago registrado automáticamente',
-            });
-          } else if (cambio_desde_pagado) {
-            toast({
-              title: 'Éxito',
-              description: 'Cita actualizada y pago revertido automáticamente',
-            });
-          } else {
-            toast({
-              title: 'Éxito',
-              description: 'Cita actualizada correctamente',
-            });
-          }
-        } else {
-          toast({
-            title: 'Éxito',
-            description: 'Cita actualizada correctamente',
-          });
-        }
+        toast({
+          title: "Éxito",
+          description: "Cita actualizada correctamente",
+        });
       } else {
         const cita_creada = await agendaApi.crear(datos);
         cita_id = cita_creada.id;
-        if (materiales_cita_edicion.length > 0 && cita_id) {
+
+        if ((consumibles_seleccionados_cita.length > 0 || activos_seleccionados_cita.length > 0) && cita_id) {
           try {
-            const materiales_para_guardar = materiales_cita_edicion
-              .filter(m => m.producto_id > 0)
-              .flatMap(m =>
-                m.items.map(item => ({
-                  producto_id: m.producto_id,
-                  cantidad_planeada: item.cantidad_planeada,
-                }))
-              );
+            const materiales_para_guardar = [
+              ...consumibles_seleccionados_cita.map(c => ({
+                producto_id: c.producto_id,
+                cantidad_planeada: c.cantidad,
+                lote_id: c.material_id || undefined
+              })),
+              ...activos_seleccionados_cita.map(a => ({
+                producto_id: a.producto_id,
+                cantidad_planeada: 1,
+                activo_id: a.activo_id || undefined
+              }))
+            ];
 
             if (materiales_para_guardar.length > 0) {
               await inventarioApi.asignarMaterialesCita(cita_id, {
@@ -1569,13 +1249,16 @@ export default function Tratamientos() {
 
       if (materiales_generales.length > 0) {
         try {
-          const materiales_transformados = materiales_generales.flatMap(material =>
-            material.items.map(item => ({
-              producto_id: material.producto_id,
-              tipo: 'inicio',
-              cantidad_planeada: item.cantidad_por_cita || 1,
-            }))
-          );
+          const materiales_transformados = [
+            ...materiales_generales.flatMap(material =>
+              material.items.map(item => ({
+                producto_id: material.producto_id,
+                tipo: 'unico',
+                cantidad_planeada: item.cantidad_por_cita || 1,
+                momento_confirmacion: material.momento_confirmacion,
+              }))
+            )
+          ];
 
           await inventarioApi.asignarMaterialesTratamiento(plan_seleccionado.id, {
             materiales: materiales_transformados,
@@ -2225,32 +1908,49 @@ export default function Tratamientos() {
                                   {progreso.toFixed(0)}% pagado
                                 </Badge>
                                 <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setPlanSeleccionado(plan);
-                                      abrirDialogoEditarCosto();
-                                    }}
-                                    className="h-8 w-8 hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
-                                    title="Editar"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setPlanAEliminar(plan);
-                                      setDialogoConfirmarEliminarAbierto(true);
-                                    }}
-                                    className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
-                                    title="Eliminar Plan"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  {tratamientoHaFinalizado(plan) ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        verDetallePlan(plan);
+                                      }}
+                                      className="h-8 w-8 hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                      title="Ver Detalles"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  ) : (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setPlanSeleccionado(plan);
+                                          abrirDialogoEditarCosto();
+                                        }}
+                                        className="h-8 w-8 hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                        title="Editar"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setPlanAEliminar(plan);
+                                          setDialogoConfirmarEliminarAbierto(true);
+                                        }}
+                                        className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                                        title="Eliminar Plan"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -2348,8 +2048,8 @@ export default function Tratamientos() {
                 <TabsTrigger value="recursos" className="flex items-center gap-1 text-sm" onClick={() => cargarInventarios()}>
                   <Wrench className="h-4 w-4" />
                   Recursos por Cita
-                  {materiales_por_cita.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">{materiales_por_cita.length}</Badge>
+                  {(consumibles_plantilla.length + activos_plantilla.length) > 0 && (
+                    <Badge variant="secondary" className="ml-1">{consumibles_plantilla.length + activos_plantilla.length}</Badge>
                   )}
                 </TabsTrigger>
               </TabsList>
@@ -2548,6 +2248,7 @@ export default function Tratamientos() {
                   onActualizarItem={actualizarItemMaterialGeneral}
                   texto_boton_agregar="Agregar Consumible General"
                   cargando={cargando_materiales}
+                  mostrarConfirmacion={true}
                 />
               </TabsContent>
 
@@ -2686,7 +2387,7 @@ export default function Tratamientos() {
                   </p>
                   <p className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    Duración por cita: {formatearDuracion(tratamiento_seleccionado.horas_aproximadas_citas, tratamiento_seleccionado.minutos_aproximados_citas)}
+                    Duración por cita: {formatearDuracion((tratamiento_seleccionado as any).horas_aproximadas_citas || 0, (tratamiento_seleccionado as any).minutos_aproximados_citas || 30)}
                   </p>
                   <p className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />
@@ -2838,7 +2539,7 @@ export default function Tratamientos() {
                       <p className="text-muted-foreground">
                         No hay citas programadas
                       </p>
-                      {calcularProgreso(plan_seleccionado) < 100 && (
+                      {!tratamientoHaFinalizado(plan_seleccionado) && (
                         <div
                           className="p-6 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 hover:border-primary transition-all duration-200 cursor-pointer mx-auto max-w-sm"
                           onClick={abrirDialogoNuevaCita}
@@ -2929,7 +2630,7 @@ export default function Tratamientos() {
                           </div>
                         );
                       })}
-                      {calcularProgreso(plan_seleccionado) < 100 && (
+                      {!tratamientoHaFinalizado(plan_seleccionado) && (
                         <div
                           className="p-4 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 hover:border-primary transition-all duration-200 cursor-pointer"
                           onClick={abrirDialogoNuevaCita}
@@ -3329,19 +3030,19 @@ export default function Tratamientos() {
                       )}
                     </span>
                   </div>
-                  {(plan_seleccionado.tratamiento.intervalo_dias > 0 ||
-                    plan_seleccionado.tratamiento.intervalo_semanas > 0 ||
-                    plan_seleccionado.tratamiento.intervalo_meses > 0) && (
+                  {((plan_seleccionado.tratamiento.intervalo_dias || 0) > 0 ||
+                    (plan_seleccionado.tratamiento.intervalo_semanas || 0) > 0 ||
+                    (plan_seleccionado.tratamiento.intervalo_meses || 0) > 0) && (
                       <div className="flex items-center gap-2 col-span-2">
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Intervalo entre citas:</span>
                         <span className="font-medium">
-                          {plan_seleccionado.tratamiento.intervalo_meses > 0 &&
+                          {(plan_seleccionado.tratamiento.intervalo_meses || 0) > 0 &&
                             `${plan_seleccionado.tratamiento.intervalo_meses} ${plan_seleccionado.tratamiento.intervalo_meses === 1 ? 'mes' : 'meses'} `}
-                          {plan_seleccionado.tratamiento.intervalo_semanas > 0 &&
+                          {(plan_seleccionado.tratamiento.intervalo_semanas || 0) > 0 &&
                             `${plan_seleccionado.tratamiento.intervalo_semanas} ${plan_seleccionado.tratamiento.intervalo_semanas === 1 ? 'semana' : 'semanas'} `}
-                          {plan_seleccionado.tratamiento.intervalo_dias > 0 &&
-                            `${plan_seleccionado.tratamiento.intervalo_dias} ${plan_seleccionado.tratamiento.intervalo_dias === 1 ? 'día' : 'días'}`}
+                          {(plan_seleccionado.tratamiento.intervalo_dias || 0) > 0 &&
+                            `${plan_seleccionado.tratamiento.intervalo_dias || 0} ${(plan_seleccionado.tratamiento.intervalo_dias || 0) === 1 ? 'día' : 'días'}`}
                         </span>
                       </div>
                     )}
@@ -3364,40 +3065,49 @@ export default function Tratamientos() {
 
               <div className="space-y-2">
                 <Label>Materiales Generales (opcionales)</Label>
-                <Accordion
-                  type="single"
-                  collapsible
-                  className="w-full border rounded-lg"
-                  onValueChange={async (value) => {
-                    if (value === 'materiales-generales-edicion') {
-                      await cargarInventarios();
-                    }
-                  }}
-                >
-                  <AccordionItem value="materiales-generales-edicion" className="border-none">
-                    <AccordionTrigger className="px-4">
-                      <div className="flex items-center gap-2">
-                        <Package className="h-4 w-4" />
-                        <span>Editar Materiales Generales</span>
-                        <Badge variant="secondary">{materiales_generales.length}</Badge>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 space-y-4">
-                      <SelectorMateriales
-                        materiales={materiales_generales}
-                        inventarios={inventarios}
-                        productos_por_inventario={productos_por_inventario}
-                        onAgregarMaterial={agregarMaterialGeneral}
-                        onActualizarMaterial={actualizarMaterialGeneral}
-                        onEliminarMaterial={eliminarMaterialGeneral}
-                        onAgregarItem={agregarItemMaterialGeneral}
-                        onActualizarItem={actualizarItemMaterialGeneral}
-                        onEliminarItem={eliminarItemMaterialGeneral}
-                        cargarProductos={cargarProductosInventario}
-                      />
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                {materiales_generales_confirmados ? (
+                  <div className="p-3 bg-muted rounded-lg border border-border">
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      Los materiales generales ya han sido confirmados y no se pueden editar.
+                    </p>
+                  </div>
+                ) : (
+                  <Accordion
+                    type="single"
+                    collapsible
+                    className="w-full border rounded-lg"
+                    onValueChange={async (value) => {
+                      if (value === 'materiales-generales-edicion') {
+                        await cargarInventarios();
+                      }
+                    }}
+                  >
+                    <AccordionItem value="materiales-generales-edicion" className="border-none">
+                      <AccordionTrigger className="px-4">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          <span>Editar Materiales Generales</span>
+                          <Badge variant="secondary">{materiales_generales.length}</Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 space-y-4">
+                        <SelectorMateriales
+                          materiales={materiales_generales}
+                          inventarios={inventarios}
+                          productos_por_inventario={productos_por_inventario}
+                          onAgregarMaterial={agregarMaterialGeneral}
+                          onActualizarMaterial={actualizarMaterialGeneral}
+                          onEliminarMaterial={eliminarMaterialGeneral}
+                          onAgregarItem={agregarItemMaterialGeneral}
+                          onActualizarItem={actualizarItemMaterialGeneral}
+                          onEliminarItem={eliminarItemMaterialGeneral}
+                          cargarProductos={cargarProductosInventario}
+                        />
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                )}
               </div>
             </div>
           )}
