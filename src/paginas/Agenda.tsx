@@ -6,7 +6,7 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
-import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign, Filter, X, AlertTriangle, CalendarClock, Package, CheckCircle2 } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign, Filter, X, AlertTriangle, CalendarClock, Package, CheckCircle2, Package2, Wrench, Eye } from 'lucide-react';
 import { agendaApi, pacientesApi, inventarioApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
@@ -15,17 +15,22 @@ import { Badge } from '@/componentes/ui/badge';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { Switch } from '@/componentes/ui/switch';
 import { ajustarFechaParaBackend } from '@/lib/utilidades';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/componentes/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
+import WizardConsumibles from '@/componentes/materiales/wizard-consumibles';
+import WizardActivosFijos from '@/componentes/materiales/wizard-activos-fijos';
 import SelectorMateriales from '@/componentes/materiales/selector-materiales';
-import { 
-  Cita, 
-  HoraLibre, 
-  ElementoAgenda, 
-  Paciente, 
-  Inventario, 
-  Producto, 
-  MaterialCita, 
-  MaterialCitaConfirmacion 
+import {
+  Cita,
+  HoraLibre,
+  ElementoAgenda,
+  Paciente,
+  Inventario,
+  Producto,
+  Material,
+  Activo,
+  MaterialCita,
+  MaterialCitaConfirmacion,
+  TipoProducto,
 } from '@/tipos';
 
 export default function Agenda() {
@@ -55,6 +60,35 @@ export default function Agenda() {
   const [estado_pago_confirmacion, setEstadoPagoConfirmacion] = useState<string>('pendiente');
   const [monto_confirmacion, setMontoConfirmacion] = useState<string>('');
   const [cargando_materiales, setCargandoMateriales] = useState(false);
+  const [consumibles_seleccionados, setConsumiblesSeleccionados] = useState<Array<{
+    inventario_id: number;
+    inventario_nombre: string;
+    producto_id: number;
+    producto_nombre: string;
+    material_id: number;
+    nro_lote?: string;
+    cantidad: number;
+    stock_disponible: number;
+    unidad_medida?: string;
+    permite_decimales?: boolean;
+    material_cita_id?: number;
+  }>>([]);
+  const [activos_seleccionados, setActivosSeleccionados] = useState<Array<{
+    inventario_id: number;
+    inventario_nombre: string;
+    producto_id: number;
+    producto_nombre: string;
+    activo_id: number;
+    codigo_interno?: string;
+    nro_serie?: string;
+    nombre_asignado?: string;
+    estado: string;
+    material_cita_id?: number;
+  }>>([]);
+  const [consumibles_iniciales, setConsumiblesIniciales] = useState<typeof consumibles_seleccionados>([]);
+  const [activos_iniciales, setActivosIniciales] = useState<typeof activos_seleccionados>([]);
+  const [consumibles_confirmacion, setConsumiblesConfirmacion] = useState<typeof consumibles_seleccionados>([]);
+  const [activos_confirmacion, setActivosConfirmacion] = useState<typeof activos_seleccionados>([]);
 
   const abrirDialogoConfirmarEliminar = (id: number) => {
     setCitaAEliminar(id);
@@ -164,7 +198,7 @@ export default function Agenda() {
   const cargarHorasLibres = async () => {
     try {
       const tiene_filtro_fecha = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
-      
+
       let datos_horas_libres;
       if (tiene_filtro_fecha) {
         datos_horas_libres = await agendaApi.filtrarEspaciosLibres(filtros.fecha_hora_inicio!, filtros.fecha_hora_fin!);
@@ -189,7 +223,7 @@ export default function Agenda() {
 
   const cargarInventarios = async () => {
     if (inventarios.length > 0) return;
-    
+
     try {
       const datos = await inventarioApi.obtenerInventarios();
       setInventarios(datos);
@@ -227,12 +261,12 @@ export default function Agenda() {
     try {
       const respuesta = await inventarioApi.obtenerMaterialesCita(cita_id);
       const materiales = respuesta.materiales || [];
-      
+
       const materiales_agrupados: Record<string, MaterialCita> = {};
-      
+
       for (const material of materiales) {
         const key = `${material.inventario_id}-${material.producto_id}`;
-        
+
         if (!materiales_agrupados[key]) {
           materiales_agrupados[key] = {
             producto_id: material.producto_id,
@@ -244,7 +278,7 @@ export default function Agenda() {
             items: []
           };
         }
-        
+
         if (material.items && material.items.length > 0) {
           materiales_agrupados[key].items = material.items.map((item: any) => ({
             lote_id: item.lote_id,
@@ -260,7 +294,7 @@ export default function Agenda() {
           });
         }
       }
-      
+
       const materiales_array = Object.values(materiales_agrupados);
       setMaterialesCita(materiales_array);
       setMaterialesCitaIniciales(JSON.parse(JSON.stringify(materiales_array)));
@@ -282,7 +316,7 @@ export default function Agenda() {
   const actualizarMaterialCita = (index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_cita];
     nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor };
-    
+
     if (campo === 'inventario_id') {
       const inventario_id = parseInt(valor);
       const inventario = inventarios.find(inv => inv.id === inventario_id);
@@ -295,7 +329,7 @@ export default function Agenda() {
         }
       }
     }
-    
+
     if (campo === 'producto_id') {
       const producto_id = parseInt(valor);
       const inventario_id = nuevos_materiales[index].inventario_id;
@@ -303,7 +337,7 @@ export default function Agenda() {
       const producto = productos.find(p => p.id === producto_id);
       if (producto) {
         nuevos_materiales[index].producto_nombre = producto.nombre;
-        nuevos_materiales[index].tipo_gestion = producto.tipo_gestion;
+        nuevos_materiales[index].tipo_gestion = producto.tipo;
         nuevos_materiales[index].unidad_medida = producto.unidad_medida;
         nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
       }
@@ -333,9 +367,9 @@ export default function Agenda() {
       const productos = productos_por_inventario[inventario_id] || [];
       const producto = productos.find(p => p.id === nuevos_materiales[material_index].producto_id);
       if (producto) {
-        const lote = producto.lotes?.find(l => l.id === parseInt(valor));
-        if (lote) {
-          nuevos_materiales[material_index].items[item_index].nro_lote = lote.nro_lote;
+        const material = producto.materiales?.find((m: Material) => m.id === parseInt(valor));
+        if (material) {
+          nuevos_materiales[material_index].items[item_index].nro_lote = material.nro_lote;
         }
       }
     }
@@ -344,11 +378,10 @@ export default function Agenda() {
       const productos = productos_por_inventario[inventario_id] || [];
       const producto = productos.find(p => p.id === nuevos_materiales[material_index].producto_id);
       if (producto) {
-        const activo = producto.activos?.find(a => a.id === parseInt(valor));
+        const activo = producto.activos?.find((a: Activo) => a.id === parseInt(valor));
         if (activo) {
-          if (producto.tipo_gestion === 'activo_serializado') {
+          if (producto.subtipo_activo_fijo) {
             nuevos_materiales[material_index].items[item_index].nro_serie = activo.nro_serie;
-          } else if (producto.tipo_gestion === 'activo_general') {
             nuevos_materiales[material_index].items[item_index].nombre_asignado = activo.nombre_asignado;
           }
         }
@@ -382,7 +415,7 @@ export default function Agenda() {
   const actualizarMaterialAdicionalConfirmacion = (index: number, campo: string, valor: any) => {
     const nuevos_materiales = [...materiales_adicionales_confirmacion];
     nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor };
-    
+
     if (campo === 'inventario_id') {
       const inventario_id = parseInt(valor);
       const inventario = inventarios.find(inv => inv.id === inventario_id);
@@ -395,7 +428,7 @@ export default function Agenda() {
         }
       }
     }
-    
+
     if (campo === 'producto_id') {
       const producto_id = parseInt(valor);
       const inventario_id = nuevos_materiales[index].inventario_id;
@@ -403,7 +436,7 @@ export default function Agenda() {
       const producto = productos.find(p => p.id === producto_id);
       if (producto) {
         nuevos_materiales[index].producto_nombre = producto.nombre;
-        nuevos_materiales[index].tipo_gestion = producto.tipo_gestion;
+        nuevos_materiales[index].tipo_gestion = producto.tipo;
         nuevos_materiales[index].unidad_medida = producto.unidad_medida;
         nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
       }
@@ -447,13 +480,13 @@ export default function Agenda() {
 
   const validarDisponibilidadMateriales = (): { valido: boolean; advertencias: string[] } => {
     const advertencias: string[] = [];
-    
+
     for (const material of materiales_cita) {
       if (material.inventario_id === 0) {
         advertencias.push('Hay materiales sin inventario seleccionado');
         continue;
       }
-      
+
       if (material.producto_id === 0) {
         advertencias.push('Hay materiales sin producto seleccionado');
         continue;
@@ -463,16 +496,16 @@ export default function Agenda() {
       const producto = productos.find(p => p.id === material.producto_id);
       if (!producto) continue;
       for (const item of material.items) {
-        if (producto.tipo_gestion === 'consumible') {
+        if (producto.tipo === TipoProducto.MATERIAL) {
           if (!item.lote_id) {
-            advertencias.push(`${producto.nombre}: Debe seleccionar un lote para todos los items`);
+            advertencias.push(`${producto.nombre}: Debe seleccionar un material para todos los items`);
             break;
           }
           if (item.cantidad_planeada <= 0) {
-            advertencias.push(`${producto.nombre}: La cantidad debe ser mayor a 0 en todos los lotes`);
+            advertencias.push(`${producto.nombre}: La cantidad debe ser mayor a 0 en todos los materiales`);
             break;
           }
-        } else if (producto.tipo_gestion === 'activo_serializado' || producto.tipo_gestion === 'activo_general') {
+        } else if (producto.tipo === TipoProducto.ACTIVO_FIJO) {
           if (!item.activo_id) {
             advertencias.push(`${producto.nombre}: Debe seleccionar un activo para todos los items`);
             break;
@@ -513,14 +546,14 @@ export default function Agenda() {
         elementos = elementos.filter(e => {
           const cita = e as Cita;
           return cita.descripcion.toLowerCase().includes(busqueda_lower) ||
-            (cita.paciente && 
+            (cita.paciente &&
               `${cita.paciente.nombre} ${cita.paciente.apellidos}`.toLowerCase().includes(busqueda_lower));
         });
       }
     } else {
       if (filtros.busqueda) {
         const busqueda_lower = filtros.busqueda.toLowerCase();
-        elementos = elementos.filter(e => 
+        elementos = elementos.filter(e =>
           e.descripcion.toLowerCase().includes(busqueda_lower)
         );
       }
@@ -607,6 +640,8 @@ export default function Agenda() {
     setModoEdicion(false);
     setMaterialesCita([]);
     setProductosPorInventario({});
+    setConsumiblesSeleccionados([]);
+    setActivosSeleccionados([]);
     setDialogoAbierto(true);
   };
 
@@ -623,12 +658,14 @@ export default function Agenda() {
     setModoEdicion(false);
     setMaterialesCita([]);
     setProductosPorInventario({});
+    setConsumiblesSeleccionados([]);
+    setActivosSeleccionados([]);
     setDialogoAbierto(true);
   };
 
   const abrirDialogoEditar = async (cita: Cita) => {
     const es_pasada = esCitaPasada(cita.fecha);
-    
+
     setFormulario({
       paciente_id: cita.paciente?.id.toString() || '',
       fecha: new Date(cita.fecha),
@@ -640,21 +677,68 @@ export default function Agenda() {
     });
     setCitaSeleccionada(cita);
     setModoEdicion(true);
-    
-    if (!es_pasada) {
+    setConsumiblesSeleccionados([]);
+    setActivosSeleccionados([]);
+
+    if (!es_pasada && cita.id) {
       setMaterialesCita([]);
-      if (cita.id) {
-        await cargarMaterialesCita(cita.id);
+      setCargandoMateriales(true);
+      try {
+        const cita_completa = await agendaApi.obtenerPorIdCompleto(cita.id);
+
+        const consumibles_transformados = (cita_completa.reservas_materiales || []).map((reserva: any) => ({
+          inventario_id: reserva.material.producto.inventario.id,
+          inventario_nombre: reserva.material.producto.inventario.nombre,
+          producto_id: reserva.material.producto.id,
+          producto_nombre: reserva.material.producto.nombre,
+          material_id: reserva.material.id,
+          nro_lote: reserva.material.nro_lote,
+          cantidad: Number(reserva.cantidad_reservada),
+          stock_disponible: Number(reserva.material.cantidad_actual),
+          unidad_medida: reserva.material.producto.unidad_medida,
+          permite_decimales: reserva.material.producto.permite_decimales,
+        }));
+
+        const activos_transformados = (cita_completa.reservas_activos || []).map((reserva: any) => ({
+          inventario_id: reserva.activo.producto.inventario.id,
+          inventario_nombre: reserva.activo.producto.inventario.nombre,
+          producto_id: reserva.activo.producto.id,
+          producto_nombre: reserva.activo.producto.nombre,
+          activo_id: reserva.activo.id,
+          codigo_interno: reserva.activo.codigo_interno,
+          nro_serie: reserva.activo.nro_serie,
+          nombre_asignado: reserva.activo.nombre_asignado,
+          estado: reserva.activo.estado,
+        }));
+
+        setConsumiblesSeleccionados(consumibles_transformados);
+        setActivosSeleccionados(activos_transformados);
+        setConsumiblesIniciales(consumibles_transformados);
+        setActivosIniciales(activos_transformados);
+      } catch (error) {
+        console.error('Error al cargar materiales de la cita:', error);
+      } finally {
+        setCargandoMateriales(false);
       }
     }
-    
+
     setDialogoAbierto(true);
   };
 
+
   const materialesCambiaron = (): boolean => {
-    if (materiales_cita.length !== materiales_cita_iniciales.length) return true;
-    
-    return JSON.stringify(materiales_cita) !== JSON.stringify(materiales_cita_iniciales);
+    if (consumibles_seleccionados.length !== consumibles_iniciales.length) return true;
+    if (activos_seleccionados.length !== activos_iniciales.length) return true;
+    for (const c of consumibles_seleccionados) {
+      const inicial = consumibles_iniciales.find(i => i.material_id === c.material_id);
+      if (!inicial || inicial.cantidad !== c.cantidad) return true;
+    }
+    for (const a of activos_seleccionados) {
+      const inicial = activos_iniciales.find(i => i.activo_id === a.activo_id);
+      if (!inicial) return true;
+    }
+
+    return false;
   };
 
   const manejarGuardar = async () => {
@@ -709,11 +793,23 @@ export default function Agenda() {
 
     setGuardando(true);
     try {
+      const consumibles = consumibles_seleccionados.map(c => ({
+        material_id: c.material_id,
+        cantidad: c.cantidad
+      }));
+
+      const activos_fijos = activos_seleccionados.map(a => ({
+        activo_id: a.activo_id
+      }));
+
       const datos: any = {
         fecha: ajustarFechaParaBackend(formulario.fecha),
         descripcion: formulario.descripcion,
         horas_aproximadas: horas,
         minutos_aproximados: minutos,
+        consumibles,
+        activos_fijos,
+        modo_estricto: false
       };
 
       if (formulario.paciente_id) {
@@ -727,11 +823,11 @@ export default function Agenda() {
       if (modo_edicion && cita_seleccionada) {
         await agendaApi.actualizar(cita_seleccionada.id, datos);
         cita_id = cita_seleccionada.id;
-        
+
         const estado_cambio = cita_seleccionada.estado_pago !== formulario.estado_pago;
         const cambio_a_pagado = cita_seleccionada.estado_pago !== 'pagado' && formulario.estado_pago === 'pagado';
         const cambio_desde_pagado = cita_seleccionada.estado_pago === 'pagado' && formulario.estado_pago !== 'pagado';
-        
+
         if (estado_cambio && cita_seleccionada.plan_tratamiento) {
           if (cambio_a_pagado) {
             toast({
@@ -763,39 +859,14 @@ export default function Agenda() {
           description: 'Cita creada correctamente',
         });
       }
-      if (materiales_cita.length > 0 && cita_id) {
-        try {
-          const materiales_para_guardar = materiales_cita
-            .filter(m => m.producto_id > 0)
-            .flatMap(m => 
-              m.items.map(item => ({
-                producto_id: m.producto_id,
-                cantidad_planeada: item.cantidad_planeada,
-              }))
-            );
-          
-          if (materiales_para_guardar.length > 0) {
-            await inventarioApi.asignarMaterialesCita(cita_id, {
-              materiales: materiales_para_guardar,
-            });
-          }
-        } catch (error) {
-          console.error('Error al guardar materiales:', error);
-          toast({
-            title: 'Advertencia',
-            description: 'La cita se guardó pero hubo un error al asignar los materiales',
-            variant: 'default',
-          });
-        }
-      }
 
       setDialogoAbierto(false);
       cargarDatos();
     } catch (error: any) {
       console.error('Error al guardar cita:', error);
-      
+
       const mensaje_error = error.response?.data?.message || 'No se pudo guardar la cita';
-      
+
       toast({
         title: 'Error - Conflicto de Horarios',
         description: (
@@ -900,50 +971,61 @@ export default function Agenda() {
     setCargandoMateriales(true);
     setEstadoPagoConfirmacion(cita.estado_pago || 'pendiente');
     setMontoConfirmacion(cita.monto_esperado?.toString() || '');
+
+    // Limpiar estados anteriores
+    setConsumiblesConfirmacion([]);
+    setActivosConfirmacion([]);
+    setMaterialesConfirmacion([]); // Mantener por compatibilidad si se usa en otro lado, pero vacio
     setMaterialesAdicionalesConfirmacion([]);
     setMostrarAgregarMaterialesConfirmacion(false);
+
     try {
+      // Cargar inventarios para los selectores
+      await cargarInventarios();
+
       const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
-      const materiales_raw = respuesta.materiales || [];
-      const materiales_confirmacion: any[] = [];
-      for (const material of materiales_raw) {
-        if (material.items && material.items.length > 0) {
-          for (const item of material.items) {
-            const cant_planeada = Math.max(0, parseFloat(item.cantidad_planeada?.toString() || '0'));
-            
-            materiales_confirmacion.push({
-              material_cita_id: material.id,
-              producto_nombre: material.producto_nombre,
-              inventario_nombre: material.inventario_nombre,
-              tipo_gestion: material.tipo_gestion,
-              cantidad_planeada: cant_planeada,
-              cantidad_usada: cant_planeada,
-              lote_id: item.lote_id,
-              activo_id: item.activo_id,
-              nro_lote: item.nro_lote,
-              nro_serie: item.nro_serie,
-              nombre_asignado: item.nombre_asignado,
-              unidad_medida: material.unidad_medida,
-              inventario_id: material.inventario_id 
-            });
-          }
-        } else {
-          const cant_planeada = Math.max(0, parseFloat(material.cantidad_planeada?.toString() || '0'));
-          
-          materiales_confirmacion.push({
-            material_cita_id: material.id,
-            producto_nombre: material.producto_nombre,
-            inventario_nombre: material.inventario_nombre,
-            tipo_gestion: material.tipo_gestion,
-            cantidad_planeada: cant_planeada,
-            cantidad_usada: cant_planeada,
-            unidad_medida: material.unidad_medida,
-            inventario_id: material.inventario_id
+
+      const consumibles_mapeados: any[] = [];
+      const activos_mapeados: any[] = [];
+
+      if (respuesta.materiales) {
+        for (const reserva of respuesta.materiales) {
+          const cant_planeada = parseFloat(reserva.cantidad_reservada?.toString() || '0');
+          consumibles_mapeados.push({
+            material_cita_id: reserva.id,
+            inventario_id: reserva.material?.producto?.inventario?.id || 0,
+            inventario_nombre: reserva.material?.producto?.inventario?.nombre || 'Desconocido',
+            producto_id: reserva.material?.producto?.id || 0,
+            producto_nombre: reserva.material?.producto?.nombre || 'Desconocido',
+            material_id: reserva.material?.id || 0,
+            nro_lote: reserva.material?.nro_lote,
+            cantidad: cant_planeada,
+            stock_disponible: Number(reserva.material?.cantidad_actual || 0),
+            unidad_medida: reserva.material?.producto?.unidad_medida,
+            permite_decimales: reserva.material?.producto?.permite_decimales || false
           });
         }
       }
-      
-      setMaterialesConfirmacion(materiales_confirmacion);
+
+      if (respuesta.activos) {
+        for (const reserva of respuesta.activos) {
+          activos_mapeados.push({
+            material_cita_id: reserva.id,
+            inventario_id: reserva.activo?.inventario?.id || 0,
+            inventario_nombre: reserva.activo?.inventario?.nombre || 'Desconocido',
+            producto_id: reserva.activo?.producto?.id || 0,
+            producto_nombre: reserva.activo?.producto?.nombre || 'Desconocido',
+            activo_id: reserva.activo?.id || 0,
+            codigo_interno: reserva.activo?.codigo_interno,
+            nro_serie: reserva.activo?.nro_serie,
+            nombre_asignado: reserva.activo?.nombre_asignado,
+            estado: reserva.activo?.estado || 'bueno'
+          });
+        }
+      }
+
+      setConsumiblesConfirmacion(consumibles_mapeados);
+      setActivosConfirmacion(activos_mapeados);
       setDialogoConfirmarMaterialesAbierto(true);
     } catch (error) {
       console.error('Error al cargar materiales:', error);
@@ -972,40 +1054,69 @@ export default function Agenda() {
         paciente_id: cita_seleccionada.paciente?.id,
       });
 
-      if (materiales_adicionales_confirmacion.length > 0) {
-        const materiales_a_agregar = [];
-        for (const material of materiales_adicionales_confirmacion) {
-          if (material.producto_id === 0 || material.inventario_id === 0) continue;
-          
-          for (const item of material.items) {
-            materiales_a_agregar.push({
-              producto_id: material.producto_id,
-              inventario_id: material.inventario_id,
-              lote_id: item.lote_id,
-              activo_id: item.activo_id,
-              cantidad_planeada: item.cantidad_planeada,
-            });
-          }
-        }
-        
-        if (materiales_a_agregar.length > 0) {
-          await inventarioApi.agregarMaterialesCita(cita_seleccionada.id, {
-            materiales: materiales_a_agregar
+      // 1. Identificar materiales nuevos (sin ID de reserva) y existentes
+      const consumibles_nuevos = consumibles_confirmacion.filter(m => !m.material_cita_id);
+      const consumibles_existentes = consumibles_confirmacion.filter(m => m.material_cita_id);
+
+      const activos_nuevos = activos_confirmacion.filter(a => !a.material_cita_id);
+      const activos_existentes = activos_confirmacion.filter(a => a.material_cita_id);
+
+      // 2. Agregar nuevos materiales
+      const materiales_a_agregar = [];
+
+      for (const m of consumibles_nuevos) {
+        materiales_a_agregar.push({
+          producto_id: m.producto_id,
+          inventario_id: m.inventario_id,
+          lote_id: m.material_id, // En WizardConsumibles, material_id es el ID del lote/stock
+          cantidad_planeada: m.cantidad
+        });
+      }
+
+      for (const a of activos_nuevos) {
+        materiales_a_agregar.push({
+          producto_id: a.producto_id,
+          inventario_id: a.inventario_id,
+          activo_id: a.activo_id,
+          cantidad_planeada: 1
+        });
+      }
+
+      if (materiales_a_agregar.length > 0) {
+        await inventarioApi.agregarMaterialesCita(cita_seleccionada.id, {
+          materiales: materiales_a_agregar
+        });
+      }
+
+      // 3. Confirmar materiales existentes
+      const materiales_a_confirmar = [];
+
+      for (const m of consumibles_existentes) {
+        if (m.material_cita_id) {
+          materiales_a_confirmar.push({
+            material_cita_id: m.material_cita_id,
+            cantidad_usada: m.cantidad,
+            lote_id: m.material_id,
+            inventario_id: m.inventario_id
           });
         }
       }
 
-      if (materiales_confirmacion.length > 0) {
-        await inventarioApi.confirmarMaterialesCita(cita_seleccionada.id, {
-          materiales: materiales_confirmacion.map(m => ({
-            material_cita_id: m.material_cita_id,
-            cantidad_usada: Number(m.cantidad_usada),
-            lote_id: m.lote_id,
-            activo_id: m.activo_id,
-            inventario_id: m.inventario_id
-          })),
-        });
+      for (const a of activos_existentes) {
+        if (a.material_cita_id) {
+          materiales_a_confirmar.push({
+            material_cita_id: a.material_cita_id,
+            cantidad_usada: 1,
+            activo_id: a.activo_id,
+            inventario_id: a.inventario_id
+          });
+        }
       }
+
+      // Siempre llamar a confirmar para marcar la cita como confirmada, incluso si no hay materiales
+      await inventarioApi.confirmarMaterialesCita(cita_seleccionada.id, {
+        materiales: materiales_a_confirmar
+      });
 
       toast({
         title: 'Éxito',
@@ -1028,7 +1139,7 @@ export default function Agenda() {
 
   const agruparElementosPorDia = () => {
     const grupos: { [key: string]: ElementoAgenda[] } = {};
-    
+
     elementos_filtrados.forEach(elemento => {
       const fecha_str = formatearFecha(elemento.fecha);
       if (!grupos[fecha_str]) {
@@ -1077,8 +1188,8 @@ export default function Agenda() {
 
   const tiene_paciente = formulario.paciente_id !== '';
   const filtros_fecha_activos = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
-  const es_cita_pasada_edicion = !!(modo_edicion && cita_seleccionada && esCitaPasada(cita_seleccionada.fecha));
-  const hay_cambios = modo_edicion && (materialesCambiaron() || 
+  const es_cita_pasada_edicion = !!(modo_edicion && cita_seleccionada && (esCitaPasada(cita_seleccionada.fecha) || cita_seleccionada.materiales_confirmados));
+  const hay_cambios = modo_edicion && (materialesCambiaron() ||
     (cita_seleccionada && (
       formulario.paciente_id !== (cita_seleccionada.paciente?.id?.toString() || '') ||
       formulario.descripcion !== cita_seleccionada.descripcion ||
@@ -1111,7 +1222,7 @@ export default function Agenda() {
   return (
     <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
       <MenuLateral />
-      
+
       <div className="flex-1 overflow-y-auto">
         <div className="p-8 space-y-8">
           <div className="flex justify-between items-start">
@@ -1155,7 +1266,7 @@ export default function Agenda() {
                   </div>
                   <div>
                     <CardTitle className="text-2xl">
-                      {filtros_fecha_activos 
+                      {filtros_fecha_activos
                         ? (mostrar_horas_libres ? 'Horas Libres Filtradas' : 'Citas Filtradas')
                         : `${meses[mes_actual - 1]} ${ano_actual}`
                       }
@@ -1178,16 +1289,16 @@ export default function Agenda() {
                       onCheckedChange={setMostrarHorasLibres}
                     />
                   </div>
-                  
+
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => cambiarMes(-1)}
                       disabled={
-                        filtros_fecha_activos || 
+                        filtros_fecha_activos ||
                         (mostrar_horas_libres && (
-                          mes_actual === new Date().getMonth() + 1 && 
+                          mes_actual === new Date().getMonth() + 1 &&
                           ano_actual === new Date().getFullYear()
                         ))
                       }
@@ -1227,15 +1338,15 @@ export default function Agenda() {
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-foreground">
-                      {contarFiltrosActivos() > 0 
+                      {contarFiltrosActivos() > 0
                         ? (mostrar_horas_libres ? 'No hay horas libres que coincidan con los filtros' : 'No hay citas que coincidan con los filtros')
                         : (mostrar_horas_libres ? 'No hay horas libres en este período' : 'No hay citas programadas')
                       }
                     </h3>
                     <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                      {contarFiltrosActivos() > 0 
+                      {contarFiltrosActivos() > 0
                         ? 'Intenta ajustar los filtros o crear una nueva cita'
-                        : (mostrar_horas_libres 
+                        : (mostrar_horas_libres
                           ? 'Todas las horas están ocupadas con citas programadas'
                           : 'Crea tu primera cita para comenzar a organizar tu agenda'
                         )
@@ -1302,10 +1413,16 @@ export default function Agenda() {
                             );
                           } else {
                             const cita = elemento as Cita;
+                            const es_confirmada = cita.materiales_confirmados;
+                            const es_pasada = citaHaFinalizado(cita);
+                            const sin_paciente_pasada = es_pasada && !cita.paciente;
+                            const debe_estar_opaca = es_confirmada || sin_paciente_pasada;
+
                             return (
                               <div
                                 key={cita.id}
-                                className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
+                                className={`flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200 ${debe_estar_opaca ? 'opacity-60 grayscale-[0.3]' : ''
+                                  }`}
                               >
                                 <div className="flex items-center gap-4 flex-1">
                                   {cita.paciente?.color_categoria && (
@@ -1323,7 +1440,7 @@ export default function Agenda() {
                                         {formatearHora(cita.fecha)}
                                       </p>
                                       <p className="text-sm text-muted-foreground">
-                                        {cita.paciente 
+                                        {cita.paciente
                                           ? `${cita.paciente.nombre} ${cita.paciente.apellidos}`
                                           : 'Evento general'}
                                       </p>
@@ -1342,6 +1459,16 @@ export default function Agenda() {
                                           Monto esperado: {formatearMoneda(cita.monto_esperado || 0)}
                                         </p>
                                       )}
+                                      {es_confirmada && (
+                                        <Badge className="bg-green-500 text-white text-xs">
+                                          Confirmada
+                                        </Badge>
+                                      )}
+                                      {sin_paciente_pasada && (
+                                        <Badge variant="secondary" className="text-xs">
+                                          Finalizada
+                                        </Badge>
+                                      )}
                                     </div>
                                   </div>
                                   {cita.paciente && (
@@ -1351,35 +1478,50 @@ export default function Agenda() {
                                   )}
                                 </div>
                                 <div className="flex gap-2 ml-4">
-                                  {citaHaFinalizado(cita) && cita.paciente && !cita.materiales_confirmados && (
+                                  {es_confirmada || sin_paciente_pasada ? (
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => abrirDialogoConfirmarMateriales(cita)}
-                                      className="hover:bg-green-500/20 hover:text-green-600 hover:scale-110 transition-all duration-200 ring-2 ring-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
-                                      title="Confirmar Cita (Estado, Monto y Materiales)"
+                                      onClick={() => abrirDialogoEditar(cita)}
+                                      className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                      title="Ver detalles"
                                     >
-                                      <CheckCircle2 className="h-4 w-4" />
+                                      <Eye className="h-4 w-4" />
                                     </Button>
+                                  ) : (
+                                    <>
+                                      {es_pasada && cita.paciente ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => abrirDialogoConfirmarMateriales(cita)}
+                                          className="hover:bg-green-500/20 hover:text-green-600 hover:scale-110 transition-all duration-200 ring-2 ring-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
+                                          title="Confirmar Cita (Estado, Monto y Materiales)"
+                                        >
+                                          <CheckCircle2 className="h-4 w-4" />
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => abrirDialogoEditar(cita)}
+                                          className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                          title="Editar"
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => abrirDialogoConfirmarEliminar(cita.id)}
+                                        className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                                        title="Eliminar"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </>
                                   )}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => abrirDialogoEditar(cita)}
-                                    className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
-                                    title="Editar"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => abrirDialogoConfirmarEliminar(cita.id)}
-                                    className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
-                                    title="Eliminar"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
                                 </div>
                               </div>
                             );
@@ -1403,13 +1545,13 @@ export default function Agenda() {
               ¿Estás seguro de que deseas eliminar esta cita?
             </DialogDescription>
           </DialogHeader>
-                  
+
           <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
             <p className="text-sm text-destructive">
               Esta acción no se puede deshacer.
             </p>
           </div>
-                  
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -1481,7 +1623,7 @@ export default function Agenda() {
               <p className="text-xs text-muted-foreground">
                 Cuando uses este filtro, los botones de navegación de mes se deshabilitarán
               </p>
-              
+
               <div className="space-y-2">
                 <Label>Fecha y Hora de Inicio</Label>
                 <DateTimePicker
@@ -1528,9 +1670,9 @@ export default function Agenda() {
               {modo_edicion ? 'Editar Cita' : 'Nueva Cita'}
             </DialogTitle>
             <DialogDescription>
-              {modo_edicion 
-                ? (es_cita_pasada_edicion 
-                  ? 'Editando cita pasada: solo puedes modificar monto y estado de pago' 
+              {modo_edicion
+                ? (es_cita_pasada_edicion
+                  ? 'Editando cita pasada o confirmada: solo puedes modificar monto y estado de pago'
                   : 'Modifica los detalles de la cita')
                 : 'Programa una nueva cita o evento'}
             </DialogDescription>
@@ -1540,170 +1682,227 @@ export default function Agenda() {
             <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
               <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
-                Esta cita ya ocurrió. Solo puedes editar el monto y estado de pago.
+                Esta cita está ocurriendo, ya finalizó o fue confirmada. Los recursos están en modo lectura.
               </p>
             </div>
           )}
 
-          <div className="space-y-4 py-4 overflow-y-auto flex-1 px-1">
-            <div className="space-y-2">
-              <Label htmlFor="paciente">Paciente (opcional)</Label>
-              <Combobox
-                opciones={opciones_pacientes}
-                valor={formulario.paciente_id}
-                onChange={(valor) => setFormulario({ ...formulario, paciente_id: valor })}
-                placeholder="Selecciona un paciente"
-                disabled={es_cita_pasada_edicion}
-              />
-              <p className="text-xs text-muted-foreground">
-                Si no seleccionas un paciente, será un evento general sin estado ni monto
-              </p>
-            </div>
+          <Tabs defaultValue="datos" className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="datos" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Datos de la Cita
+              </TabsTrigger>
+              <TabsTrigger
+                value="recursos"
+                disabled={!formulario.paciente_id}
+                className="flex items-center gap-2"
+              >
+                <Package2 className="h-4 w-4" />
+                Recursos
+                {materiales_cita.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {materiales_cita.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="fecha">Fecha y Hora *</Label>
-              {es_cita_pasada_edicion ? (
-                <Input
-                  value={formulario.fecha ? formulario.fecha.toLocaleString('es-BO') : ''}
-                  disabled
-                  className="bg-muted"
+            <TabsContent value="datos" className="flex-1 overflow-y-auto px-1 space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="paciente">Paciente (opcional)</Label>
+                <Combobox
+                  opciones={opciones_pacientes}
+                  valor={formulario.paciente_id}
+                  onChange={(valor) => setFormulario({ ...formulario, paciente_id: valor })}
+                  placeholder="Selecciona un paciente"
+                  disabled={es_cita_pasada_edicion}
                 />
-              ) : (
-                <DateTimePicker
-                  valor={formulario.fecha}
-                  onChange={(fecha) => setFormulario({ ...formulario, fecha })}
-                  placeholder="Selecciona fecha y hora"
-                />
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="descripcion">Descripción *</Label>
-              <Textarea
-                id="descripcion"
-                value={formulario.descripcion}
-                onChange={(e) => setFormulario({ ...formulario, descripcion: e.target.value })}
-                placeholder="Ej: Consulta general, Limpieza dental, Reunión..."
-                rows={3}
-                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                disabled={es_cita_pasada_edicion}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Duración Aproximada</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="horas_aproximadas" className="text-xs text-muted-foreground">
-                    Horas
-                  </Label>
-                  <Input
-                    id="horas_aproximadas"
-                    type="number"
-                    min="0"
-                    value={formulario.horas_aproximadas}
-                    onChange={(e) => setFormulario({ ...formulario, horas_aproximadas: e.target.value })}
-                    placeholder="0"
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                    disabled={es_cita_pasada_edicion}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="minutos_aproximados" className="text-xs text-muted-foreground">
-                    Minutos
-                  </Label>
-                  <Input
-                    id="minutos_aproximados"
-                    type="number"
-                    min="1"
-                    value={formulario.minutos_aproximados}
-                    onChange={(e) => setFormulario({ ...formulario, minutos_aproximados: e.target.value })}
-                    placeholder="30"
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                    disabled={es_cita_pasada_edicion}
-                  />
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Si no seleccionas un paciente, será un evento general sin estado ni monto
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Tiempo estimado de la cita (para validación de conflictos de horario)
-              </p>
-            </div>
 
-            {tiene_paciente && (
-              <>
+              <div className="space-y-2">
+                <Label htmlFor="fecha">Fecha y Hora *</Label>
+                {es_cita_pasada_edicion ? (
+                  <Input
+                    value={formulario.fecha ? formulario.fecha.toLocaleString('es-BO') : ''}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <DateTimePicker
+                    valor={formulario.fecha}
+                    onChange={(fecha) => setFormulario({ ...formulario, fecha })}
+                    placeholder="Selecciona fecha y hora"
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="descripcion">Descripción *</Label>
+                <Textarea
+                  id="descripcion"
+                  value={formulario.descripcion}
+                  onChange={(e) => setFormulario({ ...formulario, descripcion: e.target.value })}
+                  placeholder="Ej: Consulta general, Limpieza dental, Reunión..."
+                  rows={3}
+                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  disabled={es_cita_pasada_edicion}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Duración Aproximada</Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="estado_pago">Estado de Pago</Label>
-                    <Combobox
-                      opciones={opciones_estados}
-                      valor={formulario.estado_pago}
-                      onChange={(valor) => setFormulario({ ...formulario, estado_pago: valor })}
-                      placeholder="Estado"
-                      disabled={!modo_edicion}
+                    <Label htmlFor="horas_aproximadas" className="text-xs text-muted-foreground">
+                      Horas
+                    </Label>
+                    <Input
+                      id="horas_aproximadas"
+                      type="number"
+                      min="0"
+                      value={formulario.horas_aproximadas}
+                      onChange={(e) => setFormulario({ ...formulario, horas_aproximadas: e.target.value })}
+                      placeholder="0"
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      disabled={es_cita_pasada_edicion}
                     />
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="monto_esperado">Monto Esperado (Bs.)</Label>
+                    <Label htmlFor="minutos_aproximados" className="text-xs text-muted-foreground">
+                      Minutos
+                    </Label>
                     <Input
-                      id="monto_esperado"
+                      id="minutos_aproximados"
                       type="number"
-                      step="0.01"
-                      min="0"
-                      value={formulario.monto_esperado}
-                      onChange={(e) => setFormulario({ ...formulario, monto_esperado: e.target.value })}
-                      placeholder="0.00"
+                      min="1"
+                      value={formulario.minutos_aproximados}
+                      onChange={(e) => setFormulario({ ...formulario, minutos_aproximados: e.target.value })}
+                      placeholder="30"
                       className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      disabled={es_cita_pasada_edicion}
                     />
                   </div>
                 </div>
-              </>
-            )}
+                <p className="text-xs text-muted-foreground">
+                  Tiempo estimado de la cita (para validación de conflictos de horario)
+                </p>
+              </div>
 
-            {}
-            {!es_cita_pasada_edicion && formulario.paciente_id && (
-              <Accordion 
-                type="single" 
-                collapsible 
-                className="w-full border rounded-lg"
-                onValueChange={async (value) => {
-                  if (value === 'materiales') {
-                    await cargarInventarios();
-                  }
-                }}
-              >
-                <AccordionItem value="materiales" className="border-none">
-                  <AccordionTrigger className="px-4 hover:no-underline">
-                    <div className="flex items-center gap-2">
+              {tiene_paciente && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="estado_pago">Estado de Pago</Label>
+                      <Combobox
+                        opciones={opciones_estados}
+                        valor={formulario.estado_pago}
+                        onChange={(valor) => setFormulario({ ...formulario, estado_pago: valor })}
+                        placeholder="Estado"
+                        disabled={!modo_edicion}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="monto_esperado">Monto Esperado (Bs.)</Label>
+                      <Input
+                        id="monto_esperado"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formulario.monto_esperado}
+                        onChange={(e) => setFormulario({ ...formulario, monto_esperado: e.target.value })}
+                        placeholder="0.00"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+            </TabsContent>
+
+            <TabsContent
+              value="recursos"
+              className="flex-1 overflow-y-auto px-1 space-y-4 mt-4"
+              onFocus={async () => {
+                if (inventarios.length === 0) {
+                  await cargarInventarios();
+                }
+              }}
+            >
+              {!formulario.paciente_id ? (
+                <div className="text-center py-12 space-y-4">
+                  <div className="mx-auto w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center">
+                    <AlertTriangle className="h-8 w-8 text-amber-500" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Paciente requerido
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                      Debes seleccionar un paciente en la pestaña "Datos" para poder asignar recursos a esta cita.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <Tabs defaultValue="consumibles" className="flex-1 flex flex-col">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="consumibles" className="flex items-center gap-2">
                       <Package className="h-4 w-4" />
-                      <span>Materiales e Insumos (Opcional)</span>
-                      {materiales_cita.length > 0 && (
-                        <Badge variant="secondary" className="ml-2">
-                          {materiales_cita.length}
+                      Consumibles
+                      {consumibles_seleccionados.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {consumibles_seleccionados.length}
                         </Badge>
                       )}
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 space-y-4">
-                    <SelectorMateriales
+                    </TabsTrigger>
+                    <TabsTrigger value="activos" className="flex items-center gap-2">
+                      <Wrench className="h-4 w-4" />
+                      Activos Fijos
+                      {activos_seleccionados.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {activos_seleccionados.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="consumibles" className="flex-1 overflow-y-auto mt-4">
+                    <WizardConsumibles
                       inventarios={inventarios}
                       productos_por_inventario={productos_por_inventario}
-                      materiales={materiales_cita}
                       cargarProductos={cargarProductosInventario}
-                      onAgregarMaterial={agregarMaterialCita}
-                      onEliminarMaterial={eliminarMaterialCita}
-                      onActualizarMaterial={actualizarMaterialCita}
-                      onAgregarItem={agregarItemMaterial}
-                      onEliminarItem={eliminarItemMaterial}
-                      onActualizarItem={actualizarItemMaterial}
-                      texto_boton_agregar="Agregar Material"
-                      cargando={cargando_materiales}
+                      materialesSeleccionados={consumibles_seleccionados}
+                      onAgregarMaterial={(material) => setConsumiblesSeleccionados([...consumibles_seleccionados, material])}
+                      onEliminarMaterial={(idx) => setConsumiblesSeleccionados(consumibles_seleccionados.filter((_, i) => i !== idx))}
+                      onActualizarCantidad={(idx, cantidad) => {
+                        const nuevos = [...consumibles_seleccionados];
+                        nuevos[idx] = { ...nuevos[idx], cantidad };
+                        setConsumiblesSeleccionados(nuevos);
+                      }}
+                      readOnly={es_cita_pasada_edicion}
                     />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            )}
-          </div>
+                  </TabsContent>
+
+                  <TabsContent value="activos" className="flex-1 overflow-y-auto mt-4">
+                    <WizardActivosFijos
+                      inventarios={inventarios}
+                      productos_por_inventario={productos_por_inventario}
+                      cargarProductos={cargarProductosInventario}
+                      activosSeleccionados={activos_seleccionados}
+                      onAgregarActivo={(activo) => setActivosSeleccionados([...activos_seleccionados, activo])}
+                      onEliminarActivo={(idx) => setActivosSeleccionados(activos_seleccionados.filter((_, i) => i !== idx))}
+                      fecha_cita={formulario.fecha}
+                      readOnly={es_cita_pasada_edicion}
+                    />
+                  </TabsContent>
+                </Tabs>
+              )}
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter>
             <Button
@@ -1714,8 +1913,8 @@ export default function Agenda() {
             >
               Cancelar
             </Button>
-            <Button 
-              onClick={manejarGuardar} 
+            <Button
+              onClick={manejarGuardar}
               disabled={guardando || (modo_edicion && !hay_cambios)}
               className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
             >
@@ -1726,7 +1925,7 @@ export default function Agenda() {
         </DialogContent>
       </Dialog>
 
-      {}
+      { }
       <Dialog open={dialogo_confirmar_materiales_abierto} onOpenChange={setDialogoConfirmarMaterialesAbierto}>
         <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
           <DialogHeader>
@@ -1736,163 +1935,123 @@ export default function Agenda() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-4">
             <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               Esta acción registrará el estado final de la cita, consumo de materiales y actualizará el inventario
             </p>
           </div>
 
-          <div className="space-y-4 overflow-y-auto flex-1 px-1">
-            {}
-            <div className="border rounded-lg p-4 space-y-3 bg-blue-500/5">
-              <h3 className="font-semibold text-foreground flex items-center gap-2">
+          <Tabs defaultValue="datos" className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="datos" className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
-                Estado de Pago y Monto
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Estado de Pago</Label>
-                  <Combobox
-                    opciones={opciones_estados}
-                    valor={estado_pago_confirmacion}
-                    onChange={setEstadoPagoConfirmacion}
-                    placeholder="Selecciona estado"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Monto Final (Bs.)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={monto_confirmacion}
-                    onChange={(e) => setMontoConfirmacion(e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-            </div>
+                Datos de Cierre
+              </TabsTrigger>
+              <TabsTrigger value="recursos" className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Recursos Utilizados
+              </TabsTrigger>
+            </TabsList>
 
-            {}
-            {cargando_materiales ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : materiales_confirmacion.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground border rounded-lg bg-secondary/5">
-                <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                No hay materiales asignados a esta cita
-              </div>
-            ) : (
-              <div className="space-y-3">
+            <TabsContent value="datos" className="flex-1 overflow-y-auto">
+              <div className="border rounded-lg p-4 space-y-3 bg-blue-500/5">
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  Materiales Utilizados
+                  <DollarSign className="h-4 w-4" />
+                  Estado de Pago y Monto
                 </h3>
-                {materiales_confirmacion.map((material, idx) => (
-                  <div key={idx} className="border rounded-lg p-4 space-y-3 bg-secondary/10">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-foreground">{material.producto_nombre}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {material.inventario_nombre && `${material.inventario_nombre} · `}
-                          {material.tipo_gestion === 'consumible' ? 'Consumible' : 
-                           material.tipo_gestion === 'activo_serializado' ? 'Activo Serializado' : 
-                           'Activo General'}
-                        </p>
-                        {material.nro_lote && (
-                          <p className="text-xs text-muted-foreground mt-1">📦 Lote: {material.nro_lote}</p>
-                        )}
-                        {material.nro_serie && (
-                          <p className="text-xs text-muted-foreground mt-1">🔢 Serie: {material.nro_serie}</p>
-                        )}
-                        {material.nombre_asignado && (
-                          <p className="text-xs text-muted-foreground mt-1">🏷️ Nombre: {material.nombre_asignado}</p>
-                        )}
-                      </div>
-                      <Badge variant="secondary">
-                        Planeado: {material.cantidad_planeada}
-                      </Badge>
-                    </div>
-
-                    {material.tipo_gestion === 'consumible' && (
-                      <div className="space-y-2">
-                        <Label className="text-sm">
-                          Cantidad Realmente Usada{material.unidad_medida ? ` (${material.unidad_medida})` : ''}
-                        </Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={material.cantidad_usada}
-                          onChange={(e) => {
-                            const nuevos_materiales = [...materiales_confirmacion];
-                            nuevos_materiales[idx].cantidad_usada = parseFloat(e.target.value) || 0;
-                            setMaterialesConfirmacion(nuevos_materiales);
-                          }}
-                          className="w-full"
-                        />
-                        {material.cantidad_usada !== material.cantidad_planeada && (
-                          <p className="text-xs text-amber-600">
-                            Diferencia: {(material.cantidad_usada - material.cantidad_planeada).toFixed(2)}
-                          </p>
-                        )}
-                      </div>
-                    )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Estado de Pago</Label>
+                    <Combobox
+                      opciones={opciones_estados}
+                      valor={estado_pago_confirmacion}
+                      onChange={setEstadoPagoConfirmacion}
+                      placeholder="Selecciona estado"
+                    />
                   </div>
-                ))}
-              </div>
-            )}
-            <div className="border-t pt-4 space-y-3">
-              {!mostrar_agregar_materiales_confirmacion ? (
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    await cargarInventarios();
-                    setMostrarAgregarMaterialesConfirmacion(true);
-                  }}
-                  className="w-full hover:bg-primary/10"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Agregar Materiales Adicionales
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-foreground flex items-center gap-2">
-                      <Package className="h-4 w-4" />
-                      Materiales Adicionales
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setMostrarAgregarMaterialesConfirmacion(false);
-                        setMaterialesAdicionalesConfirmacion([]);
-                      }}
-                    >
-                      Cancelar
-                    </Button>
+                  <div className="space-y-2">
+                    <Label>Monto Final (Bs.)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={monto_confirmacion}
+                      onChange={(e) => setMontoConfirmacion(e.target.value)}
+                      placeholder="0.00"
+                    />
                   </div>
-                  <SelectorMateriales
-                    inventarios={inventarios}
-                    productos_por_inventario={productos_por_inventario}
-                    materiales={materiales_adicionales_confirmacion}
-                    cargarProductos={cargarProductosInventario}
-                    onAgregarMaterial={agregarMaterialAdicionalConfirmacion}
-                    onEliminarMaterial={eliminarMaterialAdicionalConfirmacion}
-                    onActualizarMaterial={actualizarMaterialAdicionalConfirmacion}
-                    onAgregarItem={agregarItemMaterialAdicionalConfirmacion}
-                    onEliminarItem={eliminarItemMaterialAdicionalConfirmacion}
-                    onActualizarItem={actualizarItemMaterialAdicionalConfirmacion}
-                    texto_boton_agregar="Agregar Material"
-                    cargando={cargando_materiales}
-                  />
                 </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="recursos" className="flex-1 overflow-y-auto flex flex-col">
+              {cargando_materiales ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <Tabs defaultValue="consumibles" className="flex-1 flex flex-col">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="consumibles" className="flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      Consumibles
+                      {consumibles_confirmacion.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {consumibles_confirmacion.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="activos" className="flex items-center gap-2">
+                      <Wrench className="h-4 w-4" />
+                      Activos Fijos
+                      {activos_confirmacion.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {activos_confirmacion.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="consumibles" className="space-y-4">
+                    <WizardConsumibles
+                      inventarios={inventarios}
+                      productos_por_inventario={productos_por_inventario}
+                      cargarProductos={cargarProductosInventario}
+                      materialesSeleccionados={consumibles_confirmacion}
+                      onAgregarMaterial={(material) => setConsumiblesConfirmacion([...consumibles_confirmacion, material])}
+                      onEliminarMaterial={(idx) => setConsumiblesConfirmacion(consumibles_confirmacion.filter((_, i) => i !== idx))}
+                      onActualizarCantidad={(idx, cantidad) => {
+                        const nuevos = [...consumibles_confirmacion];
+                        nuevos[idx] = { ...nuevos[idx], cantidad };
+                        setConsumiblesConfirmacion(nuevos);
+                      }}
+                      readOnly={false}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="activos" className="space-y-4">
+                    <WizardActivosFijos
+                      inventarios={inventarios}
+                      productos_por_inventario={productos_por_inventario}
+                      cargarProductos={cargarProductosInventario}
+                      activosSeleccionados={activos_confirmacion}
+                      onAgregarActivo={(activo) => setActivosConfirmacion([...activos_confirmacion, activo])}
+                      onEliminarActivo={(idx) => setActivosConfirmacion(activos_confirmacion.filter((_, i) => i !== idx))}
+                      fecha_cita={cita_seleccionada?.fecha ? new Date(cita_seleccionada.fecha) : new Date()}
+                      readOnly={true}
+                    />
+                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <p className="text-xs text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                        <AlertCircle className="h-3 w-3" />
+                        Los activos fijos se liberarán automáticamente al confirmar la cita.
+                      </p>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               )}
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter>
             <Button
@@ -1904,7 +2063,7 @@ export default function Agenda() {
             </Button>
             <Button
               onClick={manejarConfirmarMateriales}
-              disabled={guardando || (materiales_confirmacion.length === 0 && materiales_adicionales_confirmacion.length === 0)}
+              disabled={guardando}
               className="bg-green-600 hover:bg-green-700"
             >
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

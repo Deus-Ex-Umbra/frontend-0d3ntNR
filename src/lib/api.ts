@@ -670,11 +670,9 @@ export const inventarioApi = {
   crearProducto: async (datos: {
     inventario_id: number;
     nombre: string;
-    // Nuevo sistema
     tipo?: 'material' | 'activo_fijo';
     subtipo_material?: 'con_lote_vencimiento' | 'con_serie' | 'sin_lote';
     subtipo_activo_fijo?: 'instrumental' | 'mobiliario_equipo';
-    // Legacy
     tipo_gestion?: string;
     stock_minimo?: number;
     unidad_medida?: string;
@@ -686,6 +684,10 @@ export const inventarioApi = {
   },
   obtenerProductos: async (inventario_id: number) => {
     const respuesta = await api.get(`/inventario/${inventario_id}/productos`);
+    return respuesta.data;
+  },
+  obtenerProductoPorId: async (inventario_id: number, producto_id: number) => {
+    const respuesta = await api.get(`/inventario/${inventario_id}/productos/${producto_id}`);
     return respuesta.data;
   },
   obtenerStockProducto: async (inventario_id: number, producto_id: number) => {
@@ -700,7 +702,6 @@ export const inventarioApi = {
     const respuesta = await api.delete(`/inventario/${inventario_id}/productos/${producto_id}`);
     return respuesta.data;
   },
-  // Legacy: mantener para compatibilidad
   registrarCompra: async (inventario_id: number, datos: {
     producto_id: number;
     cantidad: number;
@@ -715,7 +716,6 @@ export const inventarioApi = {
     const respuesta = await api.post(`/inventario/${inventario_id}/registrar-compra`, datos);
     return respuesta.data;
   },
-  // Nuevos endpoints de entrada
   registrarEntradaMaterial: async (inventario_id: number, datos: {
     producto_id: number;
     cantidad: number;
@@ -746,7 +746,6 @@ export const inventarioApi = {
     const respuesta = await api.post(`/inventario/${inventario_id}/activos/entrada`, datos);
     return respuesta.data;
   },
-  // Salida de material
   registrarSalidaMaterial: async (inventario_id: number, datos: {
     producto_id: number;
     material_id?: number;
@@ -775,7 +774,7 @@ export const inventarioApi = {
     return respuesta.data;
   },
   obtenerMaterialesCita: async (cita_id: number) => {
-    const respuesta = await api.get(`/inventario/citas/${cita_id}/materiales`);
+    const respuesta = await api.get(`/inventario/citas/${cita_id}/reservas`);
     return respuesta.data;
   },
   confirmarMaterialesCita: async (cita_id: number, datos: {
@@ -791,7 +790,7 @@ export const inventarioApi = {
     return respuesta.data;
   },
   obtenerMaterialesTratamiento: async (plan_tratamiento_id: number) => {
-    const respuesta = await api.get(`/inventario/tratamientos/${plan_tratamiento_id}/materiales`);
+    const respuesta = await api.get(`/inventario/tratamientos/${plan_tratamiento_id}/reservas`);
     return respuesta.data;
   },
   confirmarMaterialesGenerales: async (plan_tratamiento_id: number, datos: any) => {
@@ -848,7 +847,7 @@ export const inventarioApi = {
     return respuesta.data;
   },
   obtenerReporteValor: async (inventario_id: number) => {
-    const respuesta = await api.get(`/inventario/${inventario_id}/reporte-valor`);
+    const respuesta = await api.get(`/inventario/${inventario_id}/reporte/valor`);
     return respuesta.data;
   },
   eliminarLote: async (inventario_id: number, lote_id: number) => {
@@ -865,25 +864,24 @@ export const inventarioApi = {
   },
   ajustarStock: async (inventario_id: number, datos: {
     producto_id: number;
-    tipo: 'entrada' | 'salida';
+    material_id?: number;
+    tipo_ajuste: 'incremento' | 'decremento' | 'establecer';
     cantidad: number;
-    observaciones: string;
-    generar_movimiento_financiero?: boolean;
-    monto?: number;
+    motivo: string;
+    observaciones?: string;
   }) => {
     const respuesta = await api.post(`/inventario/${inventario_id}/ajustar-stock`, datos);
     return respuesta.data;
   },
   venderActivo: async (inventario_id: number, activo_id: number, datos: {
-    monto_venta: number;
-    registrar_pago: boolean;
+    monto_venta?: number;
+    registrar_pago?: boolean;
+    tipo_salida: 'venta' | 'desecho' | 'robo';
+    observaciones?: string;
   }) => {
     const respuesta = await api.post(`/inventario/${inventario_id}/activos/${activo_id}/vender`, datos);
     return respuesta.data;
   },
-  // =====================
-  // KARDEX (Movimientos de Inventario)
-  // =====================
   obtenerKardex: async (inventario_id: number, filtros?: {
     tipo?: string;
     operacion?: 'entrada' | 'salida';
@@ -924,9 +922,6 @@ export const inventarioApi = {
     const respuesta = await api.get(`/inventario/${inventario_id}/kardex/reporte?fecha_inicio=${fecha_inicio}&fecha_fin=${fecha_fin}`);
     return respuesta.data;
   },
-  // =====================
-  // BITÁCORA (Historial de Activos)
-  // =====================
   obtenerBitacora: async (inventario_id: number, filtros?: {
     tipo?: string;
     producto_id?: number;
@@ -966,9 +961,6 @@ export const inventarioApi = {
     const respuesta = await api.get(`/inventario/${inventario_id}/bitacora/recientes${query}`);
     return respuesta.data;
   },
-  // =====================
-  // AUDITORÍA
-  // =====================
   buscarAuditoria: async (inventario_id: number, filtros?: {
     accion?: string;
     tipo_entidad?: 'producto' | 'material' | 'activo' | 'inventario';

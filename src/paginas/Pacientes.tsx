@@ -1910,8 +1910,6 @@ export default function Pacientes() {
                                           const base64 = await generarPdfDesdeHtml(version_visualizada.contenido_html || '', pdfConfig);
 
                                           const nombre_archivo = `Historia_Clinica_${paciente_seleccionado.nombre}_${paciente_seleccionado.apellidos}_v${version_visualizada.numero_version}.pdf`;
-
-                                          // Guardar en archivos del paciente
                                           await archivosApi.subir({
                                             nombre_archivo,
                                             tipo_mime: 'application/pdf',

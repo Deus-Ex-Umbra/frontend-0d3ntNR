@@ -55,6 +55,7 @@ import {
   AlertTriangle,
   Package,
   Check,
+  ArrowRight,
 } from "lucide-react";
 import { tratamientosApi, planesTratamientoApi, pacientesApi, agendaApi, inventarioApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
@@ -67,6 +68,9 @@ import { ajustarFechaParaBackend } from "@/lib/utilidades";
 import { Tratamiento } from '@/tipos';
 import type { Paciente, Inventario, Producto, MaterialGeneral, MaterialCita } from '@/tipos';
 import SelectorMateriales from '@/componentes/materiales/selector-materiales';
+import WizardConsumibles from '@/componentes/materiales/wizard-consumibles';
+import WizardActivosFijos from '@/componentes/materiales/wizard-activos-fijos';
+import { Wrench } from 'lucide-react';
 
 interface PlanTratamiento {
   id: number;
@@ -143,6 +147,55 @@ export default function Tratamientos() {
   const [mostrar_agregar_materiales_confirmacion, setMostrarAgregarMaterialesConfirmacion] = useState(false);
   const [estado_pago_confirmacion, setEstadoPagoConfirmacion] = useState<string>('pendiente');
   const [monto_confirmacion, setMontoConfirmacion] = useState<string>('');
+
+  const [consumibles_seleccionados_cita, setConsumiblesSeleccionadosCita] = useState<Array<{
+    inventario_id: number;
+    inventario_nombre: string;
+    producto_id: number;
+    producto_nombre: string;
+    material_id: number;
+    nro_lote?: string;
+    cantidad: number;
+    stock_disponible: number;
+    unidad_medida?: string;
+    permite_decimales?: boolean;
+  }>>([]);
+  const [activos_seleccionados_cita, setActivosSeleccionadosCita] = useState<Array<{
+    inventario_id: number;
+    inventario_nombre: string;
+    producto_id: number;
+    producto_nombre: string;
+    activo_id: number;
+    codigo_interno?: string;
+    nro_serie?: string;
+    nombre_asignado?: string;
+    estado: string;
+  }>>([]);
+
+  const [consumibles_plantilla, setConsumiblesPlantilla] = useState<Array<{
+    inventario_id: number;
+    inventario_nombre: string;
+    producto_id: number;
+    producto_nombre: string;
+    material_id: number;
+    nro_lote?: string;
+    cantidad: number;
+    stock_disponible: number;
+    unidad_medida?: string;
+    permite_decimales?: boolean;
+  }>>([]);
+  const [activos_plantilla, setActivosPlantilla] = useState<Array<{
+    inventario_id: number;
+    inventario_nombre: string;
+    producto_id: number;
+    producto_nombre: string;
+    activo_id: number;
+    codigo_interno?: string;
+    nro_serie?: string;
+    nombre_asignado?: string;
+    estado: string;
+  }>>([]);
+
 
   const [formulario_plantilla_inicial, setFormularioPlantillaInicial] = useState({
     nombre: "",
@@ -1154,6 +1207,8 @@ export default function Tratamientos() {
       minutos_aproximados: "30",
     });
     setModoEdicionCita(false);
+    setConsumiblesSeleccionadosCita([]);
+    setActivosSeleccionadosCita([]);
     setDialogoCitaAbierto(true);
   };
 
@@ -1172,16 +1227,70 @@ export default function Tratamientos() {
     setFormularioCitaInicial(formulario_inicial);
     setCitaSeleccionada(cita);
     setModoEdicionCita(true);
+    setConsumiblesSeleccionadosCita([]);
+    setActivosSeleccionadosCita([]);
 
-    if (!es_pasada) {
+    if (!es_pasada && cita.id) {
       setMaterialesCitaEdicion([]);
-      if (cita.id) {
-        await cargarMaterialesCita(cita.id);
+      setCargandoMateriales(true);
+      try {
+        const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
+        const materiales = respuesta.materiales || [];
+
+        const consumibles_transformados: typeof consumibles_seleccionados_cita = [];
+        const activos_transformados: typeof activos_seleccionados_cita = [];
+
+        for (const material of materiales) {
+          if (!productos_por_inventario[material.inventario_id]) {
+            await cargarProductosInventario(material.inventario_id);
+          }
+
+          const items = material.items && material.items.length > 0 ? material.items : [material];
+
+          if (material.tipo_gestion === 'material' || material.tipo_gestion === 'MATERIAL') {
+            for (const item of items) {
+              consumibles_transformados.push({
+                inventario_id: material.inventario_id,
+                inventario_nombre: material.inventario_nombre,
+                producto_id: material.producto_id,
+                producto_nombre: material.producto_nombre,
+                material_id: item.lote_id || item.material_id || 0,
+                nro_lote: item.nro_lote,
+                cantidad: parseFloat(item.cantidad_planeada?.toString() || '1'),
+                stock_disponible: item.stock_disponible || 0,
+                unidad_medida: material.unidad_medida,
+                permite_decimales: material.permite_decimales,
+              });
+            }
+          } else if (material.tipo_gestion === 'activo_fijo' || material.tipo_gestion === 'ACTIVO_FIJO') {
+            for (const item of items) {
+              activos_transformados.push({
+                inventario_id: material.inventario_id,
+                inventario_nombre: material.inventario_nombre,
+                producto_id: material.producto_id,
+                producto_nombre: material.producto_nombre,
+                activo_id: item.activo_id || 0,
+                codigo_interno: item.codigo_interno,
+                nro_serie: item.nro_serie,
+                nombre_asignado: item.nombre_asignado,
+                estado: item.estado || 'disponible',
+              });
+            }
+          }
+        }
+
+        setConsumiblesSeleccionadosCita(consumibles_transformados);
+        setActivosSeleccionadosCita(activos_transformados);
+      } catch (error) {
+        console.error('Error al cargar materiales de la cita:', error);
+      } finally {
+        setCargandoMateriales(false);
       }
     }
 
     setDialogoCitaAbierto(true);
   };
+
 
   const manejarGuardarCita = async () => {
     if (!plan_seleccionado || !formulario_cita.fecha || !formulario_cita.descripcion) {
@@ -2103,17 +2212,47 @@ export default function Tratamientos() {
                                   {plan.tratamiento.nombre}
                                 </p>
                               </div>
-                              <Badge
-                                variant={
-                                  progreso === 100 ? "default" : "secondary"
-                                }
-                                className="text-sm hover:scale-110 transition-transform duration-200"
-                              >
-                                {progreso === 100 ? (
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                ) : null}
-                                {progreso.toFixed(0)}% pagado
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant={
+                                    progreso === 100 ? "default" : "secondary"
+                                  }
+                                  className="text-sm hover:scale-110 transition-transform duration-200"
+                                >
+                                  {progreso === 100 ? (
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                  ) : null}
+                                  {progreso.toFixed(0)}% pagado
+                                </Badge>
+                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPlanSeleccionado(plan);
+                                      abrirDialogoEditarCosto();
+                                    }}
+                                    className="h-8 w-8 hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                    title="Editar"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPlanAEliminar(plan);
+                                      setDialogoConfirmarEliminarAbierto(true);
+                                    }}
+                                    className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                                    title="Eliminar Plan"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
 
                             <div className="space-y-3">
@@ -2193,259 +2332,278 @@ export default function Tratamientos() {
           </DialogHeader>
 
           <ScrollArea className="max-h-[calc(90vh-200px)] pr-4">
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombre">Nombre del Tratamiento *</Label>
-                <Input
-                  id="nombre"
-                  value={formulario_plantilla.nombre}
-                  onChange={(e) =>
-                    setFormularioPlantilla({
-                      ...formulario_plantilla,
-                      nombre: e.target.value,
-                    })
-                  }
-                  placeholder="Ej: Endodoncia, Ortodoncia, Blanqueamiento"
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                />
-              </div>
+            <Tabs defaultValue="datos" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger value="datos" className="flex items-center gap-1 text-sm">
+                  <FileText className="h-4 w-4" />
+                  Datos del Plan
+                </TabsTrigger>
+                <TabsTrigger value="generales" className="flex items-center gap-1 text-sm" onClick={() => cargarInventarios()}>
+                  <Package className="h-4 w-4" />
+                  Consumibles Generales
+                  {materiales_generales.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{materiales_generales.length}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="recursos" className="flex items-center gap-1 text-sm" onClick={() => cargarInventarios()}>
+                  <Wrench className="h-4 w-4" />
+                  Recursos por Cita
+                  {materiales_por_cita.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{materiales_por_cita.length}</Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
 
-              <div className="grid grid-cols-2 gap-4">
+              <TabsContent value="datos" className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="numero_citas">Número de Citas *</Label>
+                  <Label htmlFor="nombre">Nombre del Tratamiento *</Label>
                   <Input
-                    id="numero_citas"
-                    type="number"
-                    min="1"
-                    value={formulario_plantilla.numero_citas}
+                    id="nombre"
+                    value={formulario_plantilla.nombre}
                     onChange={(e) =>
                       setFormularioPlantilla({
                         ...formulario_plantilla,
-                        numero_citas: e.target.value,
+                        nombre: e.target.value,
                       })
                     }
-                    placeholder="Ej: 25"
+                    placeholder="Ej: Endodoncia, Ortodoncia, Blanqueamiento"
                     className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="costo_total">Costo Total (Bs.) *</Label>
-                  <Input
-                    id="costo_total"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formulario_plantilla.costo_total}
-                    onChange={(e) =>
-                      setFormularioPlantilla({
-                        ...formulario_plantilla,
-                        costo_total: e.target.value,
-                      })
-                    }
-                    placeholder="Ej: 5000.00"
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Intervalo entre Citas</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="intervalo_meses" className="text-xs text-muted-foreground">
-                      Meses
-                    </Label>
-                    <Input
-                      id="intervalo_meses"
-                      type="number"
-                      min="0"
-                      value={formulario_plantilla.intervalo_meses}
-                      onChange={(e) =>
-                        setFormularioPlantilla({
-                          ...formulario_plantilla,
-                          intervalo_meses: e.target.value,
-                        })
-                      }
-                      placeholder="0"
-                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="intervalo_semanas" className="text-xs text-muted-foreground">
-                      Semanas
-                    </Label>
-                    <Input
-                      id="intervalo_semanas"
-                      type="number"
-                      min="0"
-                      value={formulario_plantilla.intervalo_semanas}
-                      onChange={(e) =>
-                        setFormularioPlantilla({
-                          ...formulario_plantilla,
-                          intervalo_semanas: e.target.value,
-                        })
-                      }
-                      placeholder="0"
-                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="intervalo_dias" className="text-xs text-muted-foreground">
-                      Días
-                    </Label>
-                    <Input
-                      id="intervalo_dias"
-                      type="number"
-                      min="0"
-                      value={formulario_plantilla.intervalo_dias}
-                      onChange={(e) =>
-                        setFormularioPlantilla({
-                          ...formulario_plantilla,
-                          intervalo_dias: e.target.value,
-                        })
-                      }
-                      placeholder="0"
-                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Las citas se programarán automáticamente con este intervalo. Ej: 1 mes, 2 semanas, 3 días
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Duración Aproximada de Cada Cita</Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="horas_aproximadas_citas" className="text-xs text-muted-foreground">
-                      Horas
-                    </Label>
+                    <Label htmlFor="numero_citas">Número de Citas *</Label>
                     <Input
-                      id="horas_aproximadas_citas"
+                      id="numero_citas"
                       type="number"
-                      min="0"
-                      value={formulario_plantilla.horas_aproximadas_citas}
+                      min="1"
+                      value={formulario_plantilla.numero_citas}
                       onChange={(e) =>
                         setFormularioPlantilla({
                           ...formulario_plantilla,
-                          horas_aproximadas_citas: e.target.value,
+                          numero_citas: e.target.value,
                         })
                       }
-                      placeholder="0"
+                      placeholder="Ej: 25"
                       className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="minutos_aproximados_citas" className="text-xs text-muted-foreground">
-                      Minutos
-                    </Label>
+                    <Label htmlFor="costo_total">Costo Total (Bs.) *</Label>
                     <Input
-                      id="minutos_aproximados_citas"
+                      id="costo_total"
                       type="number"
-                      min="1"
-                      value={formulario_plantilla.minutos_aproximados_citas}
+                      step="0.01"
+                      min="0"
+                      value={formulario_plantilla.costo_total}
                       onChange={(e) =>
                         setFormularioPlantilla({
                           ...formulario_plantilla,
-                          minutos_aproximados_citas: e.target.value,
+                          costo_total: e.target.value,
                         })
                       }
-                      placeholder="30"
+                      placeholder="Ej: 5000.00"
                       className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                     />
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Todas las citas del plan tendrán esta duración estimada
-                </p>
-              </div>
 
-              <div className="space-y-4 pt-4 border-t">
-                <div className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-primary" />
-                  <Label className="text-base font-semibold">Materiales del Tratamiento</Label>
+                <div className="space-y-2">
+                  <Label>Intervalo entre Citas</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="intervalo_meses" className="text-xs text-muted-foreground">
+                        Meses
+                      </Label>
+                      <Input
+                        id="intervalo_meses"
+                        type="number"
+                        min="0"
+                        value={formulario_plantilla.intervalo_meses}
+                        onChange={(e) =>
+                          setFormularioPlantilla({
+                            ...formulario_plantilla,
+                            intervalo_meses: e.target.value,
+                          })
+                        }
+                        placeholder="0"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="intervalo_semanas" className="text-xs text-muted-foreground">
+                        Semanas
+                      </Label>
+                      <Input
+                        id="intervalo_semanas"
+                        type="number"
+                        min="0"
+                        value={formulario_plantilla.intervalo_semanas}
+                        onChange={(e) =>
+                          setFormularioPlantilla({
+                            ...formulario_plantilla,
+                            intervalo_semanas: e.target.value,
+                          })
+                        }
+                        placeholder="0"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="intervalo_dias" className="text-xs text-muted-foreground">
+                        Días
+                      </Label>
+                      <Input
+                        id="intervalo_dias"
+                        type="number"
+                        min="0"
+                        value={formulario_plantilla.intervalo_dias}
+                        onChange={(e) =>
+                          setFormularioPlantilla({
+                            ...formulario_plantilla,
+                            intervalo_dias: e.target.value,
+                          })
+                        }
+                        placeholder="0"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Las citas se programarán automáticamente con este intervalo
+                  </p>
                 </div>
 
-                <ScrollArea className="h-[300px] rounded-md border p-4">
-                  <Accordion
-                    type="multiple"
-                    className="w-full space-y-2"
-                    onValueChange={async (values) => {
-                      if (values.includes('materiales-generales') || values.includes('materiales-por-cita')) {
-                        await cargarInventarios();
-                      }
-                    }}
-                  >
-                    <AccordionItem value="materiales-generales">
-                      <AccordionTrigger className="hover:no-underline">
-                        <div className="flex items-center gap-2">
-                          <Package className="h-4 w-4" />
-                          <span>Materiales Generales</span>
-                          <Badge variant="secondary">{materiales_generales.length}</Badge>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                          Materiales que se aplicarán automáticamente en cada cita del tratamiento
-                        </p>
+                <div className="space-y-2">
+                  <Label>Duración Aproximada de Cada Cita</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="horas_aproximadas_citas" className="text-xs text-muted-foreground">
+                        Horas
+                      </Label>
+                      <Input
+                        id="horas_aproximadas_citas"
+                        type="number"
+                        min="0"
+                        value={formulario_plantilla.horas_aproximadas_citas}
+                        onChange={(e) =>
+                          setFormularioPlantilla({
+                            ...formulario_plantilla,
+                            horas_aproximadas_citas: e.target.value,
+                          })
+                        }
+                        placeholder="0"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      />
+                    </div>
 
-                        <SelectorMateriales
-                          inventarios={inventarios}
-                          productos_por_inventario={productos_por_inventario}
-                          materiales={materiales_generales}
-                          cargarProductos={cargarProductosInventario}
-                          onAgregarMaterial={agregarMaterialGeneral}
-                          onEliminarMaterial={eliminarMaterialGeneral}
-                          onActualizarMaterial={actualizarMaterialGeneral}
-                          onAgregarItem={agregarItemMaterialGeneral}
-                          onEliminarItem={eliminarItemMaterialGeneral}
-                          onActualizarItem={actualizarItemMaterialGeneral}
-                          texto_boton_agregar="Agregar Material General"
-                          cargando={cargando_materiales}
-                        />
-                      </AccordionContent>
-                    </AccordionItem>
+                    <div className="space-y-2">
+                      <Label htmlFor="minutos_aproximados_citas" className="text-xs text-muted-foreground">
+                        Minutos
+                      </Label>
+                      <Input
+                        id="minutos_aproximados_citas"
+                        type="number"
+                        min="1"
+                        value={formulario_plantilla.minutos_aproximados_citas}
+                        onChange={(e) =>
+                          setFormularioPlantilla({
+                            ...formulario_plantilla,
+                            minutos_aproximados_citas: e.target.value,
+                          })
+                        }
+                        placeholder="30"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Todas las citas del plan tendrán esta duración estimada
+                  </p>
+                </div>
+              </TabsContent>
 
-                    { }
-                    <AccordionItem value="materiales-por-cita">
-                      <AccordionTrigger className="hover:no-underline">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          <span>Materiales Por Cita (mismo para cada cita)</span>
-                          <Badge variant="secondary">{materiales_por_cita.length}</Badge>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                          Materiales que se aplicarán automáticamente en cada cita (ej: pinzas, algodón)
-                        </p>
+              <TabsContent value="generales" className="space-y-4">
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <p className="text-sm text-blue-600 dark:text-blue-400">
+                    Consumibles que se usarán una única vez en todo el tratamiento (ej: brackets, materiales especiales).
+                    Estos se confirman después de la primera cita o al finalizar el tratamiento.
+                  </p>
+                </div>
 
-                        <SelectorMateriales
-                          inventarios={inventarios}
-                          productos_por_inventario={productos_por_inventario}
-                          materiales={materiales_por_cita}
-                          cargarProductos={cargarProductosInventario}
-                          onAgregarMaterial={agregarMaterialPorCita}
-                          onEliminarMaterial={eliminarMaterialPorCita}
-                          onActualizarMaterial={actualizarMaterialPorCita}
-                          onAgregarItem={agregarItemMaterialPorCita}
-                          onEliminarItem={eliminarItemMaterialPorCita}
-                          onActualizarItem={actualizarItemMaterialPorCita}
-                          texto_boton_agregar="Agregar Material Por Cita"
-                          cargando={cargando_materiales}
-                        />
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </ScrollArea>
-              </div>
-            </div>
+                <SelectorMateriales
+                  inventarios={inventarios}
+                  productos_por_inventario={productos_por_inventario}
+                  materiales={materiales_generales}
+                  cargarProductos={cargarProductosInventario}
+                  onAgregarMaterial={agregarMaterialGeneral}
+                  onEliminarMaterial={eliminarMaterialGeneral}
+                  onActualizarMaterial={actualizarMaterialGeneral}
+                  onAgregarItem={agregarItemMaterialGeneral}
+                  onEliminarItem={eliminarItemMaterialGeneral}
+                  onActualizarItem={actualizarItemMaterialGeneral}
+                  texto_boton_agregar="Agregar Consumible General"
+                  cargando={cargando_materiales}
+                />
+              </TabsContent>
+
+              <TabsContent value="recursos" className="space-y-4">
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    Consumibles y activos fijos que se asignarán a cada cita del tratamiento.
+                    Estos recursos se configuran por cita individual.
+                  </p>
+                </div>
+
+                <Tabs defaultValue="consumibles-plantilla" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="consumibles-plantilla" className="flex items-center gap-1 text-sm">
+                      <Package className="h-4 w-4" />
+                      Consumibles
+                      {consumibles_plantilla.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">{consumibles_plantilla.length}</Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="activos-plantilla" className="flex items-center gap-1 text-sm">
+                      <Wrench className="h-4 w-4" />
+                      Activos Fijos
+                      {activos_plantilla.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">{activos_plantilla.length}</Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="consumibles-plantilla" className="space-y-4">
+                    <WizardConsumibles
+                      inventarios={inventarios}
+                      productos_por_inventario={productos_por_inventario}
+                      cargarProductos={cargarProductosInventario}
+                      materialesSeleccionados={consumibles_plantilla}
+                      onAgregarMaterial={(material) => setConsumiblesPlantilla(prev => [...prev, material])}
+                      onEliminarMaterial={(index) => setConsumiblesPlantilla(prev => prev.filter((_, i) => i !== index))}
+                      onActualizarCantidad={(index, cantidad) => setConsumiblesPlantilla(prev => prev.map((m, i) => i === index ? { ...m, cantidad } : m))}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="activos-plantilla" className="space-y-4">
+                    <WizardActivosFijos
+                      inventarios={inventarios}
+                      productos_por_inventario={productos_por_inventario}
+                      cargarProductos={cargarProductosInventario}
+                      activosSeleccionados={activos_plantilla}
+                      onAgregarActivo={(activo) => setActivosPlantilla(prev => [...prev, activo])}
+                      onEliminarActivo={(index) => setActivosPlantilla(prev => prev.filter((_, i) => i !== index))}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </TabsContent>
+            </Tabs>
           </ScrollArea>
+
 
           <DialogFooter>
             <Button
@@ -2578,29 +2736,6 @@ export default function Tratamientos() {
             <DialogDescription>
               Administra las citas y pagos del plan
             </DialogDescription>
-            <div className="flex justify-end mt-[-20px] gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={abrirDialogoEditarCosto}
-                className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
-                title="Editar"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setPlanAEliminar(plan_seleccionado);
-                  setDialogoConfirmarEliminarAbierto(true);
-                }}
-                className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
-                title="Eliminar Plan"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
           </DialogHeader>
 
           {plan_seleccionado && (
@@ -2698,92 +2833,114 @@ export default function Tratamientos() {
                 </TabsList>
 
                 <TabsContent value="citas" className="space-y-3 mt-4">
-                  <div className="flex justify-end">
-                    <Button
-                      size="sm"
-                      onClick={abrirDialogoNuevaCita}
-                      className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Agregar Cita
-                    </Button>
-                  </div>
-
                   {plan_seleccionado.citas.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      No hay citas programadas
-                    </p>
-                  ) : (
-                    plan_seleccionado.citas.map((cita) => (
-                      <div
-                        key={cita.id}
-                        className="p-4 rounded-lg bg-secondary/30 border border-border hover:bg-secondary/50 transition-all duration-200"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <p className="font-medium text-foreground">
-                                {formatearFechaHora(cita.fecha)}
-                              </p>
-                              <Badge className={`${obtenerColorEstado(cita.estado_pago)} text-white`}>
-                                {obtenerEtiquetaEstado(cita.estado_pago)}
-                              </Badge>
-                              {cita.materiales_confirmados && (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Materiales confirmados
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground ml-7">
-                              {cita.descripcion}
-                            </p>
-                            <div className="flex items-center gap-3 ml-7 mt-1">
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                Duración: {formatearDuracion(cita.horas_aproximadas, cita.minutos_aproximados)}
-                              </p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <DollarSign className="h-3 w-3" />
-                                Monto: {formatearMoneda(cita.monto_esperado || 0)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            {!cita.materiales_confirmados && citaHaFinalizado(cita) && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => abrirDialogoConfirmarMaterialesCita(cita)}
-                                className="hover:bg-green-500/20 hover:text-green-600 hover:scale-110 transition-all duration-200 ring-2 ring-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
-                                title="Confirmar Materiales"
-                              >
-                                <Package className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => abrirDialogoEditarCita(cita)}
-                              className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
-                              title="Editar"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => abrirDialogoConfirmarEliminarCita(cita)}
-                              className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                    <div className="text-center py-8 space-y-4">
+                      <p className="text-muted-foreground">
+                        No hay citas programadas
+                      </p>
+                      {calcularProgreso(plan_seleccionado) < 100 && (
+                        <div
+                          className="p-6 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 hover:border-primary transition-all duration-200 cursor-pointer mx-auto max-w-sm"
+                          onClick={abrirDialogoNuevaCita}
+                        >
+                          <div className="flex flex-col items-center gap-2">
+                            <Plus className="h-10 w-10 text-primary" />
+                            <p className="font-medium text-primary">Agregar Primera Cita</p>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {plan_seleccionado.citas.map((cita) => {
+                        const esta_finalizado = tratamientoHaFinalizado(plan_seleccionado);
+                        return (
+                          <div
+                            key={cita.id}
+                            className="p-4 rounded-lg bg-secondary/30 border border-border hover:bg-secondary/50 transition-all duration-200"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                                  <p className="font-medium text-foreground">
+                                    {formatearFechaHora(cita.fecha)}
+                                  </p>
+                                  <Badge className={`${obtenerColorEstado(cita.estado_pago)} text-white`}>
+                                    {obtenerEtiquetaEstado(cita.estado_pago)}
+                                  </Badge>
+                                  {cita.materiales_confirmados && (
+                                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Materiales confirmados
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground ml-7">
+                                  {cita.descripcion}
+                                </p>
+                                <div className="flex items-center gap-3 ml-7 mt-1">
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    Duración: {formatearDuracion(cita.horas_aproximadas, cita.minutos_aproximados)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <DollarSign className="h-3 w-3" />
+                                    Monto: {formatearMoneda(cita.monto_esperado || 0)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                {!cita.materiales_confirmados && citaHaFinalizado(cita) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => abrirDialogoConfirmarMaterialesCita(cita)}
+                                    className="hover:bg-green-500/20 hover:text-green-600 hover:scale-110 transition-all duration-200 ring-2 ring-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
+                                    title="Confirmar Materiales"
+                                  >
+                                    <Package className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {!esta_finalizado && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => abrirDialogoEditarCita(cita)}
+                                      className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                      title="Editar"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => abrirDialogoConfirmarEliminarCita(cita)}
+                                      className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                                      title="Eliminar"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {calcularProgreso(plan_seleccionado) < 100 && (
+                        <div
+                          className="p-4 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 hover:border-primary transition-all duration-200 cursor-pointer"
+                          onClick={abrirDialogoNuevaCita}
+                        >
+                          <div className="flex items-center justify-center gap-3">
+                            <Plus className="h-8 w-8 text-primary" />
+                            <p className="font-medium text-primary text-lg">Agregar Cita</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </TabsContent>
 
@@ -2950,42 +3107,68 @@ export default function Tratamientos() {
             )}
 
             {modo_edicion_cita && !(cita_seleccionada && esCitaPasada(cita_seleccionada.fecha)) && (
-              <Accordion
-                type="single"
-                collapsible
-                className="w-full border rounded-lg"
-                onValueChange={async (value) => {
-                  if (value === 'materiales') {
-                    await cargarInventarios();
-                  }
-                }}
-              >
-                <AccordionItem value="materiales" className="border-none">
-                  <AccordionTrigger className="px-4 hover:no-underline">
-                    <div className="flex items-center gap-2">
+              <div className="space-y-4 border rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Package className="h-4 w-4" />
+                  <span className="font-medium">Recursos de la Cita</span>
+                  {(consumibles_seleccionados_cita.length > 0 || activos_seleccionados_cita.length > 0) && (
+                    <Badge variant="secondary">
+                      {consumibles_seleccionados_cita.length + activos_seleccionados_cita.length}
+                    </Badge>
+                  )}
+                </div>
+
+                <Tabs defaultValue="consumibles" className="w-full" onValueChange={async () => await cargarInventarios()}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="consumibles" className="flex items-center gap-2">
                       <Package className="h-4 w-4" />
-                      <span>Materiales de la Cita</span>
-                      <Badge variant="secondary">{materiales_cita_edicion.length}</Badge>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 space-y-4">
-                    <SelectorMateriales
+                      Consumibles
+                      {consumibles_seleccionados_cita.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {consumibles_seleccionados_cita.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="activos" className="flex items-center gap-2">
+                      <Wrench className="h-4 w-4" />
+                      Activos Fijos
+                      {activos_seleccionados_cita.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {activos_seleccionados_cita.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="consumibles" className="mt-4">
+                    <WizardConsumibles
                       inventarios={inventarios}
                       productos_por_inventario={productos_por_inventario}
-                      materiales={materiales_cita_edicion}
                       cargarProductos={cargarProductosInventario}
-                      onAgregarMaterial={agregarMaterialCitaEdicion}
-                      onEliminarMaterial={eliminarMaterialCitaEdicion}
-                      onActualizarMaterial={actualizarMaterialCitaEdicion}
-                      onAgregarItem={agregarItemMaterialCitaEdicion}
-                      onEliminarItem={eliminarItemMaterialCitaEdicion}
-                      onActualizarItem={actualizarItemMaterialCitaEdicion}
-                      texto_boton_agregar="Agregar Material"
-                      cargando={cargando_materiales}
+                      materialesSeleccionados={consumibles_seleccionados_cita}
+                      onAgregarMaterial={(material) => setConsumiblesSeleccionadosCita([...consumibles_seleccionados_cita, material])}
+                      onEliminarMaterial={(idx) => setConsumiblesSeleccionadosCita(consumibles_seleccionados_cita.filter((_, i) => i !== idx))}
+                      onActualizarCantidad={(idx, cantidad) => {
+                        const nuevos = [...consumibles_seleccionados_cita];
+                        nuevos[idx] = { ...nuevos[idx], cantidad };
+                        setConsumiblesSeleccionadosCita(nuevos);
+                      }}
                     />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                  </TabsContent>
+
+                  <TabsContent value="activos" className="mt-4">
+                    <WizardActivosFijos
+                      inventarios={inventarios}
+                      productos_por_inventario={productos_por_inventario}
+                      cargarProductos={cargarProductosInventario}
+                      activosSeleccionados={activos_seleccionados_cita}
+                      onAgregarActivo={(activo) => setActivosSeleccionadosCita([...activos_seleccionados_cita, activo])}
+                      onEliminarActivo={(idx) => setActivosSeleccionadosCita(activos_seleccionados_cita.filter((_, i) => i !== idx))}
+                      fecha_cita={formulario_cita.fecha}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </div>
             )}
 
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
@@ -3125,6 +3308,46 @@ export default function Tratamientos() {
                   Costo actual: {formatearMoneda(plan_seleccionado.costo_total)}
                 </p>
               </div>
+              <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20 space-y-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-blue-500" />
+                  <span className="font-medium text-blue-600 dark:text-blue-400">Información de la Plantilla</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Citas previstas:</span>
+                    <span className="font-medium">{plan_seleccionado.tratamiento.numero_citas}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Duración por cita:</span>
+                    <span className="font-medium">
+                      {formatearDuracion(
+                        plan_seleccionado.tratamiento.horas_aproximadas_citas || 0,
+                        plan_seleccionado.tratamiento.minutos_aproximados_citas || 30
+                      )}
+                    </span>
+                  </div>
+                  {(plan_seleccionado.tratamiento.intervalo_dias > 0 ||
+                    plan_seleccionado.tratamiento.intervalo_semanas > 0 ||
+                    plan_seleccionado.tratamiento.intervalo_meses > 0) && (
+                      <div className="flex items-center gap-2 col-span-2">
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Intervalo entre citas:</span>
+                        <span className="font-medium">
+                          {plan_seleccionado.tratamiento.intervalo_meses > 0 &&
+                            `${plan_seleccionado.tratamiento.intervalo_meses} ${plan_seleccionado.tratamiento.intervalo_meses === 1 ? 'mes' : 'meses'} `}
+                          {plan_seleccionado.tratamiento.intervalo_semanas > 0 &&
+                            `${plan_seleccionado.tratamiento.intervalo_semanas} ${plan_seleccionado.tratamiento.intervalo_semanas === 1 ? 'semana' : 'semanas'} `}
+                          {plan_seleccionado.tratamiento.intervalo_dias > 0 &&
+                            `${plan_seleccionado.tratamiento.intervalo_dias} ${plan_seleccionado.tratamiento.intervalo_dias === 1 ? 'día' : 'días'}`}
+                        </span>
+                      </div>
+                    )}
+                </div>
+              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="costo_total">Nuevo Costo Total (Bs.) *</Label>

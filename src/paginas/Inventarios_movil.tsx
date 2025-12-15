@@ -52,8 +52,7 @@ import {
   Producto, 
   Lote, 
   Activo, 
-  ReporteValor, 
-  MovimientoInventario 
+  ReporteValor
 } from '@/tipos';
 
 export default function InventariosMovil() {
@@ -63,7 +62,7 @@ export default function InventariosMovil() {
   const [inventario_seleccionado, setInventarioSeleccionado] = useState<Inventario | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [reporte_valor, setReporteValor] = useState<ReporteValor | null>(null);
-  const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
+  const [movimientos, setMovimientos] = useState<any[]>([]);
   
   const [cargando, setCargando] = useState(true);
   const [cargando_detalle, setCargandoDetalle] = useState(false);

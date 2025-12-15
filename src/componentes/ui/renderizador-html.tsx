@@ -31,9 +31,7 @@ interface RenderizadorHtmlProps {
   onEstablecerEtiqueta?: (codigo: string) => void;
   modoPlantilla?: boolean;
   valoresEtiquetas?: ValorEtiqueta[];
-  /** Altura fija del contenedor (CSS value). Default: '500px' */
   altura?: string;
-  /** Si es true, ajusta automáticamente la escala para no exceder el ancho disponible */
   ajustarAncho?: boolean;
 }
 
@@ -65,8 +63,7 @@ export function RenderizadorHtml({
   const [colorEtiquetas, setColorEtiquetas] = useState('#dbeafe');
   const [barraTranslucida, setBarraTranslucida] = useState(false);
   const [anchoContenedor, setAnchoContenedor] = useState(0);
-  const [zoomManual, setZoomManual] = useState(false); // Si el usuario cambió zoom manualmente
-
+  const [zoomManual, setZoomManual] = useState(false); 
   useEffect(() => {
     let nuevoContenido = contenido;
 
@@ -109,7 +106,7 @@ export function RenderizadorHtml({
   }, [escalaInicial]);
 
   const mmToPx = (mm: number) => (mm / 25.4) * 96;
-  const PAGE_GAP = 24; // espacio entre páginas en px
+  const PAGE_GAP = 24;
 
   const PAGE = useMemo(() => {
     const base = tamanoPersonalizado
@@ -141,24 +138,17 @@ export function RenderizadorHtml({
 
   const contentAreaHeight = pageHeightPx - PAGE.paddingTop - PAGE.paddingBottom;
   const contentAreaWidth = pageWidthPx - PAGE.paddingLeft - PAGE.paddingRight;
-
-  // Límites de zoom
   const ZOOM_MIN = 0.3;
   const ZOOM_MAX = 2.0;
-
-  // Calcular escala automática para ajustar al ancho
   const escalaCalculada = useMemo(() => {
     if (!ajustarAncho || zoomManual || anchoContenedor <= 0) return zoom;
-    const padding = 32; // padding del contenedor
+    const padding = 32; 
     const disponible = anchoContenedor - padding;
     const escalaAuto = disponible / pageWidthPx;
-    // Limitar entre 0.3 y escalaInicial
     return Math.min(Math.max(escalaAuto, ZOOM_MIN), escalaInicial || 1);
   }, [ajustarAncho, zoomManual, anchoContenedor, pageWidthPx, zoom, escalaInicial, ZOOM_MIN]);
 
   const escalaFinal = (ajustarAncho && !zoomManual) ? escalaCalculada : zoom;
-
-  // Observer para detectar el ancho del contenedor
   useEffect(() => {
     if (!scrollContainerRef.current) return;
     const ro = new ResizeObserver((entries) => {
@@ -256,8 +246,6 @@ export function RenderizadorHtml({
       }
     }
   };
-
-  // Manejar el scroll para la barra translúcida
   const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current) return;
     const scrollTop = scrollContainerRef.current.scrollTop;
@@ -295,7 +283,6 @@ export function RenderizadorHtml({
       style={{ height: modoDocumento ? altura : 'auto' }}
       onClick={handleContainerClick}
     >
-      {/* Barra de herramientas */}
       {modoDocumento && (
         <div
           className={cn(
@@ -410,8 +397,6 @@ export function RenderizadorHtml({
           </div>
         </div>
       )}
-
-      {/* Contenedor oculto para medir */}
       <div
         style={{
           ...contentStyle,

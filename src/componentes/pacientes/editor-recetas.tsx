@@ -51,26 +51,16 @@ const aplicarLimiteMargenes = (cfg: DocumentoConfig): DocumentoConfig => {
 
 export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos, onRecetaGenerada }: EditorRecetasProps) {
   const { toast } = useToast();
-
-  // Estados principales
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [fase, setFase] = useState<'seleccion' | 'creacion' | 'edicion'>('seleccion');
-
-  // Datos
   const [plantillas, setPlantillas] = useState<PlantillaReceta[]>([]);
   const [plantillasFiltradas, setPlantillasFiltradas] = useState<PlantillaReceta[]>([]);
   const [medicamentos, setMedicamentos] = useState<ItemCatalogo[]>([]);
-
-  // Selección
   const [filtro, setFiltro] = useState('');
   const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<PlantillaReceta | null>(null);
-
-  // Creación
   const [valoresMedicamentos, setValoresMedicamentos] = useState<ValorMedicamento[]>([]);
   const [medicamentoParaAgregar, setMedicamentoParaAgregar] = useState<string>('');
   const [vistaPrevia, setVistaPrevia] = useState(false);
-
-  // Edición
   const [contenidoEditado, setContenidoEditado] = useState('');
   const [configuracionDocumento, setConfiguracionDocumento] = useState<DocumentoConfig>(() => aplicarLimiteMargenes({
     widthMm: 216,
@@ -79,12 +69,8 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     nombre_tamano: 'Carta'
   }));
   const actualizarConfiguracionDocumento = (cfg: DocumentoConfig) => setConfiguracionDocumento(aplicarLimiteMargenes(cfg));
-
-  // Estados de carga
   const [cargando, setCargando] = useState(false);
   const [cargandoPlantillas, setCargandoPlantillas] = useState(false);
-
-  // Efectos
   useEffect(() => {
     if (dialogoAbierto) {
       setFase('seleccion');
@@ -107,8 +93,6 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
       plantillas.filter((p) => p.nombre.toLowerCase().includes(termino))
     );
   }, [filtro, plantillas]);
-
-  // Carga de datos
   const cargarPlantillas = async () => {
     setCargandoPlantillas(true);
     try {
@@ -131,37 +115,26 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
       console.error('Error al cargar medicamentos:', error);
     }
   };
-
-  // Lógica de procesamiento de contenido
   const procesarContenido = useCallback((): string => {
     if (!plantillaSeleccionada) return '';
     const html = plantillaSeleccionada.contenido;
-
-    // Procesamiento simple con regex para reemplazar etiquetas
     const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]{}\\]/g, '\\$&');
     let contenido = html;
 
     valoresMedicamentos.forEach(({ codigo, nombre, indicaciones }) => {
       const texto = indicaciones.trim() ? `${nombre}: ${indicaciones}` : nombre;
       const escapedCodigo = escapeRegExp(codigo);
-
-      // Reemplazar spans con data-etiqueta
       const tagRegex = new RegExp(`<span[^>]*data-etiqueta="${escapedCodigo}"[^>]*>([\\s\\S]*?)<\\/span>`, 'g');
       contenido = contenido.replace(tagRegex, () => `<span>${texto}</span>`);
-
-      // Reemplazar texto plano del código
       const simpleRegex = new RegExp(escapedCodigo, 'g');
       contenido = contenido.replace(simpleRegex, texto);
     });
-
-    // Limpiar etiquetas restantes no encontradas
     contenido = contenido.replace(/data-etiqueta="[^"]*"/g, '');
     return contenido;
   }, [plantillaSeleccionada, valoresMedicamentos]);
 
   const contenidoProcesado = useMemo(() => procesarContenido(), [procesarContenido]);
 
-  // Helpers
   const opcionesMedicamentos = useMemo(
     () => medicamentos.map((m) => ({ value: `MED_${m.id}`, label: m.nombre })),
     [medicamentos]
@@ -185,8 +158,6 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     });
     setValoresMedicamentos(nuevos);
   };
-
-  // Acciones
   const seleccionarPlantilla = (plantilla: PlantillaReceta) => {
     setPlantillaSeleccionada(plantilla);
     prepararMedicamentos(plantilla.contenido);
@@ -232,14 +203,11 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     if (!plantillaSeleccionada) return;
     setCargando(true);
     try {
-      // Configuración de dimensiones y márgenes
       const cfgAjustado = aplicarLimiteMargenes(config || {
         widthMm: 216,
         heightMm: 279,
         margenes: { top: 20, right: 20, bottom: 20, left: 20 },
       });
-
-      // Usar la utilidad centralizada que aplica los mismos estilos que RenderizadorHtml
       const configPdf: ConfiguracionPdf = {
         widthMm: cfgAjustado.widthMm || TAMANOS_PAPEL.carta.widthMm,
         heightMm: cfgAjustado.heightMm || TAMANOS_PAPEL.carta.heightMm,

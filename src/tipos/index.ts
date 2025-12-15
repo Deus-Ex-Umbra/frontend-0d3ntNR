@@ -7,11 +7,9 @@ export type { Cita, HoraLibre, ElementoAgenda } from './cita';
 export type {
   Inventario,
   Producto,
-  Lote,
   Material,
   Activo,
   ReporteValor,
-  MovimientoInventario,
   MovimientoKardex,
   EventoBitacora,
   RegistroAuditoria

@@ -8,7 +8,7 @@ import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
-import { ScrollArea } from '@/componentes/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/componentes/ui/scroll-area';
 import { Switch } from '@/componentes/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
 import {
@@ -33,15 +33,17 @@ import {
   ShoppingCart,
   TrendingUp,
   TrendingDown,
+  Minus,
   Settings,
-  Filter
+  Filter,
+  RefreshCw,
+  Check,
 } from 'lucide-react';
 import { inventarioApi, usuariosApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Badge } from '@/componentes/ui/badge';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
-import { MultiSelect } from '@/componentes/ui/mulit-select';
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { format } from 'date-fns';
@@ -51,10 +53,12 @@ import {
   UsuarioInventario as Usuario,
   Inventario,
   Producto,
-  Lote,
+  Material,
   Activo,
   ReporteValor,
-  MovimientoInventario
+  MovimientoKardex,
+  EventoBitacora,
+  RegistroAuditoria
 } from '@/tipos';
 
 export default function Inventarios() {
@@ -64,25 +68,35 @@ export default function Inventarios() {
   const [inventario_seleccionado, setInventarioSeleccionado] = useState<Inventario | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [reporte_valor, setReporteValor] = useState<ReporteValor | null>(null);
-  const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
+
+  const [kardex, setKardex] = useState<MovimientoKardex[]>([]);
+  const [bitacora, setBitacora] = useState<EventoBitacora[]>([]);
+  const [auditoria, setAuditoria] = useState<RegistroAuditoria[]>([]);
 
   const [cargando, setCargando] = useState(true);
   const [cargando_detalle, setCargandoDetalle] = useState(false);
+  const [cargando_kardex, setCargandoKardex] = useState(false);
+  const [cargando_bitacora, setCargandoBitacora] = useState(false);
+  const [cargando_auditoria, setCargandoAuditoria] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [productos_cargando, setProductosCargando] = useState<Set<number>>(new Set());
 
   const [dialogo_inventario_abierto, setDialogoInventarioAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [dialogo_invitar_abierto, setDialogoInvitarAbierto] = useState(false);
   const [dialogo_producto_abierto, setDialogoProductoAbierto] = useState(false);
-  const [dialogo_lote_abierto, setDialogoLoteAbierto] = useState(false);
+  const [dialogo_material_abierto, setDialogoMaterialAbierto] = useState(false);
   const [dialogo_activo_abierto, setDialogoActivoAbierto] = useState(false);
-  const [dialogo_ajuste_stock_lote_abierto, setDialogoAjusteStockLoteAbierto] = useState(false);
+  const [dialogo_ajuste_stock_abierto, setDialogoAjusteStockAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_producto_abierto, setDialogoConfirmarEliminarProductoAbierto] = useState(false);
-  const [dialogo_confirmar_eliminar_lote_abierto, setDialogoConfirmarEliminarLoteAbierto] = useState(false);
+  const [dialogo_confirmar_eliminar_material_abierto, setDialogoConfirmarEliminarMaterialAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_activo_abierto, setDialogoConfirmarEliminarActivoAbierto] = useState(false);
   const [dialogo_remover_usuario_abierto, setDialogoRemoverUsuarioAbierto] = useState(false);
   const [dialogo_editar_permiso_abierto, setDialogoEditarPermisoAbierto] = useState(false);
   const [dialogo_vender_activo_abierto, setDialogoVenderActivoAbierto] = useState(false);
+  const [dialogo_filtros_historial_abierto, setDialogoFiltrosHistorialAbierto] = useState(false);
+  const [dialogo_detalles_auditoria_abierto, setDialogoDetallesAuditoriaAbierto] = useState(false);
+  const [detalles_auditoria_seleccionada, setDetallesAuditoriaSeleccionada] = useState<RegistroAuditoria | null>(null);
 
   const [modo_edicion, setModoEdicion] = useState(false);
   const [modo_edicion_producto, setModoEdicionProducto] = useState(false);
@@ -91,15 +105,15 @@ export default function Inventarios() {
   const [inventario_a_eliminar, setInventarioAEliminar] = useState<Inventario | null>(null);
   const [producto_seleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [producto_a_eliminar, setProductoAEliminar] = useState<Producto | null>(null);
-  const [lote_seleccionado, setLoteSeleccionado] = useState<Lote | null>(null);
-  const [lote_a_eliminar, setLoteAEliminar] = useState<Lote | null>(null);
+  const [material_seleccionado, setMaterialSeleccionado] = useState<Material | null>(null);
+  const [material_a_eliminar, setMaterialAEliminar] = useState<Material | null>(null);
   const [activo_seleccionado, setActivoSeleccionado] = useState<Activo | null>(null);
   const [activo_a_eliminar, setActivoAEliminar] = useState<Activo | null>(null);
   const [usuario_a_remover, setUsuarioARemover] = useState<any>(null);
   const [busqueda_inventarios, setBusquedaInventarios] = useState('');
   const [busqueda_productos, setBusquedaProductos] = useState('');
   const [vista_actual, setVistaActual] = useState<'lista' | 'detalle'>('lista');
-  const [tab_activo, setTabActivo] = useState<'productos' | 'historial' | 'usuarios'>('productos');
+  const [tab_activo, setTabActivo] = useState<'productos' | 'kardex' | 'bitacora' | 'auditoria' | 'usuarios'>('productos');
   const [filtro_tipo_producto, setFiltroTipoProducto] = useState<string>('todos');
   const [filtros_historial, setFiltrosHistorial] = useState({
     tipo_operacion: [] as string[],
@@ -107,6 +121,11 @@ export default function Inventarios() {
     fecha_inicio: undefined as Date | undefined,
     fecha_fin: undefined as Date | undefined,
     limit: 100,
+  });
+
+  const [filtro_usuarios, setFiltroUsuarios] = useState({
+    busqueda: '',
+    rol: 'todos' as 'todos' | 'editor' | 'lector',
   });
 
   const [formulario_inventario, setFormularioInventario] = useState({
@@ -128,16 +147,18 @@ export default function Inventarios() {
   const [formulario_producto, setFormularioProducto] = useState({
     nombre: '',
     tipo: 'material' as 'material' | 'activo_fijo',
-    subtipo_material: 'sin_lote' as 'con_lote_vencimiento' | 'con_serie' | 'sin_lote',
+    subtipo_material: 'con_lote_vencimiento' as 'con_lote_vencimiento' | 'con_serie' | 'sin_lote',
     subtipo_activo_fijo: 'instrumental' as 'instrumental' | 'mobiliario_equipo',
     stock_minimo: '10',
     unidad_medida: '',
     descripcion: '',
     notificar_stock_bajo: true,
+    permite_decimales: false,
   });
 
-  const [formulario_lote, setFormularioLote] = useState({
+  const [formulario_material, setFormularioMaterial] = useState({
     nro_lote: '',
+    nro_serie: '',
     cantidad: '',
     costo_total: '',
     fecha_vencimiento: undefined as Date | undefined,
@@ -155,11 +176,12 @@ export default function Inventarios() {
     registrar_egreso: true,
   });
 
-  const [formulario_ajuste_lote, setFormularioAjusteLote] = useState({
-    tipo: 'entrada' as 'entrada' | 'salida',
+  const [formulario_ajuste_stock, setFormularioAjusteStock] = useState({
+    tipo_ajuste: 'incremento' as 'incremento' | 'decremento',
     cantidad: '',
-    generar_movimiento_financiero: true,
     monto: '',
+    motivo: '',
+    generar_movimiento_financiero: true,
   });
 
   const [formulario_venta_activo, setFormularioVentaActivo] = useState({
@@ -167,7 +189,6 @@ export default function Inventarios() {
     registrar_pago: true,
   });
 
-  // Subtipos para Material
   const subtipos_material = [
     { valor: 'con_lote_vencimiento', etiqueta: 'Con Lote y Vencimiento', descripcion: 'Fármacos, medicamentos' },
     { valor: 'con_serie', etiqueta: 'Con Serie', descripcion: 'Implantes' },
@@ -179,78 +200,23 @@ export default function Inventarios() {
     { valor: 'mobiliario_equipo', etiqueta: 'Mobiliario/Equipo', descripcion: 'Ciclo de vida lento' },
   ];
 
-  // Legacy: mantener para compatibilidad
-  const tipos_gestion = [
-    { valor: 'consumible', etiqueta: 'Activo por Lotes' },
-    { valor: 'activo_serializado', etiqueta: 'Activo Serializado' },
-    { valor: 'activo_general', etiqueta: 'Activo General' },
-  ];
-
-  const estados_activo = [
-    { valor: 'disponible', etiqueta: 'Disponible' },
-    { valor: 'en_uso', etiqueta: 'En Uso' },
-    { valor: 'en_mantenimiento', etiqueta: 'En Mantenimiento' },
-    { valor: 'roto', etiqueta: 'Roto' },
-    { valor: 'desechado', etiqueta: 'Desechado' },
-  ];
-
-  const tipos_operacion = [
-    { valor: 'entrada_stock', etiqueta: 'Entrada de Stock' },
-    { valor: 'salida_stock', etiqueta: 'Salida de Stock' },
-    { valor: 'creacion', etiqueta: 'Creación' },
-    { valor: 'edicion', etiqueta: 'Edición' },
-    { valor: 'eliminacion', etiqueta: 'Eliminación' },
-  ];
-
-  const tipos_entidad = [
-    { valor: 'producto', etiqueta: 'Producto' },
-    { valor: 'lote', etiqueta: 'Lote' },
-    { valor: 'serie', etiqueta: 'Serie' },
-    { valor: 'general', etiqueta: 'General' },
-  ];
-
-  const mapearATiposBackend = (tipo_operacion: string[], tipo_entidad: string[]): string[] => {
-    const tipos: string[] = [];
-
-    tipo_operacion.forEach(op => {
-      if (op === 'entrada_stock') {
-        tipos.push('compra', 'entrada', 'ajuste', 'devolucion');
-      } else if (op === 'salida_stock') {
-        tipos.push('salida', 'uso_cita', 'uso_tratamiento');
-      } else if (op === 'creacion') {
-        if (tipo_entidad.length === 0) {
-          tipos.push('producto_creado', 'lote_creado', 'activo_creado');
-        } else {
-          if (tipo_entidad.includes('producto')) tipos.push('producto_creado');
-          if (tipo_entidad.includes('lote')) tipos.push('lote_creado');
-          if (tipo_entidad.includes('serie') || tipo_entidad.includes('general')) {
-            tipos.push('activo_creado');
-          }
-        }
-      } else if (op === 'edicion') {
-        if (tipo_entidad.length === 0) {
-          tipos.push('producto_editado', 'activo_editado', 'activo_cambio_estado');
-        } else {
-          if (tipo_entidad.includes('producto')) tipos.push('producto_editado');
-          if (tipo_entidad.includes('serie') || tipo_entidad.includes('general')) {
-            tipos.push('activo_editado', 'activo_cambio_estado');
-          }
-        }
-      } else if (op === 'eliminacion') {
-        if (tipo_entidad.length === 0) {
-          tipos.push('producto_eliminado', 'lote_eliminado', 'activo_eliminado');
-        } else {
-          if (tipo_entidad.includes('producto')) tipos.push('producto_eliminado');
-          if (tipo_entidad.includes('lote')) tipos.push('lote_eliminado');
-          if (tipo_entidad.includes('serie') || tipo_entidad.includes('general')) {
-            tipos.push('activo_eliminado');
-          }
-        }
-      }
-    });
-
-    return [...new Set(tipos)];
+  const getEstadosParaSubtipo = (subtipo: string | undefined) => {
+    if (subtipo === 'instrumental') {
+      return [
+        { valor: 'disponible', etiqueta: 'Disponible' },
+        { valor: 'en_uso', etiqueta: 'En Uso' },
+        { valor: 'desechado', etiqueta: 'Desechado' },
+      ];
+    } else {
+      return [
+        { valor: 'disponible', etiqueta: 'Disponible' },
+        { valor: 'en_mantenimiento', etiqueta: 'En Mantenimiento' },
+        { valor: 'desechado', etiqueta: 'Desechado' },
+      ];
+    }
   };
+
+
 
   const estaVencido = (fecha_vencimiento: Date | null | undefined): boolean => {
     if (!fecha_vencimiento) return false;
@@ -260,6 +226,12 @@ export default function Inventarios() {
     fecha_venc.setHours(0, 0, 0, 0);
     return fecha_venc < hoy;
   };
+
+  useEffect(() => {
+    if (['kardex', 'bitacora', 'auditoria'].includes(tab_activo)) {
+      cargarHistorial();
+    }
+  }, [tab_activo, inventario_seleccionado]);
 
   useEffect(() => {
     const cargarInicial = async () => {
@@ -310,23 +282,14 @@ export default function Inventarios() {
     try {
       setCargandoDetalle(true);
 
-      const tipos_backend = mapearATiposBackend(filtros_historial.tipo_operacion, filtros_historial.tipo_entidad);
-
-      const [inventario_actualizado, productos_respuesta, reporte_respuesta, movimientos_respuesta] = await Promise.all([
+      const [inventario_actualizado, productos_respuesta, reporte_respuesta] = await Promise.all([
         inventarioApi.obtenerInventarioPorId(inventario.id),
         inventarioApi.obtenerProductos(inventario.id),
         inventarioApi.obtenerReporteValor(inventario.id),
-        inventarioApi.obtenerHistorialMovimientos(inventario.id, {
-          tipos: tipos_backend.length > 0 ? tipos_backend : undefined,
-          fecha_inicio: filtros_historial.fecha_inicio,
-          fecha_fin: filtros_historial.fecha_fin,
-          limit: filtros_historial.limit,
-        }),
       ]);
       setInventarioSeleccionado(inventario_actualizado);
-      setProductos(productos_respuesta);
+      setProductos(Array.isArray(productos_respuesta) ? productos_respuesta : []);
       setReporteValor(reporte_respuesta);
-      setMovimientos(movimientos_respuesta);
     } catch (error: any) {
       console.error('Error al cargar detalle del inventario:', error);
       toast({
@@ -341,18 +304,35 @@ export default function Inventarios() {
 
   const cargarHistorial = async () => {
     if (!inventario_seleccionado) return;
+    if (tab_activo === 'kardex') setCargandoKardex(true);
+    else if (tab_activo === 'bitacora') setCargandoBitacora(true);
+    else if (tab_activo === 'auditoria') setCargandoAuditoria(true);
 
     try {
       setCargandoDetalle(true);
-      const tipos_backend = mapearATiposBackend(filtros_historial.tipo_operacion, filtros_historial.tipo_entidad);
 
-      const movimientos_respuesta = await inventarioApi.obtenerHistorialMovimientos(inventario_seleccionado.id, {
-        tipos: tipos_backend.length > 0 ? tipos_backend : undefined,
-        fecha_inicio: filtros_historial.fecha_inicio,
-        fecha_fin: filtros_historial.fecha_fin,
-        limit: filtros_historial.limit,
-      });
-      setMovimientos(movimientos_respuesta);
+      if (tab_activo === 'kardex') {
+        const resultado = await inventarioApi.obtenerKardex(inventario_seleccionado.id, {
+          fecha_inicio: filtros_historial.fecha_inicio ? format(filtros_historial.fecha_inicio, 'yyyy-MM-dd') : undefined,
+          fecha_fin: filtros_historial.fecha_fin ? format(filtros_historial.fecha_fin, 'yyyy-MM-dd') : undefined,
+          limit: filtros_historial.limit,
+        });
+        setKardex(resultado.registros || []);
+      } else if (tab_activo === 'bitacora') {
+        const resultado = await inventarioApi.obtenerBitacora(inventario_seleccionado.id, {
+          fecha_inicio: filtros_historial.fecha_inicio ? format(filtros_historial.fecha_inicio, 'yyyy-MM-dd') : undefined,
+          fecha_fin: filtros_historial.fecha_fin ? format(filtros_historial.fecha_fin, 'yyyy-MM-dd') : undefined,
+          limit: filtros_historial.limit,
+        });
+        setBitacora(resultado.registros || []);
+      } else if (tab_activo === 'auditoria') {
+        const resultado = await inventarioApi.buscarAuditoria(inventario_seleccionado.id, {
+          fecha_inicio: filtros_historial.fecha_inicio ? format(filtros_historial.fecha_inicio, 'yyyy-MM-dd') : undefined,
+          fecha_fin: filtros_historial.fecha_fin ? format(filtros_historial.fecha_fin, 'yyyy-MM-dd') : undefined,
+          limit: filtros_historial.limit,
+        });
+        setAuditoria(resultado.registros || []);
+      }
     } catch (error: any) {
       console.error('Error al cargar historial:', error);
       toast({
@@ -361,6 +341,9 @@ export default function Inventarios() {
         variant: 'destructive',
       });
     } finally {
+      setCargandoKardex(false);
+      setCargandoBitacora(false);
+      setCargandoAuditoria(false);
       setCargandoDetalle(false);
     }
   };
@@ -374,25 +357,27 @@ export default function Inventarios() {
       limit: 100,
     });
     if (!inventario_seleccionado) return;
+    if (tab_activo === 'kardex') setCargandoKardex(true);
+    else if (tab_activo === 'bitacora') setCargandoBitacora(true);
+    else if (tab_activo === 'auditoria') setCargandoAuditoria(true);
 
     try {
       setCargandoDetalle(true);
 
-      const resultado = await inventarioApi.obtenerHistorialMovimientos(
-        inventario_seleccionado.id,
-        {
-          tipos: [],
-          fecha_inicio: undefined,
-          fecha_fin: undefined,
-          limit: 100,
-        }
-      );
-
-      setMovimientos(resultado);
+      if (tab_activo === 'kardex') {
+        const resultado = await inventarioApi.obtenerKardex(inventario_seleccionado.id, { limit: 100 });
+        setKardex(resultado.registros || []);
+      } else if (tab_activo === 'bitacora') {
+        const resultado = await inventarioApi.obtenerBitacora(inventario_seleccionado.id, { limit: 100 });
+        setBitacora(resultado.registros || []);
+      } else if (tab_activo === 'auditoria') {
+        const resultado = await inventarioApi.buscarAuditoria(inventario_seleccionado.id, { limit: 100 });
+        setAuditoria(resultado.registros || []);
+      }
 
       toast({
         title: 'Filtros limpiados',
-        description: 'Mostrando todos los movimientos',
+        description: 'Mostrando registros recientes',
       });
     } catch (error: any) {
       toast({
@@ -401,49 +386,26 @@ export default function Inventarios() {
         variant: 'destructive',
       });
     } finally {
+      setCargandoKardex(false);
+      setCargandoBitacora(false);
+      setCargandoAuditoria(false);
       setCargandoDetalle(false);
     }
   };
 
-  const obtenerEtiquetaTipoMovimiento = (tipo: string): string => {
-    const mapeo: Record<string, string> = {
-      'compra': 'Compra',
-      'entrada': 'Entrada',
-      'salida': 'Salida',
-      'ajuste': 'Ajuste',
-      'uso_cita': 'Uso en Cita',
-      'uso_tratamiento': 'Uso en Tratamiento',
-      'devolucion': 'Devolución',
-      'producto_creado': 'Producto Creado',
-      'producto_editado': 'Producto Editado',
-      'producto_eliminado': 'Producto Eliminado',
-      'lote_creado': 'Lote Creado',
-      'lote_eliminado': 'Lote Eliminado',
-      'activo_creado': 'Activo Creado',
-      'activo_editado': 'Activo Editado',
-      'activo_eliminado': 'Activo Eliminado',
-      'activo_cambio_estado': 'Cambio de Estado',
-      'activo_vendido': 'Activo Vendido',
-    };
-    return mapeo[tipo] || tipo;
+  const contarFiltrosHistorialActivos = () => {
+    let count = 0;
+    if (filtros_historial.fecha_inicio) count++;
+    if (filtros_historial.fecha_fin) count++;
+    if (filtros_historial.tipo_operacion.length > 0) count++;
+    if (filtros_historial.tipo_entidad.length > 0) count++;
+    return count;
   };
 
-  const obtenerColorTipoMovimiento = (tipo: string): string => {
-    if (tipo.includes('producto') || tipo.includes('lote') || tipo.includes('activo')) {
-      return 'bg-purple-500/10 text-purple-700 dark:text-purple-300';
-    }
-    if (tipo === 'entrada' || tipo === 'compra' || tipo.includes('creado')) {
-      return 'bg-green-500/10 text-green-700 dark:text-green-300';
-    }
-    if (tipo === 'salida' || tipo.includes('eliminado')) {
-      return 'bg-red-500/10 text-red-700 dark:text-red-300';
-    }
-    if (tipo.includes('editado') || tipo === 'ajuste') {
-      return 'bg-blue-500/10 text-blue-700 dark:text-blue-300';
-    }
-    return 'bg-gray-500/10 text-gray-700 dark:text-gray-300';
+  const aplicarFiltrosHistorial = () => {
+    setDialogoFiltrosHistorialAbierto(false);
+    cargarHistorial();
   };
-
   const abrirDialogoNuevoInventario = () => {
     setFormularioInventario({
       nombre: '',
@@ -670,12 +632,13 @@ export default function Inventarios() {
     setFormularioProducto({
       nombre: '',
       tipo: 'material',
-      subtipo_material: 'sin_lote',
+      subtipo_material: 'con_lote_vencimiento',
       subtipo_activo_fijo: 'instrumental',
       stock_minimo: '10',
       unidad_medida: '',
       descripcion: '',
       notificar_stock_bajo: true,
+      permite_decimales: false,
     });
     setModoEdicionProducto(false);
     setDialogoProductoAbierto(true);
@@ -692,6 +655,7 @@ export default function Inventarios() {
       unidad_medida: producto.unidad_medida ?? '',
       descripcion: producto.descripcion || '',
       notificar_stock_bajo: producto.notificar_stock_bajo ?? false,
+      permite_decimales: producto.permite_decimales ?? false,
     });
     setModoEdicionProducto(true);
     setDialogoProductoAbierto(true);
@@ -700,10 +664,19 @@ export default function Inventarios() {
   const manejarGuardarProducto = async () => {
     if (!inventario_seleccionado) return;
 
-    if (!formulario_producto.nombre.trim() || !formulario_producto.unidad_medida.trim()) {
+    if (!formulario_producto.nombre.trim()) {
       toast({
         title: 'Error',
-        description: 'Nombre y unidad de medida son obligatorios',
+        description: 'El nombre es obligatorio',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (formulario_producto.tipo === 'material' && !formulario_producto.unidad_medida.trim()) {
+      toast({
+        title: 'Error',
+        description: 'La unidad de medida es obligatoria para materiales',
         variant: 'destructive',
       });
       return;
@@ -717,11 +690,12 @@ export default function Inventarios() {
         subtipo_material: formulario_producto.tipo === 'material' ? formulario_producto.subtipo_material : undefined,
         subtipo_activo_fijo: formulario_producto.tipo === 'activo_fijo' ? formulario_producto.subtipo_activo_fijo : undefined,
         stock_minimo: formulario_producto.tipo === 'material'
-          ? parseInt(formulario_producto.stock_minimo)
+          ? parseFloat(formulario_producto.stock_minimo)
           : 0,
-        unidad_medida: formulario_producto.unidad_medida,
+        unidad_medida: formulario_producto.tipo === 'material' ? formulario_producto.unidad_medida : undefined,
         descripcion: formulario_producto.descripcion,
         notificar_stock_bajo: formulario_producto.notificar_stock_bajo,
+        permite_decimales: formulario_producto.tipo === 'material' ? formulario_producto.permite_decimales : undefined,
         inventario_id: inventario_seleccionado.id,
       };
 
@@ -735,16 +709,17 @@ export default function Inventarios() {
           title: 'Éxito',
           description: 'Producto actualizado correctamente',
         });
+        setDialogoProductoAbierto(false);
+        await cargarProductoIndividual(producto_seleccionado.id);
       } else {
         await inventarioApi.crearProducto(datos);
         toast({
           title: 'Éxito',
           description: 'Producto creado correctamente',
         });
+        setDialogoProductoAbierto(false);
+        await cargarDetalleInventario(inventario_seleccionado);
       }
-
-      setDialogoProductoAbierto(false);
-      await cargarDetalleInventario(inventario_seleccionado);
     } catch (error: any) {
       console.error('Error al guardar producto:', error);
       toast({
@@ -784,26 +759,27 @@ export default function Inventarios() {
     }
   };
 
-  const abrirDialogoNuevoLote = (producto: Producto) => {
+  const abrirDialogoNuevoMaterial = (producto: Producto) => {
     setProductoSeleccionado(producto);
-    setFormularioLote({
+    setFormularioMaterial({
       nro_lote: '',
+      nro_serie: '',
       cantidad: '',
       costo_total: '',
       fecha_vencimiento: undefined,
       fecha_compra: new Date(),
       registrar_egreso: true,
     });
-    setDialogoLoteAbierto(true);
+    setDialogoMaterialAbierto(true);
   };
 
-  const manejarGuardarLote = async () => {
+  const manejarGuardarMaterial = async () => {
     if (!inventario_seleccionado || !producto_seleccionado) return;
 
-    if (!formulario_lote.nro_lote || !formulario_lote.cantidad || !formulario_lote.costo_total) {
+    if (!formulario_material.cantidad || !formulario_material.costo_total) {
       toast({
         title: 'Error',
-        description: 'Los campos Nro de Lote, Cantidad y Costo Total son obligatorios',
+        description: 'Los campos Cantidad y Costo Total son obligatorios',
         variant: 'destructive',
       });
       return;
@@ -811,34 +787,40 @@ export default function Inventarios() {
 
     setGuardando(true);
     try {
-      const datos_compra = {
+      const cantidad = parseFloat(formulario_material.cantidad);
+      const costo_total = parseFloat(formulario_material.costo_total);
+      const costo_unitario = cantidad > 0 ? costo_total / cantidad : 0;
+
+      const datos_entrada = {
         producto_id: producto_seleccionado.id,
-        cantidad: parseFloat(formulario_lote.cantidad),
-        costo_total: parseFloat(formulario_lote.costo_total),
-        fecha_compra: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_lote.fecha_compra)),
-        nro_lote: formulario_lote.nro_lote,
-        fecha_vencimiento: formulario_lote.fecha_vencimiento
-          ? format(formulario_lote.fecha_vencimiento, 'yyyy-MM-dd')
+        cantidad: cantidad,
+        costo_unitario: costo_unitario,
+        tipo_entrada: 'compra' as const,
+        nro_lote: formulario_material.nro_lote || undefined,
+        nro_serie: formulario_material.nro_serie || undefined,
+        fecha_vencimiento: formulario_material.fecha_vencimiento
+          ? format(formulario_material.fecha_vencimiento, 'yyyy-MM-dd')
           : undefined,
-        generar_egreso: formulario_lote.registrar_egreso,
+        fecha_ingreso: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_material.fecha_compra)),
+        generar_egreso: formulario_material.registrar_egreso,
       };
 
-      await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
+      await inventarioApi.registrarEntradaMaterial(inventario_seleccionado.id, datos_entrada);
 
       toast({
         title: 'Éxito',
-        description: formulario_lote.registrar_egreso
-          ? 'Lote registrado y egreso creado en finanzas'
-          : 'Lote registrado correctamente',
+        description: formulario_material.registrar_egreso
+          ? 'Material registrado y egreso creado en finanzas'
+          : 'Material registrado correctamente',
       });
 
-      setDialogoLoteAbierto(false);
-      await cargarDetalleInventario(inventario_seleccionado);
+      setDialogoMaterialAbierto(false);
+      await cargarProductoIndividual(producto_seleccionado.id);
     } catch (error: any) {
-      console.error('Error al guardar lote:', error);
+      console.error('Error al guardar material:', error);
       toast({
         title: 'Error',
-        description: error.response?.data?.mensaje || 'Error al guardar el lote',
+        description: error.response?.data?.mensaje || 'Error al guardar el material',
         variant: 'destructive',
       });
     } finally {
@@ -846,23 +828,24 @@ export default function Inventarios() {
     }
   };
 
-  const abrirDialogoAjusteStockLote = (producto: Producto, lote: Lote) => {
+  const abrirDialogoAjusteStock = (producto: Producto, material: Material) => {
     setProductoSeleccionado(producto);
-    setLoteSeleccionado(lote);
-    const costo_estimado = Number(lote.costo_unitario_compra || 0);
-    setFormularioAjusteLote({
-      tipo: 'entrada',
+    setMaterialSeleccionado(material);
+    const costo_estimado = Number(material.costo_unitario || 0);
+    setFormularioAjusteStock({
+      tipo_ajuste: 'incremento',
       cantidad: '1',
-      generar_movimiento_financiero: true,
       monto: costo_estimado.toFixed(2),
+      motivo: '',
+      generar_movimiento_financiero: true,
     });
-    setDialogoAjusteStockLoteAbierto(true);
+    setDialogoAjusteStockAbierto(true);
   };
 
-  const manejarAjusteStockLote = async () => {
-    if (!inventario_seleccionado || !producto_seleccionado || !lote_seleccionado) return;
+  const manejarAjusteStock = async () => {
+    if (!inventario_seleccionado || !producto_seleccionado || !material_seleccionado) return;
 
-    if (!formulario_ajuste_lote.cantidad) {
+    if (!formulario_ajuste_stock.cantidad) {
       toast({
         title: 'Error',
         description: 'La cantidad es obligatoria',
@@ -871,7 +854,7 @@ export default function Inventarios() {
       return;
     }
 
-    const cantidad = parseFloat(formulario_ajuste_lote.cantidad);
+    const cantidad = parseFloat(formulario_ajuste_stock.cantidad);
     if (cantidad <= 0) {
       toast({
         title: 'Error',
@@ -881,10 +864,10 @@ export default function Inventarios() {
       return;
     }
 
-    if (formulario_ajuste_lote.tipo === 'salida' && cantidad > lote_seleccionado.cantidad_actual) {
+    if (formulario_ajuste_stock.tipo_ajuste === 'decremento' && cantidad > material_seleccionado.cantidad_actual) {
       toast({
         title: 'Error',
-        description: 'No hay suficiente stock en este lote',
+        description: 'No hay suficiente stock en este material',
         variant: 'destructive',
       });
       return;
@@ -892,15 +875,13 @@ export default function Inventarios() {
 
     setGuardando(true);
     try {
-      const monto = parseFloat(formulario_ajuste_lote.monto || '0');
 
       await inventarioApi.ajustarStock(inventario_seleccionado.id, {
         producto_id: producto_seleccionado.id,
-        tipo: formulario_ajuste_lote.tipo,
+        material_id: material_seleccionado.id,
+        tipo_ajuste: formulario_ajuste_stock.tipo_ajuste,
         cantidad: cantidad,
-        observaciones: `Ajuste ${formulario_ajuste_lote.tipo} manual`,
-        generar_movimiento_financiero: formulario_ajuste_lote.generar_movimiento_financiero,
-        monto: monto,
+        motivo: formulario_ajuste_stock.motivo || `Ajuste ${formulario_ajuste_stock.tipo_ajuste} manual`,
       });
 
       toast({
@@ -908,8 +889,8 @@ export default function Inventarios() {
         description: 'Stock ajustado correctamente',
       });
 
-      setDialogoAjusteStockLoteAbierto(false);
-      await cargarDetalleInventario(inventario_seleccionado);
+      setDialogoAjusteStockAbierto(false);
+      await cargarProductoIndividual(producto_seleccionado.id);
     } catch (error: any) {
       console.error('Error al ajustar stock:', error);
       toast({
@@ -922,28 +903,28 @@ export default function Inventarios() {
     }
   };
 
-  const abrirDialogoConfirmarEliminarLote = (lote: Lote) => {
-    setLoteAEliminar(lote);
-    setDialogoConfirmarEliminarLoteAbierto(true);
+  const abrirDialogoConfirmarEliminarMaterial = (material: Material) => {
+    setMaterialAEliminar(material);
+    setDialogoConfirmarEliminarMaterialAbierto(true);
   };
 
-  const confirmarEliminarLote = async () => {
-    if (!inventario_seleccionado || !lote_a_eliminar) return;
+  const confirmarEliminarMaterial = async () => {
+    if (!inventario_seleccionado || !material_a_eliminar) return;
 
     try {
-      await inventarioApi.eliminarLote(inventario_seleccionado.id, lote_a_eliminar.id);
+      await inventarioApi.eliminarProducto(inventario_seleccionado.id, material_a_eliminar.id);
       toast({
         title: 'Éxito',
-        description: 'Lote eliminado correctamente',
+        description: 'Material eliminado correctamente',
       });
-      setDialogoConfirmarEliminarLoteAbierto(false);
-      setLoteAEliminar(null);
+      setDialogoConfirmarEliminarMaterialAbierto(false);
+      setMaterialAEliminar(null);
       await cargarDetalleInventario(inventario_seleccionado);
     } catch (error: any) {
-      console.error('Error al eliminar lote:', error);
+      console.error('Error al eliminar material:', error);
       toast({
         title: 'Error',
-        description: error.response?.data?.mensaje || 'Error al eliminar el lote',
+        description: error.response?.data?.mensaje || 'Error al eliminar el material',
         variant: 'destructive',
       });
     }
@@ -1009,18 +990,21 @@ export default function Inventarios() {
           title: 'Éxito',
           description: 'Activo actualizado correctamente',
         });
+        setDialogoActivoAbierto(false);
+        await cargarProductoIndividual(producto_seleccionado.id);
       } else {
-        const datos_compra = {
+        const datos_entrada = {
           producto_id: producto_seleccionado.id,
-          cantidad: 1,
-          costo_total: parseFloat(formulario_activo.costo_compra),
-          fecha_compra: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_activo.fecha_compra)),
+          costo_compra: parseFloat(formulario_activo.costo_compra),
+          tipo_entrada: 'compra' as const,
           nro_serie: formulario_activo.nro_serie || undefined,
           nombre_asignado: formulario_activo.nombre_asignado || undefined,
+          ubicacion: formulario_activo.ubicacion || undefined,
+          fecha_compra: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_activo.fecha_compra)),
           generar_egreso: formulario_activo.registrar_egreso,
         };
 
-        await inventarioApi.registrarCompra(inventario_seleccionado.id, datos_compra);
+        await inventarioApi.registrarEntradaActivo(inventario_seleccionado.id, datos_entrada);
 
         toast({
           title: 'Éxito',
@@ -1028,10 +1012,9 @@ export default function Inventarios() {
             ? 'Activo registrado y egreso creado en finanzas'
             : 'Activo registrado correctamente',
         });
+        setDialogoActivoAbierto(false);
+        await cargarProductoIndividual(producto_seleccionado.id);
       }
-
-      setDialogoActivoAbierto(false);
-      await cargarDetalleInventario(inventario_seleccionado);
     } catch (error: any) {
       console.error('Error al guardar activo:', error);
       toast({
@@ -1044,18 +1027,46 @@ export default function Inventarios() {
     }
   };
 
+  const cargarProductoIndividual = async (producto_id: number) => {
+    if (!inventario_seleccionado) return;
+
+    setProductosCargando(prev => new Set(prev).add(producto_id));
+
+    try {
+      const producto_actualizado = await inventarioApi.obtenerProductoPorId(
+        inventario_seleccionado.id,
+        producto_id
+      );
+
+      setProductos(prev =>
+        prev.map(p => (p.id === producto_id ? producto_actualizado : p))
+      );
+    } catch (error: any) {
+      console.error('Error al cargar producto:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al cargar el producto',
+        variant: 'destructive',
+      });
+    } finally {
+      setProductosCargando(prev => {
+        const nuevo = new Set(prev);
+        nuevo.delete(producto_id);
+        return nuevo;
+      });
+    }
+  };
+
   const manejarCambioEstadoActivo = async (_producto: Producto, activo: Activo, nuevo_estado: string) => {
     if (!inventario_seleccionado) return;
 
+    setProductosCargando(prev => new Set(prev).add(_producto.id));
+
     try {
-      await inventarioApi.actualizarActivo(
+      await inventarioApi.cambiarEstadoActivo(
         inventario_seleccionado.id,
         activo.id,
-        {
-          estado: nuevo_estado,
-          ubicacion: activo.ubicacion,
-          nombre_asignado: activo.nombre_asignado,
-        }
+        { estado: nuevo_estado }
       );
 
       toast({
@@ -1063,13 +1074,19 @@ export default function Inventarios() {
         description: 'Estado actualizado correctamente',
       });
 
-      await cargarDetalleInventario(inventario_seleccionado);
+      await cargarProductoIndividual(_producto.id);
     } catch (error: any) {
       console.error('Error al cambiar estado:', error);
       toast({
         title: 'Error',
         description: error.response?.data?.mensaje || 'Error al cambiar el estado',
         variant: 'destructive',
+      });
+    } finally {
+      setProductosCargando(prev => {
+        const nuevo = new Set(prev);
+        nuevo.delete(_producto.id);
+        return nuevo;
       });
     }
   };
@@ -1138,6 +1155,7 @@ export default function Inventarios() {
       await inventarioApi.venderActivo(inventario_seleccionado.id, activo_seleccionado.id, {
         monto_venta: monto,
         registrar_pago: formulario_venta_activo.registrar_pago,
+        tipo_salida: 'venta',
       });
 
       toast({
@@ -1164,7 +1182,6 @@ export default function Inventarios() {
     setInventarioSeleccionado(null);
     setProductos([]);
     setReporteValor(null);
-    setMovimientos([]);
     setTabActivo('productos');
     localStorage.removeItem('inventario_seleccionado_id');
   };
@@ -1175,57 +1192,134 @@ export default function Inventarios() {
 
   const obtenerColorTipoGestion = (tipo?: string): string => {
     const colores: { [key: string]: string } = {
-      // Nuevos tipos
       material: 'bg-purple-500',
       activo_fijo: 'bg-blue-500',
-      // Legacy
-      consumible: 'bg-purple-500',
-      activo_serializado: 'bg-blue-500',
-      activo_general: 'bg-cyan-500',
     };
     return colores[tipo || ''] || 'bg-gray-500';
   };
 
   const obtenerEtiquetaTipoGestion = (tipo?: string): string => {
     const tipos: { [key: string]: string } = {
-      // Nuevos tipos
       material: 'Material',
       activo_fijo: 'Activo Fijo',
-      // Legacy
-      consumible: 'Consumible',
-      activo_serializado: 'Serializado',
-      activo_general: 'General',
     };
     return tipos[tipo || ''] || tipo || 'Desconocido';
   };
 
   const obtenerStockTotal = (producto: Producto): number => {
-    // Nuevo sistema: usa tipo y materiales
     if (producto.tipo === 'material') {
-      const materiales = producto.materiales || producto.lotes || [];
+      const materiales = producto.materiales || [];
       return materiales.reduce((total, m) => total + Number(m.cantidad_actual), 0);
-    }
-    // Legacy: consumible usa lotes
-    if (producto.tipo_gestion === 'consumible' && producto.lotes) {
-      return producto.lotes.reduce((total, lote) => total + Number(lote.cantidad_actual), 0);
     }
     return producto.activos?.length || 0;
   };
 
   const obtenerValorTotal = (producto: Producto): number => {
-    // Nuevo sistema: usa tipo y materiales
     if (producto.tipo === 'material') {
-      const materiales = producto.materiales || producto.lotes || [];
-      return materiales.reduce((total, m) => total + (Number(m.cantidad_actual) * Number((m as any).costo_unitario || (m as any).costo_unitario_compra || 0)), 0);
-    }
-    // Legacy: consumible usa lotes
-    if (producto.tipo_gestion === 'consumible' && producto.lotes) {
-      return producto.lotes.reduce((total, lote) => total + (Number(lote.cantidad_actual) * Number(lote.costo_unitario_compra)), 0);
+      const materiales = producto.materiales || [];
+      return materiales.reduce((total, m) => total + (Number(m.cantidad_actual) * Number(m.costo_unitario || 0)), 0);
     }
     if (producto.activos) {
       return producto.activos.reduce((total, activo) => total + Number(activo.costo_compra), 0);
     }
     return 0;
+  };
+
+  const compararCambios = (anterior: any, nuevo: any) => {
+    if (typeof anterior === 'string') {
+      try { anterior = JSON.parse(anterior); } catch (e) { console.error('Error parsing anterior:', e); }
+    }
+    if (typeof nuevo === 'string') {
+      try { nuevo = JSON.parse(nuevo); } catch (e) { console.error('Error parsing nuevo:', e); }
+    }
+
+    if (!anterior && !nuevo) return { campos: [], valoresAnteriores: {}, valoresNuevos: {}, camposModificados: new Set<string>() };
+    if (!anterior) anterior = {};
+    if (!nuevo) nuevo = {};
+    const camposRelevantes: { [key: string]: string[] } = {
+      inventario: ['nombre', 'visibilidad', 'modo_estricto', 'descripcion'],
+      producto: ['nombre', 'tipo', 'subtipo_material', 'subtipo_activo_fijo', 'stock_minimo', 'unidad_medida', 'descripcion', 'notificar_stock_bajo', 'permite_decimales'],
+      material: ['nro_lote', 'nro_serie', 'fecha_vencimiento', 'cantidad_actual', 'cantidad_reservada', 'costo_unitario', 'fecha_ingreso'],
+      activo: ['codigo_interno', 'nro_serie', 'nombre_asignado', 'estado', 'fecha_adquisicion', 'fecha_compra', 'costo_adquisicion', 'costo_compra', 'ubicacion', 'notas'],
+    };
+    let camposAMostrar: string[] = [];
+    if (anterior.visibilidad !== undefined || nuevo.visibilidad !== undefined) {
+      camposAMostrar = camposRelevantes.inventario;
+    } else if (anterior.tipo !== undefined || nuevo.tipo !== undefined || anterior.subtipo_material !== undefined) {
+      camposAMostrar = camposRelevantes.producto;
+    } else if (anterior.nro_lote !== undefined || anterior.fecha_vencimiento !== undefined || nuevo.cantidad_actual !== undefined) {
+      camposAMostrar = camposRelevantes.material;
+    } else if (anterior.estado !== undefined || anterior.nombre_asignado !== undefined) {
+      camposAMostrar = camposRelevantes.activo;
+    } else {
+      const todosCampos = new Set([...Object.keys(anterior), ...Object.keys(nuevo)]);
+      camposAMostrar = Array.from(todosCampos).filter(campo => 
+        !campo.startsWith('_') && !['id', 'created_at', 'updated_at', 'deleted_at', 'activo'].includes(campo)
+      );
+    }
+
+    const campos: string[] = [];
+    const valoresAnteriores: { [key: string]: string } = {};
+    const valoresNuevos: { [key: string]: string } = {};
+    const camposModificados = new Set<string>();
+    const nombresAmigables: { [key: string]: string } = {
+      nombre: 'Nombre',
+      visibilidad: 'Visibilidad',
+      modo_estricto: 'Modo Estricto',
+      descripcion: 'Descripción',
+      tipo: 'Tipo',
+      subtipo_material: 'Subtipo Material',
+      subtipo_activo_fijo: 'Subtipo Activo',
+      stock_minimo: 'Stock Mínimo',
+      unidad_medida: 'Unidad de Medida',
+      notificar_stock_bajo: 'Notificar Stock Bajo',
+      permite_decimales: 'Permite Decimales',
+      nro_lote: 'Nro. Lote',
+      nro_serie: 'Nro. Serie',
+      fecha_vencimiento: 'Fecha Vencimiento',
+      cantidad_actual: 'Cantidad Actual',
+      cantidad_reservada: 'Cantidad Reservada',
+      costo_unitario: 'Costo Unitario',
+      fecha_ingreso: 'Fecha Ingreso',
+      codigo_interno: 'Código Interno',
+      nombre_asignado: 'Nombre Asignado',
+      estado: 'Estado',
+      fecha_adquisicion: 'Fecha Adquisición',
+      fecha_compra: 'Fecha Compra',
+      costo_adquisicion: 'Costo Adquisición',
+      costo_compra: 'Costo Compra',
+      ubicacion: 'Ubicación',
+      notas: 'Notas'
+    };
+
+    camposAMostrar.forEach(campo => {
+      const valorAnterior = anterior[campo];
+      const valorNuevo = nuevo[campo];
+      if (valorAnterior === undefined && valorNuevo === undefined) return;
+
+      const sonDiferentes = JSON.stringify(valorAnterior) !== JSON.stringify(valorNuevo);
+      const nombreCampo = nombresAmigables[campo] || campo.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+      
+      campos.push(nombreCampo);
+      valoresAnteriores[nombreCampo] = formatearValor(valorAnterior);
+      valoresNuevos[nombreCampo] = formatearValor(valorNuevo);
+      
+      if (sonDiferentes) {
+        camposModificados.add(nombreCampo);
+      }
+    });
+
+    return { campos, valoresAnteriores, valoresNuevos, camposModificados };
+  };
+
+  const formatearValor = (valor: any): string => {
+    if (valor === null || valor === undefined) return 'SIN DATOS';
+    if (typeof valor === 'boolean') return valor ? 'Sí' : 'No';
+    if (typeof valor === 'object') {
+      if (Array.isArray(valor)) return valor.length > 0 ? JSON.stringify(valor) : '-';
+      return JSON.stringify(valor);
+    }
+    return String(valor);
   };
 
   const inventarios_filtrados = inventarios.filter(inv =>
@@ -1234,17 +1328,7 @@ export default function Inventarios() {
 
   const productos_filtrados = productos.filter(p => {
     const coincide_busqueda = p.nombre.toLowerCase().includes(busqueda_productos.toLowerCase());
-    // Mapear filtro a ambos sistemas (nuevo y legacy)
-    let coincide_tipo = filtro_tipo_producto === 'todos';
-    if (!coincide_tipo) {
-      // Nuevo sistema
-      if (filtro_tipo_producto === 'material' && p.tipo === 'material') coincide_tipo = true;
-      if (filtro_tipo_producto === 'activo_fijo' && p.tipo === 'activo_fijo') coincide_tipo = true;
-      // Legacy
-      if (filtro_tipo_producto === 'consumible' && (p.tipo === 'material' || p.tipo_gestion === 'consumible')) coincide_tipo = true;
-      if (filtro_tipo_producto === 'activo_serializado' && (p.tipo === 'activo_fijo' || p.tipo_gestion === 'activo_serializado')) coincide_tipo = true;
-      if (filtro_tipo_producto === 'activo_general' && p.tipo_gestion === 'activo_general') coincide_tipo = true;
-    }
+    const coincide_tipo = filtro_tipo_producto === 'todos' || filtro_tipo_producto === p.tipo;
     return coincide_busqueda && coincide_tipo && p.activo;
   });
   const usuarios_disponibles_para_invitar = usuarios.filter(u => {
@@ -1403,7 +1487,7 @@ export default function Inventarios() {
                                   <span className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">Valor</span>
                                 </div>
                                 <span className="text-sm font-semibold text-foreground">
-                                  ${inventario.resumen.valor_total.toFixed(2)}
+                                  ${(inventario.resumen.valor_total || 0).toFixed(2)}
                                 </span>
                               </div>
 
@@ -1507,7 +1591,7 @@ export default function Inventarios() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-primary">
-                      ${reporte_valor.valor_total.toFixed(2)}
+                      ${(reporte_valor.valor_total || 0).toFixed(2)}
                     </div>
                   </CardContent>
                 </Card>
@@ -1517,10 +1601,10 @@ export default function Inventarios() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-purple-500">
-                      ${reporte_valor.valor_consumibles.toFixed(2)}
+                      ${((reporte_valor as any).valor_materiales || reporte_valor.valor_consumibles || 0).toFixed(2)}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {reporte_valor.cantidad_lotes} lotes
+                      {reporte_valor.cantidad_materiales} materiales
                     </p>
                   </CardContent>
                 </Card>
@@ -1530,7 +1614,7 @@ export default function Inventarios() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-blue-500">
-                      ${reporte_valor.valor_activos.toFixed(2)}
+                      ${(reporte_valor.valor_activos || 0).toFixed(2)}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       {reporte_valor.cantidad_activos} activos
@@ -1556,14 +1640,22 @@ export default function Inventarios() {
 
           <Tabs value={tab_activo} onValueChange={(value) => setTabActivo(value as any)} className="flex-1 flex flex-col overflow-hidden">
             <div className="px-6 pt-4 border-b">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="productos">
                   <Box className="h-4 w-4 mr-2" />
                   Productos
                 </TabsTrigger>
-                <TabsTrigger value="historial">
+                <TabsTrigger value="kardex">
                   <History className="h-4 w-4 mr-2" />
-                  Historial
+                  Kardex
+                </TabsTrigger>
+                <TabsTrigger value="bitacora">
+                  <History className="h-4 w-4 mr-2" />
+                  Bitácora
+                </TabsTrigger>
+                <TabsTrigger value="auditoria">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Actividad
                 </TabsTrigger>
                 <TabsTrigger value="usuarios">
                   <Users className="h-4 w-4 mr-2" />
@@ -1596,10 +1688,21 @@ export default function Inventarios() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button onClick={abrirDialogoNuevoProducto}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nuevo Producto
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => inventario_seleccionado && cargarDetalleInventario(inventario_seleccionado)}
+                      title="Recargar"
+                      disabled={!inventario_seleccionado || cargando_detalle}
+                    >
+                      <RefreshCw className={`h-4 w-4 ${cargando_detalle ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button onClick={abrirDialogoNuevoProducto}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nuevo Producto
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -1622,15 +1725,21 @@ export default function Inventarios() {
                       const stock_total = obtenerStockTotal(producto);
                       const valor_total = obtenerValorTotal(producto);
                       const stock_bajo = stock_total < (producto.stock_minimo ?? 0);
+                      const esta_cargando = productos_cargando.has(producto.id);
 
                       return (
-                        <Card key={producto.id} className={`${stock_bajo ? 'border-yellow-500' : ''}`}>
+                        <Card key={producto.id} className={`${stock_bajo ? 'border-yellow-500' : ''} relative`}>
+                          {esta_cargando && (
+                            <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            </div>
+                          )}
                           <CardHeader>
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <CardTitle className="text-lg">{producto.nombre}</CardTitle>
-                                <Badge className={`${obtenerColorTipoGestion(producto.tipo || producto.tipo_gestion)} text-white`}>
-                                  {obtenerEtiquetaTipoGestion(producto.tipo || producto.tipo_gestion)}
+                                <Badge className={`${obtenerColorTipoGestion(producto.tipo)} text-white`}>
+                                  {obtenerEtiquetaTipoGestion(producto.tipo)}
                                 </Badge>
                                 {stock_bajo && (
                                   <Badge variant="destructive" className="flex items-center gap-1">
@@ -1640,9 +1749,9 @@ export default function Inventarios() {
                                 )}
                               </div>
                               <div className="flex gap-2">
-                                {(producto.tipo === 'material' || producto.tipo_gestion === 'consumible') && (
+                                {producto.tipo === 'material' && (
                                   <Button
-                                    onClick={() => abrirDialogoNuevoLote(producto)}
+                                    onClick={() => abrirDialogoNuevoMaterial(producto)}
                                     size="sm"
                                     variant="outline"
                                   >
@@ -1650,7 +1759,7 @@ export default function Inventarios() {
                                     Registrar Entrada
                                   </Button>
                                 )}
-                                {(producto.tipo === 'activo_fijo' || (producto.tipo_gestion && producto.tipo_gestion !== 'consumible')) && (
+                                {producto.tipo === 'activo_fijo' && (
                                   <Button
                                     onClick={() => abrirDialogoNuevoActivo(producto)}
                                     size="sm"
@@ -1691,7 +1800,7 @@ export default function Inventarios() {
                                   </p>
                                 </div>
                               </div>
-                              {(producto.tipo === 'material' || producto.tipo_gestion === 'consumible') && (
+                              {producto.tipo === 'material' && (
                                 <div className="flex items-center gap-2">
                                   <AlertCircle className="h-4 w-4 text-muted-foreground" />
                                   <div>
@@ -1711,13 +1820,13 @@ export default function Inventarios() {
                               </div>
                             </div>
 
-                            {(producto.tipo === 'material' || producto.tipo_gestion === 'consumible') && (producto.materiales || producto.lotes) && ((producto.materiales?.length || 0) + (producto.lotes?.length || 0)) > 0 && (
+                            {producto.tipo === 'material' && producto.materiales && producto.materiales.length > 0 && (
                               <div className="border-t pt-4">
-                                <h4 className="font-semibold mb-2 text-sm">Existencias Disponibles</h4>
+                                <h4 className="font-semibold mb-2 text-sm">Materiales Disponibles</h4>
                                 <Table>
                                   <TableHeader>
                                     <TableRow>
-                                      <TableHead>Nro. Lote</TableHead>
+                                      <TableHead>Identificación</TableHead>
                                       <TableHead>Stock</TableHead>
                                       <TableHead>Costo Unit.</TableHead>
                                       <TableHead>Vencimiento</TableHead>
@@ -1725,25 +1834,25 @@ export default function Inventarios() {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {(producto.materiales || producto.lotes || []).map((lote) => {
-                                      const vencido = estaVencido((lote as any).fecha_vencimiento);
+                                    {producto.materiales.map((material) => {
+                                      const vencido = estaVencido(material.fecha_vencimiento);
                                       return (
                                         <TableRow
-                                          key={lote.id}
+                                          key={material.id}
                                           className={vencido ? 'bg-destructive/10 hover:bg-destructive/20' : ''}
                                         >
                                           <TableCell className={`font-medium ${vencido ? 'text-destructive' : ''}`}>
-                                            {lote.nro_lote}
+                                            {material.nro_lote || material.nro_serie || '-'}
                                           </TableCell>
                                           <TableCell className={vencido ? 'text-destructive' : ''}>
-                                            {lote.cantidad_actual} {producto.unidad_medida}
+                                            {material.cantidad_actual} {producto.unidad_medida}
                                           </TableCell>
                                           <TableCell className={vencido ? 'text-destructive' : ''}>
-                                            ${Number((lote as any).costo_unitario_compra || (lote as any).costo_unitario || 0).toFixed(2)}
+                                            ${Number(material.costo_unitario || 0).toFixed(2)}
                                           </TableCell>
                                           <TableCell className={vencido ? 'text-destructive font-semibold' : ''}>
-                                            {lote.fecha_vencimiento
-                                              ? format(new Date(lote.fecha_vencimiento), 'dd/MM/yyyy')
+                                            {material.fecha_vencimiento
+                                              ? format(new Date(material.fecha_vencimiento), 'dd/MM/yyyy')
                                               : 'Sin vencimiento'
                                             }
                                             {vencido && ' (VENCIDO)'}
@@ -1751,14 +1860,14 @@ export default function Inventarios() {
                                           <TableCell className="text-right">
                                             <div className="flex gap-1 justify-end">
                                               <Button
-                                                onClick={() => abrirDialogoAjusteStockLote(producto, lote as any)}
+                                                onClick={() => abrirDialogoAjusteStock(producto, material)}
                                                 size="sm"
                                                 variant="outline"
                                               >
                                                 <Settings className="h-3 w-3" />
                                               </Button>
                                               <Button
-                                                onClick={() => abrirDialogoConfirmarEliminarLote(lote as any)}
+                                                onClick={() => abrirDialogoConfirmarEliminarMaterial(material)}
                                                 size="sm"
                                                 variant="destructive"
                                               >
@@ -1774,7 +1883,7 @@ export default function Inventarios() {
                               </div>
                             )}
 
-                            {producto.tipo_gestion !== 'consumible' && producto.activos && producto.activos.length > 0 && (
+                            {producto.tipo === 'activo_fijo' && producto.activos && producto.activos.length > 0 && (
                               <div className="border-t pt-4">
                                 <h4 className="font-semibold mb-2 text-sm">Activos Registrados</h4>
                                 <Table>
@@ -1788,58 +1897,60 @@ export default function Inventarios() {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {producto.activos.map((activo) => (
-                                      <TableRow key={activo.id}>
-                                        <TableCell className="font-medium">
-                                          {activo.nombre_asignado || activo.nro_serie || '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                          <Select
-                                            value={activo.estado}
-                                            onValueChange={(value) => manejarCambioEstadoActivo(producto, activo, value)}
-                                          >
-                                            <SelectTrigger className="h-8 w-[140px]">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              {estados_activo.map((estado) => (
-                                                <SelectItem key={estado.valor} value={estado.valor}>
-                                                  {estado.etiqueta}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        </TableCell>
-                                        <TableCell>{activo.ubicacion || '-'}</TableCell>
-                                        <TableCell>${Number(activo.costo_compra).toFixed(2)}</TableCell>
-                                        <TableCell className="text-right">
-                                          <div className="flex gap-1 justify-end">
-                                            <Button
-                                              onClick={() => abrirDialogoVenderActivo(activo)}
-                                              size="sm"
-                                              variant="outline"
-                                              title="Vender"
+                                    {producto.activos
+                                      .filter((activo) => activo.estado !== 'vendido' && activo.estado !== 'desechado')
+                                      .map((activo) => (
+                                        <TableRow key={activo.id}>
+                                          <TableCell className="font-medium">
+                                            {activo.nombre_asignado || activo.nro_serie || '-'}
+                                          </TableCell>
+                                          <TableCell>
+                                            <Select
+                                              value={activo.estado}
+                                              onValueChange={(value) => manejarCambioEstadoActivo(producto, activo, value)}
                                             >
-                                              <DollarSign className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              onClick={() => abrirDialogoEditarActivo(producto, activo)}
-                                              size="sm"
-                                              variant="outline"
-                                            >
-                                              <Edit className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              onClick={() => abrirDialogoConfirmarEliminarActivo(activo)}
-                                              size="sm"
-                                              variant="destructive"
-                                            >
-                                              <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                          </div>
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
+                                              <SelectTrigger className="h-8 w-[140px]">
+                                                <SelectValue />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                {getEstadosParaSubtipo(producto.subtipo_activo_fijo).map((estado) => (
+                                                  <SelectItem key={estado.valor} value={estado.valor}>
+                                                    {estado.etiqueta}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          </TableCell>
+                                          <TableCell>{activo.ubicacion || '-'}</TableCell>
+                                          <TableCell>${Number(activo.costo_compra || 0).toFixed(2)}</TableCell>
+                                          <TableCell className="text-right">
+                                            <div className="flex gap-1 justify-end">
+                                              <Button
+                                                onClick={() => abrirDialogoVenderActivo(activo)}
+                                                size="sm"
+                                                variant="outline"
+                                                title="Vender"
+                                              >
+                                                <DollarSign className="h-3 w-3" />
+                                              </Button>
+                                              <Button
+                                                onClick={() => abrirDialogoEditarActivo(producto, activo)}
+                                                size="sm"
+                                                variant="outline"
+                                              >
+                                                <Edit className="h-3 w-3" />
+                                              </Button>
+                                              <Button
+                                                onClick={() => abrirDialogoConfirmarEliminarActivo(activo)}
+                                                size="sm"
+                                                variant="destructive"
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
                                   </TableBody>
                                 </Table>
                               </div>
@@ -1853,246 +1964,285 @@ export default function Inventarios() {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="historial" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <TabsContent value="kardex" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
               <ScrollArea className="flex-1">
                 <div className="p-6 space-y-6">
-                  <div className="space-y-4 pb-6 border-b">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Filter className="h-5 w-5" />
-                        Filtros de Auditoría
-                      </h3>
-                      <div className="flex gap-2">
-                        {(filtros_historial.tipo_operacion.length > 0 ||
-                          filtros_historial.tipo_entidad.length > 0 ||
-                          filtros_historial.fecha_inicio ||
-                          filtros_historial.fecha_fin) && (
-                            <Button
-                              onClick={limpiarFiltrosHistorial}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Limpiar
-                            </Button>
-                          )}
-                        <Button
-                          onClick={cargarHistorial}
-                          size="sm"
-                        >
-                          <Search className="h-4 w-4 mr-1" />
-                          Buscar
+                  <div className="flex items-center justify-between pb-6 border-b">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <History className="h-5 w-5" />
+                      Kardex (Movimientos de Inventario)
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setDialogoFiltrosHistorialAbierto(true)}
+                        className="relative"
+                        disabled={cargando_kardex}
+                      >
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filtros
+                        {contarFiltrosHistorialActivos() > 0 && (
+                          <Badge className="ml-2 bg-primary text-primary-foreground">
+                            {contarFiltrosHistorialActivos()}
+                          </Badge>
+                        )}
+                      </Button>
+                      {contarFiltrosHistorialActivos() > 0 && (
+                        <Button variant="outline" onClick={limpiarFiltrosHistorial} disabled={cargando_kardex}>
+                          <X className="h-4 w-4 mr-2" />
+                          Limpiar
                         </Button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <Label>Fecha Inicio</Label>
-                        <DatePicker
-                          valor={filtros_historial.fecha_inicio}
-                          onChange={(fecha) => setFiltrosHistorial(prev => ({ ...prev, fecha_inicio: fecha }))}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Fecha Fin</Label>
-                        <DatePicker
-                          valor={filtros_historial.fecha_fin}
-                          onChange={(fecha) => setFiltrosHistorial(prev => ({ ...prev, fecha_fin: fecha }))}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Tipo de Operación</Label>
-                        <MultiSelect
-                          opciones={tipos_operacion.map(t => ({ valor: t.valor, etiqueta: t.etiqueta }))}
-                          valores={filtros_historial.tipo_operacion}
-                          onChange={(valores) => setFiltrosHistorial(prev => ({ ...prev, tipo_operacion: valores }))}
-                          placeholder="Seleccionar operaciones..."
-                          textoVacio="No se encontraron operaciones"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Límite de Registros</Label>
-                        <Select
-                          value={filtros_historial.limit.toString()}
-                          onValueChange={(valor) => setFiltrosHistorial(prev => ({ ...prev, limit: parseInt(valor) }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="50">50</SelectItem>
-                            <SelectItem value="100">100</SelectItem>
-                            <SelectItem value="250">250</SelectItem>
-                            <SelectItem value="500">500</SelectItem>
-                            <SelectItem value="1000">1000</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    {filtros_historial.tipo_operacion.some(op => ['creacion', 'edicion', 'eliminacion'].includes(op)) && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                          <Label>Tipo de Entidad</Label>
-                          <MultiSelect
-                            opciones={tipos_entidad.map(t => ({ valor: t.valor, etiqueta: t.etiqueta }))}
-                            valores={filtros_historial.tipo_entidad}
-                            onChange={(valores) => setFiltrosHistorial(prev => ({ ...prev, tipo_entidad: valores }))}
-                            placeholder="Todas las entidades"
-                            textoVacio="No se encontraron entidades"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {(filtros_historial.tipo_operacion.length > 0 ||
-                      filtros_historial.tipo_entidad.length > 0 ||
-                      filtros_historial.fecha_inicio ||
-                      filtros_historial.fecha_fin) && (
-                        <div className="flex flex-wrap gap-2">
-                          <span className="text-sm text-muted-foreground">Filtros activos:</span>
-                          {filtros_historial.tipo_operacion.map(tipo => {
-                            const operacion = tipos_operacion.find(op => op.valor === tipo);
-                            return (
-                              <Badge key={tipo} variant="secondary" className="gap-1">
-                                {operacion?.etiqueta || tipo}
-                                <button
-                                  onClick={() => setFiltrosHistorial(prev => ({
-                                    ...prev,
-                                    tipo_operacion: prev.tipo_operacion.filter(t => t !== tipo)
-                                  }))}
-                                  className="ml-1 hover:bg-destructive/20 rounded-full"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>
-                            );
-                          })}
-                          {filtros_historial.tipo_entidad.map(tipo => {
-                            const entidad = tipos_entidad.find(ent => ent.valor === tipo);
-                            return (
-                              <Badge key={tipo} variant="outline" className="gap-1">
-                                {entidad?.etiqueta || tipo}
-                                <button
-                                  onClick={() => setFiltrosHistorial(prev => ({
-                                    ...prev,
-                                    tipo_entidad: prev.tipo_entidad.filter(t => t !== tipo)
-                                  }))}
-                                  className="ml-1 hover:bg-destructive/20 rounded-full"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>
-                            );
-                          })}
-                          {filtros_historial.fecha_inicio && (
-                            <Badge variant="secondary">
-                              Desde: {format(filtros_historial.fecha_inicio, 'dd/MM/yyyy')}
-                            </Badge>
-                          )}
-                          {filtros_historial.fecha_fin && (
-                            <Badge variant="secondary">
-                              Hasta: {format(filtros_historial.fecha_fin, 'dd/MM/yyyy')}
-                            </Badge>
-                          )}
-                        </div>
                       )}
+                      <Button variant="outline" size="icon" onClick={cargarHistorial} title="Recargar" disabled={cargando_kardex}>
+                        <RefreshCw className={`h-4 w-4 ${cargando_kardex ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
                   </div>
-                  {cargando_detalle ? (
+
+                  {cargando_kardex ? (
                     <div className="flex items-center justify-center h-64">
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
-                  ) : movimientos.length === 0 ? (
-                    <div className="text-center py-12">
-                      <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">No hay movimientos</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {(filtros_historial.tipo_operacion.length > 0 ||
-                          filtros_historial.tipo_entidad.length > 0 ||
-                          filtros_historial.fecha_inicio ||
-                          filtros_historial.fecha_fin)
-                          ? 'No se encontraron movimientos con los filtros aplicados'
-                          : 'Los movimientos de inventario aparecerán aquí'}
-                      </p>
+                  ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Operación</TableHead>
+                        <TableHead>Producto</TableHead>
+                        <TableHead>Entidad</TableHead>
+                        <TableHead>Cantidad</TableHead>
+                        <TableHead>Stock</TableHead>
+                        <TableHead>Usuario</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {kardex.map((mov) => (
+                        <TableRow key={mov.id}>
+                          <TableCell>{format(new Date(mov.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                          <TableCell>{mov.tipo}</TableCell>
+                          <TableCell>
+                            <Badge variant={mov.operacion === 'entrada' ? 'default' : 'destructive'}>
+                              {mov.operacion}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{mov.producto?.nombre || '-'}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {(mov as any).material?.nro_lote || (mov as any).material?.nro_serie || '-'}
+                          </TableCell>
+                          <TableCell>
+                            {mov.producto?.permite_decimales !== false
+                              ? Number(mov.cantidad).toFixed(2)
+                              : Math.round(Number(mov.cantidad))}
+                          </TableCell>
+                          <TableCell>
+                            {mov.producto?.permite_decimales !== false
+                              ? `${Number(mov.stock_anterior).toFixed(2)} → ${Number(mov.stock_nuevo).toFixed(2)}`
+                              : `${Math.round(Number(mov.stock_anterior))} → ${Math.round(Number(mov.stock_nuevo))}`}
+                          </TableCell>
+                          <TableCell>{mov.usuario?.nombre || 'Desconocido'}</TableCell>
+                        </TableRow>
+                      ))}
+                      {kardex.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                            No hay movimientos registrados
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="bitacora" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <ScrollArea className="flex-1">
+                <div className="p-6 space-y-6">
+                  <div className="flex items-center justify-between pb-6 border-b">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <History className="h-5 w-5" />
+                      Bitácora (Historial de Activos)
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setDialogoFiltrosHistorialAbierto(true)}
+                        className="relative"
+                        disabled={cargando_bitacora}
+                      >
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filtros
+                        {contarFiltrosHistorialActivos() > 0 && (
+                          <Badge className="ml-2 bg-primary text-primary-foreground">
+                            {contarFiltrosHistorialActivos()}
+                          </Badge>
+                        )}
+                      </Button>
+                      {contarFiltrosHistorialActivos() > 0 && (
+                        <Button variant="outline" onClick={limpiarFiltrosHistorial} disabled={cargando_bitacora}>
+                          <X className="h-4 w-4 mr-2" />
+                          Limpiar
+                        </Button>
+                      )}
+                      <Button variant="outline" size="icon" onClick={cargarHistorial} title="Recargar" disabled={cargando_bitacora}>
+                        <RefreshCw className={`h-4 w-4 ${cargando_bitacora ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {cargando_bitacora ? (
+                    <div className="flex items-center justify-center h-64">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm text-muted-foreground">
-                          Mostrando {movimientos.length} {movimientos.length === 1 ? 'registro' : 'registros'}
-                        </p>
-                      </div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead>Producto</TableHead>
-                            <TableHead>Detalles</TableHead>
-                            <TableHead>Usuario</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {movimientos.map((movimiento) => (
-                            <TableRow key={movimiento.id}>
-                              <TableCell className="whitespace-nowrap">
-                                {format(new Date(movimiento.fecha), 'dd/MM/yyyy HH:mm')}
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={obtenerColorTipoMovimiento(movimiento.tipo)}>
-                                  {obtenerEtiquetaTipoMovimiento(movimiento.tipo)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {movimiento.producto ? movimiento.producto.nombre : '-'}
-                              </TableCell>
-                              <TableCell className="max-w-md">
-                                {movimiento.cantidad && (
-                                  <div className="text-sm">
-                                    <span className="font-medium">Cantidad:</span> {movimiento.cantidad}
-                                    {movimiento.stock_anterior !== undefined && movimiento.stock_nuevo !== undefined && (
-                                      <span className="text-muted-foreground">
-                                        {' '}({movimiento.stock_anterior} → {movimiento.stock_nuevo})
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                                {movimiento.observaciones && (
-                                  <div className="text-sm text-muted-foreground mt-1">
-                                    {movimiento.observaciones}
-                                  </div>
-                                )}
-                                {movimiento.datos_anteriores && movimiento.datos_nuevos && (
-                                  <details className="text-xs mt-2">
-                                    <summary className="cursor-pointer text-primary hover:underline">
-                                      Ver cambios
-                                    </summary>
-                                    <div className="mt-2 space-y-1 pl-2 border-l-2 border-muted">
-                                      <div>
-                                        <span className="font-semibold">Antes:</span>
-                                        <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
-                                          {JSON.stringify(movimiento.datos_anteriores, null, 2)}
-                                        </pre>
-                                      </div>
-                                      <div>
-                                        <span className="font-semibold">Después:</span>
-                                        <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
-                                          {JSON.stringify(movimiento.datos_nuevos, null, 2)}
-                                        </pre>
-                                      </div>
-                                    </div>
-                                  </details>
-                                )}
-                              </TableCell>
-                              <TableCell>{movimiento.usuario?.nombre || 'Usuario desconocido'}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Activo</TableHead>
+                        <TableHead>Identificación</TableHead>
+                        <TableHead>Cambio de Estado</TableHead>
+                        <TableHead>Usuario</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {bitacora.map((evento) => (
+                        <TableRow key={evento.id}>
+                          <TableCell>{format(new Date(evento.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                          <TableCell>{evento.activo?.nombre_asignado || evento.activo?.codigo_interno || '-'}</TableCell>
+                          <TableCell>{evento.activo?.nro_serie || evento.activo?.codigo_interno || '-'}</TableCell>
+                          <TableCell>
+                            {evento.estado_anterior && evento.estado_nuevo ? (
+                              <span className="flex items-center gap-2">
+                                <Badge variant="secondary">{evento.estado_anterior}</Badge>
+                                <span>→</span>
+                                <Badge variant="default">{evento.estado_nuevo}</Badge>
+                              </span>
+                            ) : (
+                              <Badge>{evento.estado_nuevo || '-'}</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{evento.usuario?.nombre || 'Desconocido'}</TableCell>
+                        </TableRow>
+                      ))}
+                      {bitacora.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            No hay eventos registrados
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="auditoria" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <ScrollArea className="flex-1">
+                <div className="p-6 space-y-6">
+                  <div className="flex items-center justify-between pb-6 border-b">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Shield className="h-5 w-5" />
+                      Actividad
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setDialogoFiltrosHistorialAbierto(true)}
+                        className="relative"
+                        disabled={cargando_auditoria}
+                      >
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filtros
+                        {contarFiltrosHistorialActivos() > 0 && (
+                          <Badge className="ml-2 bg-primary text-primary-foreground">
+                            {contarFiltrosHistorialActivos()}
+                          </Badge>
+                        )}
+                      </Button>
+                      {contarFiltrosHistorialActivos() > 0 && (
+                        <Button variant="outline" onClick={limpiarFiltrosHistorial} disabled={cargando_auditoria}>
+                          <X className="h-4 w-4 mr-2" />
+                          Limpiar
+                        </Button>
+                      )}
+                      <Button variant="outline" size="icon" onClick={cargarHistorial} title="Recargar" disabled={cargando_auditoria}>
+                        <RefreshCw className={`h-4 w-4 ${cargando_auditoria ? 'animate-spin' : ''}`} />
+                      </Button>
                     </div>
+                  </div>
+
+                  {cargando_auditoria ? (
+                    <div className="flex items-center justify-center h-64">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Acción</TableHead>
+                        <TableHead>Entidad</TableHead>
+                        <TableHead>Identificación</TableHead>
+                        <TableHead>Usuario</TableHead>
+                        <TableHead>Detalles</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {auditoria.map((reg) => (
+                        <TableRow key={reg.id}>
+                          <TableCell>{format(new Date(reg.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {reg.accion?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '-'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="secondary" className="w-fit text-xs">
+                                {reg.categoria?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '-'}
+                              </Badge>
+                              <span className="text-sm">
+                                {reg.producto?.nombre ||
+                                  (reg.material as any)?.producto?.nombre ||
+                                  reg.activo?.nombre_asignado ||
+                                  reg.activo?.nro_serie ||
+                                  '-'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {reg.material?.nro_lote || reg.material?.nro_serie || reg.activo?.nro_serie || reg.activo?.codigo_interno || '-'}
+                          </TableCell>
+                          <TableCell>{reg.usuario?.nombre || 'Desconocido'}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setDetallesAuditoriaSeleccionada(reg);
+                                setDialogoDetallesAuditoriaAbierto(true);
+                              }}
+                            >
+                              Ver cambios
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {auditoria.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            No hay registros de actividad
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                   )}
                 </div>
               </ScrollArea>
@@ -2100,12 +2250,65 @@ export default function Inventarios() {
 
             <TabsContent value="usuarios" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
               <ScrollArea className="flex-1 p-6">
-                {cargando_detalle ? (
-                  <div className="flex items-center justify-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : (
                   <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-4 border-b">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Usuarios
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Buscar por nombre..."
+                          value={filtro_usuarios.busqueda}
+                          onChange={(e) => setFiltroUsuarios({ ...filtro_usuarios, busqueda: e.target.value })}
+                          className="w-48"
+                          disabled={cargando_detalle}
+                        />
+                        <div className="flex border rounded-md">
+                          <Button
+                            variant={filtro_usuarios.rol === 'todos' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'todos' })}
+                            disabled={cargando_detalle}
+                          >
+                            Todos
+                          </Button>
+                          <Button
+                            variant={filtro_usuarios.rol === 'editor' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'editor' })}
+                            disabled={cargando_detalle}
+                          >
+                            Editores
+                          </Button>
+                          <Button
+                            variant={filtro_usuarios.rol === 'lector' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'lector' })}
+                            disabled={cargando_detalle}
+                          >
+                            Lectores
+                          </Button>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => inventario_seleccionado && cargarDetalleInventario(inventario_seleccionado)}
+                          title="Recargar"
+                          disabled={!inventario_seleccionado || cargando_detalle}
+                        >
+                          <RefreshCw className={`h-4 w-4 ${cargando_detalle ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {cargando_detalle ? (
+                      <div className="flex items-center justify-center h-64">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <>
+
                     {inventario_seleccionado?.propietario && (
                       <Card>
                         <CardHeader>
@@ -2129,39 +2332,49 @@ export default function Inventarios() {
                     {inventario_seleccionado?.permisos && inventario_seleccionado.permisos.length > 0 && (
                       <div className="space-y-2">
                         <h3 className="font-semibold text-sm text-muted-foreground uppercase">Usuarios con Acceso</h3>
-                        {inventario_seleccionado.permisos.map((permiso) => (
-                          <Card key={permiso.id}>
-                            <CardContent className="py-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium">{permiso.usuario_invitado?.nombre || 'Desconocido'}</p>
-                                  <p className="text-sm text-muted-foreground">{permiso.usuario_invitado?.correo}</p>
+                        {inventario_seleccionado.permisos
+                          .filter((permiso) => {
+                            const matchesSearch = !filtro_usuarios.busqueda ||
+                              permiso.usuario_invitado?.nombre?.toLowerCase().includes(filtro_usuarios.busqueda.toLowerCase()) ||
+                              permiso.usuario_invitado?.correo?.toLowerCase().includes(filtro_usuarios.busqueda.toLowerCase());
+                            const matchesRole = filtro_usuarios.rol === 'todos' || permiso.rol === filtro_usuarios.rol;
+                            return matchesSearch && matchesRole;
+                          })
+                          .map((permiso) => (
+                            <Card key={permiso.id}>
+                              <CardContent className="py-4">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="font-medium">{permiso.usuario_invitado?.nombre || 'Desconocido'}</p>
+                                    <p className="text-sm text-muted-foreground">{permiso.usuario_invitado?.correo}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge>{permiso.rol.charAt(0).toUpperCase() + permiso.rol.slice(1)}</Badge>
+                                    {inventario_seleccionado.es_propietario && (
+                                      <>
+                                        <Button
+                                          onClick={() => abrirDialogoEditarPermiso(permiso)}
+                                          variant="outline"
+                                          size="sm"
+                                          disabled={cargando_detalle}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          onClick={() => abrirDialogoRemoverUsuario(permiso)}
+                                          variant="destructive"
+                                          size="sm"
+                                          disabled={cargando_detalle}
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge>{permiso.rol.charAt(0).toUpperCase() + permiso.rol.slice(1)}</Badge>
-                                  {inventario_seleccionado.es_propietario && (
-                                    <>
-                                      <Button
-                                        onClick={() => abrirDialogoEditarPermiso(permiso)}
-                                        variant="outline"
-                                        size="sm"
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        onClick={() => abrirDialogoRemoverUsuario(permiso)}
-                                        variant="destructive"
-                                        size="sm"
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                              </CardContent>
+                            </Card>
+                          ))}
                       </div>
                     )}
 
@@ -2174,15 +2387,16 @@ export default function Inventarios() {
                         </p>
                         {inventario_seleccionado?.es_propietario &&
                           inventario_seleccionado?.visibilidad === 'publico' && (
-                            <Button onClick={abrirDialogoInvitar}>
+                            <Button onClick={abrirDialogoInvitar} disabled={cargando_detalle}>
                               <UserPlus className="h-4 w-4 mr-2" />
                               Invitar Usuario
                             </Button>
                           )}
                       </div>
                     )}
+                      </>
+                    )}
                   </div>
-                )}
               </ScrollArea>
             </TabsContent>
           </Tabs>
@@ -2414,143 +2628,241 @@ export default function Inventarios() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="nombre_producto">Nombre *</Label>
-              <Input
-                id="nombre_producto"
-                value={formulario_producto.nombre}
-                onChange={(e) => setFormularioProducto({ ...formulario_producto, nombre: e.target.value })}
-                placeholder="Nombre del producto..."
-              />
-            </div>
-
-            {/* Switch para tipo de producto */}
-            <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
-              <div className="space-y-0.5">
-                <Label htmlFor="tipo_producto" className="text-base font-medium">
-                  {formulario_producto.tipo === 'material' ? 'Material (Consumible)' : 'Activo Fijo'}
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  {formulario_producto.tipo === 'material'
-                    ? 'Recursos que se consumen y agotan (fármacos, guantes, etc.)'
-                    : 'Equipos o instrumentos con ciclo de vida (sillas, autoclaves, etc.)'}
-                </p>
+          <ScrollArea className="max-h-[70vh] pr-4">
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="nombre_producto">Nombre *</Label>
+                <Input
+                  id="nombre_producto"
+                  value={formulario_producto.nombre}
+                  onChange={(e) => setFormularioProducto({ ...formulario_producto, nombre: e.target.value })}
+                  placeholder="Nombre del producto..."
+                />
               </div>
-              <Switch
-                id="tipo_producto"
-                checked={formulario_producto.tipo === 'activo_fijo'}
-                onCheckedChange={(checked) => setFormularioProducto({
-                  ...formulario_producto,
-                  tipo: checked ? 'activo_fijo' : 'material'
-                })}
-                disabled={modo_edicion_producto}
-              />
-            </div>
 
-            {/* Subtipo según el tipo seleccionado */}
-            <div className="grid grid-cols-2 gap-4">
-              {formulario_producto.tipo === 'material' ? (
-                <div className="space-y-2">
-                  <Label htmlFor="subtipo_material">Subtipo de Material *</Label>
-                  <Select
-                    value={formulario_producto.subtipo_material}
-                    onValueChange={(value: 'con_lote_vencimiento' | 'con_serie' | 'sin_lote') =>
-                      setFormularioProducto({ ...formulario_producto, subtipo_material: value })
-                    }
-                    disabled={modo_edicion_producto}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subtipos_material.map((subtipo) => (
-                        <SelectItem key={subtipo.valor} value={subtipo.valor}>
-                          <div className="flex flex-col">
-                            <span>{subtipo.etiqueta}</span>
-                            <span className="text-xs text-muted-foreground">{subtipo.descripcion}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-0.5">
+                  <Label htmlFor="tipo_producto" className="text-base font-medium">
+                    {formulario_producto.tipo === 'material' ? 'Material (Consumible)' : 'Activo Fijo'}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {formulario_producto.tipo === 'material'
+                      ? 'Recursos que se consumen y agotan (fármacos, guantes, etc.)'
+                      : 'Equipos o instrumentos con ciclo de vida (sillas, autoclaves, etc.)'}
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="subtipo_activo">Subtipo de Activo *</Label>
-                  <Select
-                    value={formulario_producto.subtipo_activo_fijo}
-                    onValueChange={(value: 'instrumental' | 'mobiliario_equipo') =>
-                      setFormularioProducto({ ...formulario_producto, subtipo_activo_fijo: value })
-                    }
-                    disabled={modo_edicion_producto}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subtipos_activo_fijo.map((subtipo) => (
-                        <SelectItem key={subtipo.valor} value={subtipo.valor}>
-                          <div className="flex flex-col">
-                            <span>{subtipo.etiqueta}</span>
-                            <span className="text-xs text-muted-foreground">{subtipo.descripcion}</span>
+                <Switch
+                  id="tipo_producto"
+                  checked={formulario_producto.tipo === 'activo_fijo'}
+                  onCheckedChange={(checked) => setFormularioProducto({
+                    ...formulario_producto,
+                    tipo: checked ? 'activo_fijo' : 'material'
+                  })}
+                  disabled={modo_edicion_producto}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {formulario_producto.tipo === 'material' ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="subtipo_material">Subtipo de Material *</Label>
+                    <Select
+                      value={formulario_producto.subtipo_material}
+                      onValueChange={(value: 'con_lote_vencimiento' | 'con_serie' | 'sin_lote') =>
+                        setFormularioProducto({ ...formulario_producto, subtipo_material: value })
+                      }
+                      disabled={modo_edicion_producto}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subtipos_material.map((subtipo) => (
+                          <SelectItem key={subtipo.valor} value={subtipo.valor}>
+                            <div className="flex flex-col">
+                              <span>{subtipo.etiqueta}</span>
+                              <span className="text-xs text-muted-foreground">{subtipo.descripcion}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="subtipo_activo">Subtipo de Activo *</Label>
+                    <Select
+                      value={formulario_producto.subtipo_activo_fijo}
+                      onValueChange={(value: 'instrumental' | 'mobiliario_equipo') =>
+                        setFormularioProducto({ ...formulario_producto, subtipo_activo_fijo: value })
+                      }
+                      disabled={modo_edicion_producto}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subtipos_activo_fijo.map((subtipo) => (
+                          <SelectItem key={subtipo.valor} value={subtipo.valor}>
+                            <div className="flex flex-col">
+                              <span>{subtipo.etiqueta}</span>
+                              <span className="text-xs text-muted-foreground">{subtipo.descripcion}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {formulario_producto.tipo === 'material' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="unidad_medida">Unidad de Medida *</Label>
+                    <Input
+                      id="unidad_medida"
+                      value={formulario_producto.unidad_medida}
+                      onChange={(e) => setFormularioProducto({ ...formulario_producto, unidad_medida: e.target.value })}
+                      placeholder="Ej: cajas, frascos, ml, gramos..."
+                    />
+                  </div>
+                )}
+              </div>
+
+              {formulario_producto.tipo === 'material' && (
+                <div className="space-y-2 pt-1">
+                  <Label className="text-sm font-medium">Formato de Cantidad</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div
+                      className={`border rounded-md p-3 transition-all relative ${
+                        formulario_producto.permite_decimales === false
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : modo_edicion_producto 
+                            ? 'opacity-50 cursor-not-allowed border-muted'
+                            : 'hover:bg-muted/50 border-muted cursor-pointer'
+                      }`}
+                      onClick={() => {
+                        if (modo_edicion_producto) return;
+                        let nuevo_stock_minimo = formulario_producto.stock_minimo;
+                        if (nuevo_stock_minimo.includes('.')) {
+                          nuevo_stock_minimo = nuevo_stock_minimo.split('.')[0];
+                        }
+                        setFormularioProducto({
+                          ...formulario_producto,
+                          permite_decimales: false,
+                          stock_minimo: nuevo_stock_minimo
+                        });
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-sm">Solo Enteros</span>
+                        {formulario_producto.permite_decimales === false && (
+                          <div className="h-3 w-3 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-2 w-2 text-primary-foreground" />
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Ej: 10 {formulario_producto.unidad_medida || 'unidades'}
+                      </div>
+                    </div>
+
+                    <div
+                      className={`border rounded-md p-3 transition-all relative ${
+                        formulario_producto.permite_decimales !== false
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : modo_edicion_producto 
+                            ? 'opacity-50 cursor-not-allowed border-muted'
+                            : 'hover:bg-muted/50 border-muted cursor-pointer'
+                      }`}
+                      onClick={() => {
+                        if (modo_edicion_producto) return;
+                        let nuevo_stock_minimo = formulario_producto.stock_minimo;
+                        if (nuevo_stock_minimo && !nuevo_stock_minimo.includes('.')) {
+                          nuevo_stock_minimo = nuevo_stock_minimo + '.00';
+                        }
+                        setFormularioProducto({ 
+                          ...formulario_producto, 
+                          permite_decimales: true,
+                          stock_minimo: nuevo_stock_minimo
+                        });
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-sm">Con Decimales</span>
+                        {formulario_producto.permite_decimales !== false && (
+                          <div className="h-3 w-3 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-2 w-2 text-primary-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Ej: 1.5 {formulario_producto.unidad_medida || 'unidades'}
+                      </div>
+                    </div>
+                  </div>
+                  {modo_edicion_producto && (
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <Lock className="h-3 w-3" />
+                      El formato de cantidad no se puede cambiar una vez creado el producto.
+                    </p>
+                  )}
+                </div>
+              )}
+              {formulario_producto.tipo === 'material' && (
+                <div className="grid grid-cols-2 gap-4 items-end">
+                  <div className="space-y-2">
+                    <Label htmlFor="stock_minimo">Stock Mínimo *</Label>
+                    <Input
+                      id="stock_minimo"
+                      type="number"
+                      step={formulario_producto.permite_decimales !== false ? '0.01' : '1'}
+                      min="0"
+                      placeholder={formulario_producto.permite_decimales !== false ? '0.00' : '0'}
+                      value={formulario_producto.stock_minimo}
+                      onKeyDown={(e) => {
+                        if (formulario_producto.permite_decimales === false && (e.key === '.' || e.key === ',')) {
+                          e.preventDefault();
+                        }
+                      }}
+                      onChange={(e) => {
+                        let valor = e.target.value;
+                        if (formulario_producto.permite_decimales === false && valor.includes('.')) {
+                          valor = valor.split('.')[0];
+                        }
+                        setFormularioProducto({ ...formulario_producto, stock_minimo: valor });
+                      }}
+                      onBlur={(e) => {
+                        if (formulario_producto.permite_decimales !== false && e.target.value && !e.target.value.includes('.')) {
+                          setFormularioProducto({ ...formulario_producto, stock_minimo: e.target.value + '.00' });
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2 pb-2.5">
+                    <Switch
+                      id="notificar_stock_bajo"
+                      checked={formulario_producto.notificar_stock_bajo}
+                      onCheckedChange={(checked) => setFormularioProducto({ ...formulario_producto, notificar_stock_bajo: checked })}
+                    />
+                    <Label htmlFor="notificar_stock_bajo" className="cursor-pointer text-sm">
+                      Notificar bajo stock
+                    </Label>
+                  </div>
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="unidad_medida">Unidad de Medida *</Label>
-                <Input
-                  id="unidad_medida"
-                  value={formulario_producto.unidad_medida}
-                  onChange={(e) => setFormularioProducto({ ...formulario_producto, unidad_medida: e.target.value })}
-                  placeholder="unidades, ml, gramos..."
+                <Label htmlFor="descripcion">Descripción</Label>
+                <Textarea
+                  id="descripcion"
+                  value={formulario_producto.descripcion}
+                  onChange={(e) => setFormularioProducto({ ...formulario_producto, descripcion: e.target.value })}
+                  placeholder="Descripción del producto (opcional)"
+                  rows={3}
                 />
               </div>
             </div>
-
-            {/* Stock mínimo solo para materiales */}
-            {formulario_producto.tipo === 'material' && (
-              <div className="space-y-2">
-                <Label htmlFor="stock_minimo">Stock Mínimo *</Label>
-                <Input
-                  id="stock_minimo"
-                  type="number"
-                  value={formulario_producto.stock_minimo}
-                  onChange={(e) => setFormularioProducto({ ...formulario_producto, stock_minimo: e.target.value })}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="descripcion">Descripción</Label>
-              <Textarea
-                id="descripcion"
-                value={formulario_producto.descripcion}
-                onChange={(e) => setFormularioProducto({ ...formulario_producto, descripcion: e.target.value })}
-                placeholder="Descripción del producto (opcional)"
-                rows={3}
-              />
-            </div>
-
-            {/* Notificar stock bajo solo para materiales */}
-            {formulario_producto.tipo === 'material' && (
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="notificar_stock_bajo"
-                  checked={formulario_producto.notificar_stock_bajo}
-                  onCheckedChange={(checked) => setFormularioProducto({ ...formulario_producto, notificar_stock_bajo: checked })}
-                />
-                <Label htmlFor="notificar_stock_bajo" className="cursor-pointer">
-                  Notificar cuando el stock esté por debajo del mínimo
-                </Label>
-              </div>
-            )}
-          </div>
+          </ScrollArea>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogoProductoAbierto(false)}>
@@ -2590,35 +2902,64 @@ export default function Inventarios() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogo_lote_abierto} onOpenChange={setDialogoLoteAbierto}>
+      <Dialog open={dialogo_material_abierto} onOpenChange={setDialogoMaterialAbierto}>
         <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
-            <DialogTitle>Registrar Nuevo Lote</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-green-600" />
+              Registrar Nuevo Material
+            </DialogTitle>
             <DialogDescription>
-              Registra un nuevo lote de {producto_seleccionado?.nombre}
+              Registra una entrada de material para {producto_seleccionado?.nombre}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nro_lote">Número de Lote *</Label>
-                <Input
-                  id="nro_lote"
-                  value={formulario_lote.nro_lote}
-                  onChange={(e) => setFormularioLote({ ...formulario_lote, nro_lote: e.target.value })}
-                  placeholder="L001-2024"
-                />
-              </div>
+              {producto_seleccionado?.subtipo_material === 'con_lote_vencimiento' && (
+                <div className="space-y-2">
+                  <Label htmlFor="nro_lote">Número de Lote</Label>
+                  <Input
+                    id="nro_lote"
+                    value={formulario_material.nro_lote}
+                    onChange={(e) => setFormularioMaterial({ ...formulario_material, nro_lote: e.target.value })}
+                    placeholder="L001-2024"
+                  />
+                </div>
+              )}
+              {producto_seleccionado?.subtipo_material === 'con_serie' && (
+                <div className="space-y-2">
+                  <Label htmlFor="nro_serie">Número de Serie</Label>
+                  <Input
+                    id="nro_serie"
+                    value={formulario_material.nro_serie}
+                    onChange={(e) => setFormularioMaterial({ ...formulario_material, nro_serie: e.target.value })}
+                    placeholder="SN-001"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="cantidad">Cantidad *</Label>
                 <Input
                   id="cantidad"
                   type="number"
-                  step="0.01"
-                  value={formulario_lote.cantidad}
-                  onChange={(e) => setFormularioLote({ ...formulario_lote, cantidad: e.target.value })}
+                  step={producto_seleccionado?.permite_decimales !== false ? '0.01' : '1'}
+                  min={producto_seleccionado?.permite_decimales !== false ? '0.01' : '1'}
+                  placeholder={producto_seleccionado?.permite_decimales !== false ? '0.00' : '0'}
+                  value={formulario_material.cantidad}
+                  onKeyDown={(e) => {
+                    if (producto_seleccionado?.permite_decimales === false && (e.key === '.' || e.key === ',')) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    let valor = e.target.value;
+                    if (producto_seleccionado?.permite_decimales === false && valor.includes('.')) {
+                      valor = valor.split('.')[0];
+                    }
+                    setFormularioMaterial({ ...formulario_material, cantidad: valor });
+                  }}
                 />
               </div>
             </div>
@@ -2629,8 +2970,8 @@ export default function Inventarios() {
                 id="costo_total"
                 type="number"
                 step="0.01"
-                value={formulario_lote.costo_total}
-                onChange={(e) => setFormularioLote({ ...formulario_lote, costo_total: e.target.value })}
+                value={formulario_material.costo_total}
+                onChange={(e) => setFormularioMaterial({ ...formulario_material, costo_total: e.target.value })}
               />
             </div>
 
@@ -2638,79 +2979,88 @@ export default function Inventarios() {
               <div className="space-y-2">
                 <Label htmlFor="fecha_compra">Fecha de Compra *</Label>
                 <DateTimePicker
-                  valor={formulario_lote.fecha_compra}
-                  onChange={(fecha) => setFormularioLote({ ...formulario_lote, fecha_compra: fecha || new Date() })}
+                  valor={formulario_material.fecha_compra}
+                  onChange={(fecha) => setFormularioMaterial({ ...formulario_material, fecha_compra: fecha || new Date() })}
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="fecha_vencimiento">Fecha de Vencimiento (Opcional)</Label>
-                <DatePicker
-                  valor={formulario_lote.fecha_vencimiento}
-                  onChange={(fecha) => setFormularioLote({ ...formulario_lote, fecha_vencimiento: fecha })}
-                  fromYear={2025}
-                  toYear={2125}
-                  deshabilitarAnteriores
-                />
-              </div>
+              {producto_seleccionado?.subtipo_material === 'con_lote_vencimiento' && (
+                <div className="space-y-2">
+                  <Label htmlFor="fecha_vencimiento">Fecha de Vencimiento</Label>
+                  <DatePicker
+                    valor={formulario_material.fecha_vencimiento}
+                    onChange={(fecha) => setFormularioMaterial({ ...formulario_material, fecha_vencimiento: fecha })}
+                    fromYear={2025}
+                    toYear={2125}
+                    deshabilitarAnteriores
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex items-center space-x-2">
               <Switch
-                id="registrar_egreso_lote"
-                checked={formulario_lote.registrar_egreso}
-                onCheckedChange={(checked) => setFormularioLote({ ...formulario_lote, registrar_egreso: checked })}
+                id="registrar_egreso_material"
+                checked={formulario_material.registrar_egreso}
+                onCheckedChange={(checked) => setFormularioMaterial({ ...formulario_material, registrar_egreso: checked })}
               />
-              <Label htmlFor="registrar_egreso_lote" className="cursor-pointer">
-                Registrar egreso en finanzas
+              <Label htmlFor="registrar_egreso_material" className="cursor-pointer flex items-center gap-2">
+                {formulario_material.registrar_egreso ? (
+                  <>
+                    <TrendingDown className="h-4 w-4 text-red-600" />
+                    Se registrará un GASTO en finanzas
+                  </>
+                ) : (
+                  'No afectar finanzas'
+                )}
               </Label>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoLoteAbierto(false)}>
+            <Button variant="outline" onClick={() => setDialogoMaterialAbierto(false)}>
               Cancelar
             </Button>
-            <Button onClick={manejarGuardarLote} disabled={guardando}>
+            <Button onClick={manejarGuardarMaterial} disabled={guardando}>
               {guardando ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Guardando...
                 </>
               ) : (
-                'Registrar Lote'
+                'Registrar Material'
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogo_confirmar_eliminar_lote_abierto} onOpenChange={setDialogoConfirmarEliminarLoteAbierto}>
+      <Dialog open={dialogo_confirmar_eliminar_material_abierto} onOpenChange={setDialogoConfirmarEliminarMaterialAbierto}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas eliminar el lote "{lote_a_eliminar?.nro_lote}"?
+              ¿Estás seguro de que deseas eliminar este material?
               Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarLoteAbierto(false)}>
+            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarMaterialAbierto(false)}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={confirmarEliminarLote}>
+            <Button variant="destructive" onClick={confirmarEliminarMaterial}>
               Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogo_ajuste_stock_lote_abierto} onOpenChange={setDialogoAjusteStockLoteAbierto}>
+      <Dialog open={dialogo_ajuste_stock_abierto} onOpenChange={setDialogoAjusteStockAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Ajustar Stock</DialogTitle>
             <DialogDescription>
-              Ajusta el stock del lote {lote_seleccionado?.nro_lote}
+              Ajusta el stock del material {material_seleccionado?.nro_lote || material_seleccionado?.nro_serie || ''}
             </DialogDescription>
           </DialogHeader>
 
@@ -2720,19 +3070,19 @@ export default function Inventarios() {
               <div className="flex items-center space-x-4">
                 <Switch
                   id="tipo_ajuste"
-                  checked={formulario_ajuste_lote.tipo === 'salida'}
-                  onCheckedChange={(checked) => setFormularioAjusteLote({ ...formulario_ajuste_lote, tipo: checked ? 'salida' : 'entrada' })}
+                  checked={formulario_ajuste_stock.tipo_ajuste === 'decremento'}
+                  onCheckedChange={(checked) => setFormularioAjusteStock({ ...formulario_ajuste_stock, tipo_ajuste: checked ? 'decremento' : 'incremento' })}
                 />
                 <Label htmlFor="tipo_ajuste" className="cursor-pointer">
-                  {formulario_ajuste_lote.tipo === 'entrada' ? (
+                  {formulario_ajuste_stock.tipo_ajuste === 'incremento' ? (
                     <span className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-600" />
-                      Entrada (Incrementar)
+                      <Plus className="h-5 w-5 text-green-600" />
+                      Entrada (Incrementar Stock)
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">
-                      <TrendingDown className="h-4 w-4 text-red-600" />
-                      Salida (Decrementar)
+                      <Minus className="h-5 w-5 text-red-600" />
+                      Salida (Reducir Stock)
                     </span>
                   )}
                 </Label>
@@ -2744,65 +3094,95 @@ export default function Inventarios() {
               <Input
                 id="cantidad_ajuste"
                 type="number"
-                step="0.01"
-                value={formulario_ajuste_lote.cantidad}
+                step={producto_seleccionado?.permite_decimales !== false ? '0.01' : '1'}
+                min={producto_seleccionado?.permite_decimales !== false ? '0.01' : '1'}
+                placeholder={producto_seleccionado?.permite_decimales !== false ? '0.00' : '0'}
+                value={formulario_ajuste_stock.cantidad}
+                onKeyDown={(e) => {
+                  if (producto_seleccionado?.permite_decimales === false && (e.key === '.' || e.key === ',')) {
+                    e.preventDefault();
+                  }
+                }}
                 onChange={(e) => {
-                  const nueva_cantidad = e.target.value;
+                  let nueva_cantidad = e.target.value;
+                  if (producto_seleccionado?.permite_decimales === false && nueva_cantidad.includes('.')) {
+                    nueva_cantidad = nueva_cantidad.split('.')[0];
+                  }
                   const cantidad_num = parseFloat(nueva_cantidad || '0');
-                  const costo_unitario = lote_seleccionado ? Number(lote_seleccionado.costo_unitario_compra || 0) : 0;
+                  const costo_unitario = material_seleccionado ? Number(material_seleccionado.costo_unitario || 0) : 0;
                   const nuevo_monto = (cantidad_num * costo_unitario).toFixed(2);
-                  setFormularioAjusteLote({
-                    ...formulario_ajuste_lote,
+                  setFormularioAjusteStock({
+                    ...formulario_ajuste_stock,
                     cantidad: nueva_cantidad,
                     monto: nuevo_monto
                   });
                 }}
               />
-              {lote_seleccionado && (
+              {material_seleccionado && (
                 <p className="text-sm text-muted-foreground">
-                  Stock actual: {lote_seleccionado.cantidad_actual} {producto_seleccionado?.unidad_medida}
+                  Stock actual: {material_seleccionado.cantidad_actual} {producto_seleccionado?.unidad_medida}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="monto_ajuste">
-                Monto {formulario_ajuste_lote.tipo === 'entrada' ? '(Costo de Compra)' : '(Precio de Venta)'} *
+                Monto {formulario_ajuste_stock.tipo_ajuste === 'incremento' ? '(Costo de Compra)' : '(Precio de Venta)'} *
               </Label>
               <Input
                 id="monto_ajuste"
                 type="number"
                 step="0.01"
-                value={formulario_ajuste_lote.monto}
+                value={formulario_ajuste_stock.monto}
                 onChange={(e) => {
                   const valor = parseFloat(e.target.value || '0').toFixed(2);
-                  setFormularioAjusteLote({ ...formulario_ajuste_lote, monto: valor });
+                  setFormularioAjusteStock({ ...formulario_ajuste_stock, monto: valor });
                 }}
               />
-              <p className="text-xs text-muted-foreground">
-                {formulario_ajuste_lote.tipo === 'entrada'
-                  ? 'Se registrará como egreso en finanzas'
-                  : 'Se registrará como ingreso en finanzas'}
-              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="motivo_ajuste">Motivo del ajuste</Label>
+              <Input
+                id="motivo_ajuste"
+                type="text"
+                placeholder="Ej: Corrección de inventario, Compra, Venta..."
+                value={formulario_ajuste_stock.motivo}
+                onChange={(e) => setFormularioAjusteStock({ ...formulario_ajuste_stock, motivo: e.target.value })}
+              />
             </div>
 
             <div className="flex items-center space-x-2">
               <Switch
                 id="generar_movimiento_ajuste"
-                checked={formulario_ajuste_lote.generar_movimiento_financiero}
-                onCheckedChange={(checked) => setFormularioAjusteLote({ ...formulario_ajuste_lote, generar_movimiento_financiero: checked })}
+                checked={formulario_ajuste_stock.generar_movimiento_financiero}
+                onCheckedChange={(checked) => setFormularioAjusteStock({ ...formulario_ajuste_stock, generar_movimiento_financiero: checked })}
               />
-              <Label htmlFor="generar_movimiento_ajuste" className="cursor-pointer">
-                Registrar movimiento en finanzas
+              <Label htmlFor="generar_movimiento_ajuste" className="cursor-pointer flex items-center gap-2">
+                {formulario_ajuste_stock.generar_movimiento_financiero ? (
+                  formulario_ajuste_stock.tipo_ajuste === 'decremento' ? (
+                    <>
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      Se registrará un INGRESO en finanzas
+                    </>
+                  ) : (
+                    <>
+                      <TrendingDown className="h-4 w-4 text-red-600" />
+                      Se registrará un GASTO en finanzas
+                    </>
+                  )
+                ) : (
+                  'No afectar finanzas'
+                )}
               </Label>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoAjusteStockLoteAbierto(false)}>
+            <Button variant="outline" onClick={() => setDialogoAjusteStockAbierto(false)}>
               Cancelar
             </Button>
-            <Button onClick={manejarAjusteStockLote} disabled={guardando}>
+            <Button onClick={manejarAjusteStock} disabled={guardando}>
               {guardando ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -2830,7 +3210,7 @@ export default function Inventarios() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {producto_seleccionado?.tipo_gestion === 'activo_serializado' && (
+            {producto_seleccionado?.subtipo_activo_fijo === 'instrumental' && (
               <div className="space-y-2">
                 <Label htmlFor="nro_serie">Número de Serie</Label>
                 <Input
@@ -2886,7 +3266,7 @@ export default function Inventarios() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {estados_activo.map((estado) => (
+                  {getEstadosParaSubtipo(producto_seleccionado?.subtipo_activo_fijo).map((estado) => (
                     <SelectItem key={estado.valor} value={estado.valor}>
                       {estado.etiqueta}
                     </SelectItem>
@@ -2960,7 +3340,10 @@ export default function Inventarios() {
       <Dialog open={dialogo_vender_activo_abierto} onOpenChange={setDialogoVenderActivoAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Vender Activo</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="h-5 w-5 flex items-center justify-center text-red-600 font-bold text-xl">−</span>
+              Vender Activo
+            </DialogTitle>
             <DialogDescription>
               Registra la venta de {activo_seleccionado?.nombre_asignado || activo_seleccionado?.nro_serie || 'este activo'}
             </DialogDescription>
@@ -2996,7 +3379,8 @@ export default function Inventarios() {
                 checked={formulario_venta_activo.registrar_pago}
                 onCheckedChange={(checked) => setFormularioVentaActivo({ ...formulario_venta_activo, registrar_pago: checked })}
               />
-              <Label htmlFor="registrar_pago_venta" className="cursor-pointer">
+              <Label htmlFor="registrar_pago_venta" className="cursor-pointer flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-green-600" />
                 Registrar ingreso en finanzas
               </Label>
             </div>
@@ -3015,6 +3399,111 @@ export default function Inventarios() {
               ) : (
                 'Vender Activo'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={dialogo_filtros_historial_abierto} onOpenChange={setDialogoFiltrosHistorialAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Filtros de Historial</DialogTitle>
+            <DialogDescription>
+              Filtra los registros de {tab_activo === 'kardex' ? 'Kardex' : tab_activo === 'bitacora' ? 'Bitácora' : 'Auditoría'} por fecha
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Fecha Inicio</Label>
+              <DatePicker
+                valor={filtros_historial.fecha_inicio}
+                onChange={(date) => setFiltrosHistorial({ ...filtros_historial, fecha_inicio: date })}
+                placeholder="Seleccionar fecha de inicio"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fecha Fin</Label>
+              <DatePicker
+                valor={filtros_historial.fecha_fin}
+                onChange={(date) => setFiltrosHistorial({ ...filtros_historial, fecha_fin: date })}
+                placeholder="Seleccionar fecha de fin"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogoFiltrosHistorialAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={aplicarFiltrosHistorial}>
+              Aplicar Filtros
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={dialogo_detalles_auditoria_abierto} onOpenChange={setDialogoDetallesAuditoriaAbierto}>
+        <DialogContent className="sm:max-w-[900px] flex flex-col max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Detalles del Cambio</DialogTitle>
+            <DialogDescription>
+              Comparación de valores antes y después de la modificación
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-hidden py-4">
+            {detalles_auditoria_seleccionada && (() => {
+              const resultado = compararCambios(detalles_auditoria_seleccionada.datos_anteriores, detalles_auditoria_seleccionada.datos_nuevos);
+              
+              if (resultado.campos.length === 0) {
+                return <p className="text-center text-muted-foreground">No hay cambios detectados o registrados.</p>;
+              }
+
+              return (
+                <ScrollArea className="h-full w-full border rounded-md">
+                  <div className="min-w-max pb-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[100px] sticky left-0 bg-background z-10 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">Estado</TableHead>
+                          {resultado.campos.map((campo, idx) => (
+                            <TableHead key={idx} className="whitespace-nowrap px-4">{campo}</TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium sticky left-0 bg-background z-10 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">Antes</TableCell>
+                          {resultado.campos.map((campo, idx) => (
+                            <TableCell key={idx} className="whitespace-nowrap px-4">
+                              {resultado.valoresAnteriores[campo]}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium sticky left-0 bg-background z-10 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">Ahora</TableCell>
+                          {resultado.campos.map((campo, idx) => (
+                            <TableCell 
+                              key={idx} 
+                              className={`whitespace-nowrap px-4 ${resultado.camposModificados.has(campo) ? 'text-red-600 font-medium bg-red-50 dark:bg-red-900/20' : ''}`}
+                            >
+                              {resultado.valoresNuevos[campo]}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <ScrollBar orientation="horizontal" />
+                  <ScrollBar orientation="vertical" />
+                </ScrollArea>
+              );
+            })()}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setDialogoDetallesAuditoriaAbierto(false)}>
+              Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>

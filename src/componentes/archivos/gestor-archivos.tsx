@@ -288,23 +288,17 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
 
     let contenido_procesado = plantilla_seleccionada.contenido;
 
-    // Aplicar la misma lógica de colores que usa RenderizadorHtml
     valores_etiquetas.forEach(({ codigo, valor }) => {
-      // Determinar color según la configuración del selector
       let color: string | undefined;
       let mostrar_caja: boolean;
 
       if (usar_selector_color_etiquetas) {
-        // Switch activado: usar el color seleccionado
         color = color_etiquetas_temporal === 'transparent' ? undefined : color_etiquetas_temporal;
         mostrar_caja = color_etiquetas_temporal !== 'transparent';
       } else {
-        // Switch desactivado: usar color por defecto (celeste claro)
         color = '#dbeafe';
         mostrar_caja = true;
       }
-
-      // Reemplazar spans con data-etiqueta (misma lógica que RenderizadorHtml)
       const regexEtiqueta = new RegExp(
         `<span[^>]*data-etiqueta="${codigo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>([^<]*)<\\/span>`,
         'g'
@@ -329,12 +323,10 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
           .replace(/>[^<]*<\/span>/, `>${valor}<\/span>`);
       });
 
-      // También reemplazar texto plano del código
       const regexSimple = new RegExp(codigo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
       contenido_procesado = contenido_procesado.replace(regexSimple, valor);
     });
 
-    // Limpiar atributos que no deberían estar en el PDF
     contenido_procesado = contenido_procesado.replace(/data-etiqueta="[^"]*"/g, '');
     contenido_procesado = contenido_procesado.replace(/contenteditable="[^"]*"/g, '');
     contenido_procesado = contenido_procesado.replace(/class="[^"]*editable[^"]*"/g, '');
@@ -371,8 +363,6 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
     setGenerando(true);
     try {
       const contenido_procesado = procesarContenidoConValores();
-
-      // Usar la utilidad centralizada que aplica los mismos estilos que RenderizadorHtml
       const pdf_base64 = await generarPdfDesdeHtml(contenido_procesado, {
         ...TAMANOS_PAPEL.carta,
         margenes: MARGENES_DEFECTO,
@@ -1063,8 +1053,6 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
                   {valores_etiquetas.length > 0 && (
                     <div className="space-y-3">
                       <Label>Completar información</Label>
-
-                      {/* Switch para selector de color de etiquetas */}
                       <div className="flex items-center justify-between gap-3 p-3 bg-muted/30 rounded-lg border">
                         <div className="flex items-center space-x-2">
                           <Switch
@@ -1111,8 +1099,6 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
                           </Popover>
                         )}
                       </div>
-
-                      {/* Inputs de etiquetas */}
                       <div className="grid gap-4">
                         {valores_etiquetas.map((etiqueta) => (
                           <div key={etiqueta.codigo} className="space-y-2">
@@ -1154,16 +1140,13 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
                           contenido={plantilla_seleccionada.contenido}
                           modoPlantilla={true}
                           valoresEtiquetas={valores_etiquetas.map(v => {
-                            // Determinar color de la etiqueta
                             let color: string | undefined;
                             let mostrar_caja: boolean;
 
                             if (usar_selector_color_etiquetas) {
-                              // Usar selector de color temporal
                               color = color_etiquetas_temporal === 'transparent' ? undefined : color_etiquetas_temporal;
                               mostrar_caja = color_etiquetas_temporal !== 'transparent';
                             } else {
-                              // Sin selector, usa color por defecto
                               color = '#dbeafe';
                               mostrar_caja = true;
                             }
