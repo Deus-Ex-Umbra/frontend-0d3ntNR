@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { ChevronRight, Search, Package, ArrowLeft, Check, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { ChevronRight, Search, Package, ArrowLeft, Check, Plus, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
@@ -33,7 +32,7 @@ interface WizardConsumiblesProps {
     readOnly?: boolean;
 }
 
-type PasoWizard = 'lista' | 'inventario' | 'producto' | 'material' | 'cantidad';
+type PasoWizard = 'lista' | 'inventario' | 'producto' | 'material';
 
 interface EstadoWizard {
     paso: PasoWizard;
@@ -54,8 +53,9 @@ export default function WizardConsumibles({
 }: WizardConsumiblesProps) {
     const [estado, setEstado] = useState<EstadoWizard>({ paso: 'lista' });
     const [busqueda, setBusqueda] = useState('');
-    const [cantidad, setCantidad] = useState('1');
     const [cargando, setCargando] = useState(false);
+    const [cargandoInventario, setCargandoInventario] = useState(false);
+    const [cargandoMaterial, setCargandoMaterial] = useState(false);
     const inventarios_consumibles = inventarios.filter(inv => {
         const productos = productos_por_inventario[inv.id] || [];
         return productos.some(p => p.tipo === TipoProducto.MATERIAL) || productos.length === 0;
@@ -71,9 +71,11 @@ export default function WizardConsumibles({
     ) || [];
 
     const seleccionarInventario = async (inv: Inventario) => {
+        setCargandoInventario(true);
         setCargando(true);
         await cargarProductos(inv.id);
         setCargando(false);
+        setCargandoInventario(false);
         setEstado({ paso: 'producto', inventario: inv });
         setBusqueda('');
     };
@@ -84,15 +86,17 @@ export default function WizardConsumibles({
     };
 
     const seleccionarMaterial = (mat: Material) => {
-        setCantidad('1');
-        setEstado({ ...estado, paso: 'cantidad', material: mat });
+        setCargandoMaterial(true);
+        setEstado({ ...estado, material: mat });
+        // Simulate a brief loading state to give visual feedback
+        setTimeout(() => setCargandoMaterial(false), 300);
     };
 
-    const confirmarSeleccion = () => {
+    const agregarMaterialSeleccionado = () => {
         if (!estado.inventario || !estado.producto || !estado.material) return;
 
-        const stock = Number(estado.material.cantidad_actual) - Number(estado.material.cantidad_reservada);
-        const cant = parseFloat(cantidad) || 1;
+        const stock = Number(estado.material.cantidad_actual);
+        const cant = 1;
 
         onAgregarMaterial({
             inventario_id: estado.inventario.id,
@@ -108,7 +112,6 @@ export default function WizardConsumibles({
         });
         setEstado({ paso: 'lista' });
         setBusqueda('');
-        setCantidad('1');
     };
 
     const retroceder = () => {
@@ -119,16 +122,13 @@ export default function WizardConsumibles({
             case 'material':
                 setEstado({ ...estado, paso: 'producto', material: undefined });
                 break;
-            case 'cantidad':
-                setEstado({ ...estado, paso: 'material', material: undefined });
-                break;
             default:
                 setEstado({ paso: 'lista' });
         }
         setBusqueda('');
     };
     const Breadcrumb = () => (
-        <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4 flex-wrap">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-1 flex-wrap">
             <button
                 onClick={() => setEstado({ paso: 'lista' })}
                 className="hover:text-primary transition-colors"
@@ -146,22 +146,11 @@ export default function WizardConsumibles({
                     </button>
                 </>
             )}
-            {(estado.paso === 'material' || estado.paso === 'cantidad') && (
-                <>
-                    <ChevronRight className="h-4 w-4" />
-                    <button
-                        onClick={() => setEstado({ ...estado, paso: 'material' })}
-                        className="hover:text-primary transition-colors"
-                    >
-                        {estado.producto?.nombre}
-                    </button>
-                </>
-            )}
-            {estado.paso === 'cantidad' && (
+            {estado.paso === 'material' && (
                 <>
                     <ChevronRight className="h-4 w-4" />
                     <span className="text-foreground font-medium">
-                        {estado.material?.nro_lote || `Material #${estado.material?.id}`}
+                        {estado.producto?.nombre}
                     </span>
                 </>
             )}
@@ -247,7 +236,7 @@ export default function WizardConsumibles({
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-4">
                 <Button
                     type="button"
                     variant="ghost"
@@ -258,22 +247,36 @@ export default function WizardConsumibles({
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <Breadcrumb />
+                {estado.paso === 'material' && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={agregarMaterialSeleccionado}
+                        disabled={!estado.material || cargandoMaterial}
+                        className="ml-auto"
+                    >
+                        {cargandoMaterial ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                            <Plus className="h-4 w-4 mr-2" />
+                        )}
+                        Agregar a la lista
+                    </Button>
+                )}
             </div>
-            {estado.paso !== 'cantidad' && (
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder={
-                            estado.paso === 'inventario' ? 'Buscar inventario...' :
-                                estado.paso === 'producto' ? 'Buscar producto...' :
-                                    'Buscar por lote o serie...'
-                        }
-                        value={busqueda}
-                        onChange={(e) => setBusqueda(e.target.value)}
-                        className="pl-10"
-                    />
-                </div>
-            )}
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder={
+                        estado.paso === 'inventario' ? 'Buscar inventario...' :
+                            estado.paso === 'producto' ? 'Buscar producto...' :
+                                'Buscar por lote o serie...'
+                    }
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    className="pl-10"
+                />
+            </div>
             {estado.paso === 'inventario' && (
                 <ScrollArea className="h-[300px]">
                     <div className="grid grid-cols-1 gap-2">
@@ -282,13 +285,17 @@ export default function WizardConsumibles({
                             .map(inv => (
                                 <Card
                                     key={inv.id}
-                                    className="p-4 cursor-pointer hover:bg-accent hover:border-primary transition-all"
+                                    className={`p-4 cursor-pointer hover:bg-accent hover:border-primary transition-all ${cargandoInventario ? 'opacity-50 pointer-events-none' : ''}`}
                                     onClick={() => seleccionarInventario(inv)}
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <div className="bg-primary/10 p-2 rounded-lg">
-                                                <Package className="h-5 w-5 text-primary" />
+                                                {cargandoInventario ? (
+                                                    <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                                                ) : (
+                                                    <Package className="h-5 w-5 text-primary" />
+                                                )}
                                             </div>
                                             <div>
                                                 <h4 className="font-medium">{inv.nombre}</h4>
@@ -297,7 +304,11 @@ export default function WizardConsumibles({
                                                 </p>
                                             </div>
                                         </div>
-                                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                        {cargandoInventario ? (
+                                            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                                        ) : (
+                                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                        )}
                                     </div>
                                 </Card>
                             ))}
@@ -308,7 +319,8 @@ export default function WizardConsumibles({
                 <ScrollArea className="h-[300px]">
                     {cargando ? (
                         <div className="text-center py-8 text-muted-foreground">
-                            Cargando productos...
+                            <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                            <p>Cargando productos...</p>
                         </div>
                     ) : productos_filtrados.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
@@ -355,17 +367,20 @@ export default function WizardConsumibles({
                             {materiales_filtrados.map(mat => {
                                 const stock = Number(mat.cantidad_actual) - Number(mat.cantidad_reservada);
                                 const yaSeleccionado = materialesSeleccionados.some(m => m.material_id === mat.id);
+                                const esSeleccionadoActual = estado.material?.id === mat.id;
 
                                 return (
                                     <Card
                                         key={mat.id}
-                                        className={`p-4 cursor-pointer transition-all ${yaSeleccionado
+                                        className={`p-4 transition-all ${yaSeleccionado
                                             ? 'bg-green-500/10 border-green-500/50'
                                             : stock <= 0
                                                 ? 'opacity-50 cursor-not-allowed'
-                                                : 'hover:bg-accent hover:border-primary'
-                                            }`}
-                                        onClick={() => !yaSeleccionado && stock > 0 && seleccionarMaterial(mat)}
+                                                : esSeleccionadoActual
+                                                    ? 'bg-primary/10 border-primary ring-1 ring-primary'
+                                                    : 'cursor-pointer hover:bg-accent hover:border-primary'
+                                            } ${cargandoMaterial ? 'pointer-events-none opacity-70' : ''}`}
+                                        onClick={() => !yaSeleccionado && stock > 0 && !cargandoMaterial && seleccionarMaterial(mat)}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div>
@@ -389,9 +404,13 @@ export default function WizardConsumibles({
                                                     )}
                                                 </div>
                                             </div>
-                                            {!yaSeleccionado && stock > 0 && (
+                                            {cargandoMaterial && esSeleccionadoActual ? (
+                                                <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                                            ) : !yaSeleccionado && stock > 0 && !esSeleccionadoActual ? (
                                                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                                            )}
+                                            ) : esSeleccionadoActual ? (
+                                                <Check className="h-5 w-5 text-primary" />
+                                            ) : null}
                                         </div>
                                     </Card>
                                 );
@@ -399,62 +418,6 @@ export default function WizardConsumibles({
                         </div>
                     )}
                 </ScrollArea>
-            )}
-            {estado.paso === 'cantidad' && estado.material && (
-                <div className="space-y-6 py-4">
-                    <div className="text-center">
-                        <h3 className="text-lg font-medium">Confirmar Cantidad</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            {estado.material.nro_lote || estado.material.nro_serie || `Material #${estado.material.id}`}
-                        </p>
-                    </div>
-
-                    <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                        <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Producto:</span>
-                            <span className="font-medium">{estado.producto?.nombre}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Stock disponible:</span>
-                            <span className="font-medium">
-                                {Number(estado.material.cantidad_actual) - Number(estado.material.cantidad_reservada)} {estado.producto?.unidad_medida}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>Cantidad a reservar</Label>
-                        <Input
-                            type="number"
-                            min={estado.producto?.permite_decimales ? "0.01" : "1"}
-                            step={estado.producto?.permite_decimales ? "0.01" : "1"}
-                            value={cantidad}
-                            onChange={(e) => setCantidad(e.target.value)}
-                            className={`text-center text-lg h-12 ${parseFloat(cantidad) > (Number(estado.material.cantidad_actual) - Number(estado.material.cantidad_reservada)) ? 'border-amber-500' : ''}`}
-                        />
-                        <p className="text-xs text-muted-foreground text-center">
-                            {estado.producto?.unidad_medida || 'unidades'}
-                        </p>
-                        {parseFloat(cantidad) > (Number(estado.material.cantidad_actual) - Number(estado.material.cantidad_reservada)) && (
-                            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                                <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                                    <AlertTriangle className="h-3 w-3" />
-                                    La cantidad excede el stock disponible
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    <Button
-                        type="button"
-                        className="w-full"
-                        onClick={confirmarSeleccion}
-                        disabled={parseFloat(cantidad) <= 0}
-                    >
-                        <Check className="h-4 w-4 mr-2" />
-                        Confirmar Selección
-                    </Button>
-                </div>
             )}
         </div>
     );

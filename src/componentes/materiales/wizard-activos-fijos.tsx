@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, Search, Wrench, ArrowLeft, Check, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { ChevronRight, Search, Wrench, ArrowLeft, Check, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
@@ -37,6 +37,7 @@ interface EstadoWizard {
     paso: PasoWizard;
     inventario?: Inventario;
     producto?: Producto;
+    activo?: Activo;
 }
 
 export default function WizardActivosFijos({
@@ -51,6 +52,8 @@ export default function WizardActivosFijos({
 }: WizardActivosFijosProps) {
     const [estado, setEstado] = useState<EstadoWizard>({ paso: 'lista' });
     const [busqueda, setBusqueda] = useState('');
+    const [cargandoInventario, setCargandoInventario] = useState(false);
+    const [cargandoActivo, setCargandoActivo] = useState(false);
     const [cargando, setCargando] = useState(false);
     const inventarios_activos = inventarios.filter(inv => {
         const productos = productos_por_inventario[inv.id] || [];
@@ -68,9 +71,11 @@ export default function WizardActivosFijos({
     ) || [];
 
     const seleccionarInventario = async (inv: Inventario) => {
+        setCargandoInventario(true);
         setCargando(true);
         await cargarProductos(inv.id);
         setCargando(false);
+        setCargandoInventario(false);
         setEstado({ paso: 'producto', inventario: inv });
         setBusqueda('');
     };
@@ -84,16 +89,25 @@ export default function WizardActivosFijos({
         if (!estado.inventario || !estado.producto) return;
         if (activo.estado !== EstadoActivo.DISPONIBLE && activo.estado !== 'disponible') return;
 
+        setCargandoActivo(true);
+        setEstado({ ...estado, activo: activo });
+        // Simulate a brief loading state to give visual feedback
+        setTimeout(() => setCargandoActivo(false), 300);
+    };
+
+    const agregarActivoSeleccionado = () => {
+        if (!estado.inventario || !estado.producto || !estado.activo) return;
+
         onAgregarActivo({
             inventario_id: estado.inventario.id,
             inventario_nombre: estado.inventario.nombre,
             producto_id: estado.producto.id,
             producto_nombre: estado.producto.nombre,
-            activo_id: activo.id,
-            codigo_interno: activo.codigo_interno,
-            nro_serie: activo.nro_serie,
-            nombre_asignado: activo.nombre_asignado,
-            estado: activo.estado as string,
+            activo_id: estado.activo.id,
+            codigo_interno: estado.activo.codigo_interno,
+            nro_serie: estado.activo.nro_serie,
+            nombre_asignado: estado.activo.nombre_asignado,
+            estado: estado.activo.estado as string,
         });
         setEstado({ paso: 'lista' });
         setBusqueda('');
@@ -105,7 +119,7 @@ export default function WizardActivosFijos({
                 setEstado({ paso: 'inventario' });
                 break;
             case 'activo':
-                setEstado({ ...estado, paso: 'producto' });
+                setEstado({ ...estado, paso: 'producto', activo: undefined });
                 break;
             default:
                 setEstado({ paso: 'lista' });
@@ -151,30 +165,22 @@ export default function WizardActivosFijos({
         }
     };
     const Breadcrumb = () => (
-        <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4 flex-wrap">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-1 flex-wrap">
             <button
                 onClick={() => setEstado({ paso: 'lista' })}
                 className="hover:text-primary transition-colors"
             >
                 Activos Fijos
             </button>
-            {estado.paso !== 'lista' && estado.paso !== 'inventario' && (
-                <>
-                    <ChevronRight className="h-4 w-4" />
-                    <button
-                        onClick={() => setEstado({ paso: 'producto', inventario: estado.inventario })}
-                        className="hover:text-primary transition-colors"
-                    >
-                        {estado.inventario?.nombre}
-                    </button>
-                </>
-            )}
             {estado.paso === 'activo' && (
                 <>
                     <ChevronRight className="h-4 w-4" />
-                    <span className="text-foreground font-medium">
+                    <button
+                        onClick={() => setEstado({ ...estado, paso: 'activo' })}
+                        className="hover:text-primary transition-colors"
+                    >
                         {estado.producto?.nombre}
-                    </span>
+                    </button>
                 </>
             )}
         </div>
@@ -248,7 +254,7 @@ export default function WizardActivosFijos({
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-4">
                 <Button
                     type="button"
                     variant="ghost"
@@ -259,6 +265,22 @@ export default function WizardActivosFijos({
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <Breadcrumb />
+                {estado.paso === 'activo' && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={agregarActivoSeleccionado}
+                        disabled={!estado.activo || cargandoActivo}
+                        className="ml-auto"
+                    >
+                        {cargandoActivo ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                            <Plus className="h-4 w-4 mr-2" />
+                        )}
+                        Agregar a la lista
+                    </Button>
+                )}
             </div>
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -281,13 +303,17 @@ export default function WizardActivosFijos({
                             .map(inv => (
                                 <Card
                                     key={inv.id}
-                                    className="p-4 cursor-pointer hover:bg-accent hover:border-primary transition-all"
+                                    className={`p-4 cursor-pointer hover:bg-accent hover:border-primary transition-all ${cargandoInventario ? 'opacity-50 pointer-events-none' : ''}`}
                                     onClick={() => seleccionarInventario(inv)}
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <div className="bg-primary/10 p-2 rounded-lg">
-                                                <Wrench className="h-5 w-5 text-primary" />
+                                                {cargandoInventario ? (
+                                                    <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                                                ) : (
+                                                    <Wrench className="h-5 w-5 text-primary" />
+                                                )}
                                             </div>
                                             <div>
                                                 <h4 className="font-medium">{inv.nombre}</h4>
@@ -296,7 +322,11 @@ export default function WizardActivosFijos({
                                                 </p>
                                             </div>
                                         </div>
-                                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                        {cargandoInventario ? (
+                                            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                                        ) : (
+                                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                        )}
                                     </div>
                                 </Card>
                             ))}
@@ -307,7 +337,8 @@ export default function WizardActivosFijos({
                 <ScrollArea className="h-[300px]">
                     {cargando ? (
                         <div className="text-center py-8 text-muted-foreground">
-                            Cargando productos...
+                            <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                            <p>Cargando productos...</p>
                         </div>
                     ) : productos_filtrados.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
@@ -366,17 +397,20 @@ export default function WizardActivosFijos({
                             {activos_filtrados.map(activo => {
                                 const esDisponible = activo.estado === EstadoActivo.DISPONIBLE || activo.estado === 'disponible';
                                 const yaSeleccionado = activosSeleccionados.some(a => a.activo_id === activo.id);
+                                const esSeleccionadoActual = estado.activo?.id === activo.id;
 
                                 return (
                                     <Card
                                         key={activo.id}
-                                        className={`p-4 cursor-pointer transition-all ${yaSeleccionado
+                                        className={`p-4 transition-all ${yaSeleccionado
                                             ? 'bg-green-500/10 border-green-500/50'
                                             : !esDisponible
                                                 ? 'opacity-50 cursor-not-allowed'
-                                                : 'hover:bg-accent hover:border-primary'
-                                            }`}
-                                        onClick={() => !yaSeleccionado && esDisponible && seleccionarActivo(activo)}
+                                                : esSeleccionadoActual
+                                                    ? 'bg-primary/10 border-primary ring-1 ring-primary'
+                                                    : 'cursor-pointer hover:bg-accent hover:border-primary'
+                                            } ${cargandoActivo ? 'pointer-events-none opacity-70' : ''}`}
+                                        onClick={() => !yaSeleccionado && esDisponible && !cargandoActivo && seleccionarActivo(activo)}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div>
@@ -400,9 +434,13 @@ export default function WizardActivosFijos({
                                                     {activo.ubicacion && <span>• {activo.ubicacion}</span>}
                                                 </div>
                                             </div>
-                                            {!yaSeleccionado && esDisponible && (
+                                            {cargandoActivo && esSeleccionadoActual ? (
+                                                <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                                            ) : !yaSeleccionado && esDisponible && !esSeleccionadoActual ? (
                                                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                                            )}
+                                            ) : esSeleccionadoActual ? (
+                                                <Check className="h-5 w-5 text-primary" />
+                                            ) : null}
                                         </div>
                                     </Card>
                                 );

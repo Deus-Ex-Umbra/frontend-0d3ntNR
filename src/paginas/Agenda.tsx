@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs'
 import WizardConsumibles from '@/componentes/materiales/wizard-consumibles';
 import WizardActivosFijos from '@/componentes/materiales/wizard-activos-fijos';
 import SelectorMateriales from '@/componentes/materiales/selector-materiales';
+import DialogoGestionCita from '@/componentes/citas/DialogoGestionCita';
+import DialogoConfirmacionCita from '@/componentes/citas/DialogoConfirmacionCita';
 import {
   Cita,
   HoraLibre,
@@ -1189,7 +1191,7 @@ export default function Agenda() {
   const tiene_paciente = formulario.paciente_id !== '';
   const filtros_fecha_activos = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
   const es_cita_pasada_edicion = !!(modo_edicion && cita_seleccionada && (esCitaPasada(cita_seleccionada.fecha) || cita_seleccionada.materiales_confirmados));
-  const hay_cambios = modo_edicion && (materialesCambiaron() ||
+  const hay_cambios = !!(modo_edicion && (materialesCambiaron() ||
     (cita_seleccionada && (
       formulario.paciente_id !== (cita_seleccionada.paciente?.id?.toString() || '') ||
       formulario.descripcion !== cita_seleccionada.descripcion ||
@@ -1199,7 +1201,7 @@ export default function Agenda() {
       formulario.minutos_aproximados !== (cita_seleccionada.minutos_aproximados || 30).toString() ||
       new Date(formulario.fecha || '').getTime() !== new Date(cita_seleccionada.fecha).getTime()
     ))
-  );
+  ));
 
   const esHoraLibre = (elemento: ElementoAgenda): elemento is HoraLibre & { es_hora_libre: true } => {
     return 'es_hora_libre' in elemento && elemento.es_hora_libre === true;
@@ -1663,415 +1665,49 @@ export default function Agenda() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogo_abierto} onOpenChange={setDialogoAbierto}>
-        <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>
-              {modo_edicion ? 'Editar Cita' : 'Nueva Cita'}
-            </DialogTitle>
-            <DialogDescription>
-              {modo_edicion
-                ? (es_cita_pasada_edicion
-                  ? 'Editando cita pasada o confirmada: solo puedes modificar monto y estado de pago'
-                  : 'Modifica los detalles de la cita')
-                : 'Programa una nueva cita o evento'}
-            </DialogDescription>
-          </DialogHeader>
-
-          {es_cita_pasada_edicion && (
-            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                Esta cita está ocurriendo, ya finalizó o fue confirmada. Los recursos están en modo lectura.
-              </p>
-            </div>
-          )}
-
-          <Tabs defaultValue="datos" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="datos" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Datos de la Cita
-              </TabsTrigger>
-              <TabsTrigger
-                value="recursos"
-                disabled={!formulario.paciente_id}
-                className="flex items-center gap-2"
-              >
-                <Package2 className="h-4 w-4" />
-                Recursos
-                {materiales_cita.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {materiales_cita.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="datos" className="flex-1 overflow-y-auto px-1 space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="paciente">Paciente (opcional)</Label>
-                <Combobox
-                  opciones={opciones_pacientes}
-                  valor={formulario.paciente_id}
-                  onChange={(valor) => setFormulario({ ...formulario, paciente_id: valor })}
-                  placeholder="Selecciona un paciente"
-                  disabled={es_cita_pasada_edicion}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Si no seleccionas un paciente, será un evento general sin estado ni monto
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="fecha">Fecha y Hora *</Label>
-                {es_cita_pasada_edicion ? (
-                  <Input
-                    value={formulario.fecha ? formulario.fecha.toLocaleString('es-BO') : ''}
-                    disabled
-                    className="bg-muted"
-                  />
-                ) : (
-                  <DateTimePicker
-                    valor={formulario.fecha}
-                    onChange={(fecha) => setFormulario({ ...formulario, fecha })}
-                    placeholder="Selecciona fecha y hora"
-                  />
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="descripcion">Descripción *</Label>
-                <Textarea
-                  id="descripcion"
-                  value={formulario.descripcion}
-                  onChange={(e) => setFormulario({ ...formulario, descripcion: e.target.value })}
-                  placeholder="Ej: Consulta general, Limpieza dental, Reunión..."
-                  rows={3}
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  disabled={es_cita_pasada_edicion}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Duración Aproximada</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="horas_aproximadas" className="text-xs text-muted-foreground">
-                      Horas
-                    </Label>
-                    <Input
-                      id="horas_aproximadas"
-                      type="number"
-                      min="0"
-                      value={formulario.horas_aproximadas}
-                      onChange={(e) => setFormulario({ ...formulario, horas_aproximadas: e.target.value })}
-                      placeholder="0"
-                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                      disabled={es_cita_pasada_edicion}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="minutos_aproximados" className="text-xs text-muted-foreground">
-                      Minutos
-                    </Label>
-                    <Input
-                      id="minutos_aproximados"
-                      type="number"
-                      min="1"
-                      value={formulario.minutos_aproximados}
-                      onChange={(e) => setFormulario({ ...formulario, minutos_aproximados: e.target.value })}
-                      placeholder="30"
-                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                      disabled={es_cita_pasada_edicion}
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Tiempo estimado de la cita (para validación de conflictos de horario)
-                </p>
-              </div>
-
-              {tiene_paciente && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="estado_pago">Estado de Pago</Label>
-                      <Combobox
-                        opciones={opciones_estados}
-                        valor={formulario.estado_pago}
-                        onChange={(valor) => setFormulario({ ...formulario, estado_pago: valor })}
-                        placeholder="Estado"
-                        disabled={!modo_edicion}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="monto_esperado">Monto Esperado (Bs.)</Label>
-                      <Input
-                        id="monto_esperado"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formulario.monto_esperado}
-                        onChange={(e) => setFormulario({ ...formulario, monto_esperado: e.target.value })}
-                        placeholder="0.00"
-                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-            </TabsContent>
-
-            <TabsContent
-              value="recursos"
-              className="flex-1 overflow-y-auto px-1 space-y-4 mt-4"
-              onFocus={async () => {
-                if (inventarios.length === 0) {
-                  await cargarInventarios();
-                }
-              }}
-            >
-              {!formulario.paciente_id ? (
-                <div className="text-center py-12 space-y-4">
-                  <div className="mx-auto w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center">
-                    <AlertTriangle className="h-8 w-8 text-amber-500" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      Paciente requerido
-                    </h3>
-                    <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                      Debes seleccionar un paciente en la pestaña "Datos" para poder asignar recursos a esta cita.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <Tabs defaultValue="consumibles" className="flex-1 flex flex-col">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="consumibles" className="flex items-center gap-2">
-                      <Package className="h-4 w-4" />
-                      Consumibles
-                      {consumibles_seleccionados.length > 0 && (
-                        <Badge variant="secondary" className="ml-1">
-                          {consumibles_seleccionados.length}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="activos" className="flex items-center gap-2">
-                      <Wrench className="h-4 w-4" />
-                      Activos Fijos
-                      {activos_seleccionados.length > 0 && (
-                        <Badge variant="secondary" className="ml-1">
-                          {activos_seleccionados.length}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="consumibles" className="flex-1 overflow-y-auto mt-4">
-                    <WizardConsumibles
-                      inventarios={inventarios}
-                      productos_por_inventario={productos_por_inventario}
-                      cargarProductos={cargarProductosInventario}
-                      materialesSeleccionados={consumibles_seleccionados}
-                      onAgregarMaterial={(material) => setConsumiblesSeleccionados([...consumibles_seleccionados, material])}
-                      onEliminarMaterial={(idx) => setConsumiblesSeleccionados(consumibles_seleccionados.filter((_, i) => i !== idx))}
-                      onActualizarCantidad={(idx, cantidad) => {
-                        const nuevos = [...consumibles_seleccionados];
-                        nuevos[idx] = { ...nuevos[idx], cantidad };
-                        setConsumiblesSeleccionados(nuevos);
-                      }}
-                      readOnly={es_cita_pasada_edicion}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="activos" className="flex-1 overflow-y-auto mt-4">
-                    <WizardActivosFijos
-                      inventarios={inventarios}
-                      productos_por_inventario={productos_por_inventario}
-                      cargarProductos={cargarProductosInventario}
-                      activosSeleccionados={activos_seleccionados}
-                      onAgregarActivo={(activo) => setActivosSeleccionados([...activos_seleccionados, activo])}
-                      onEliminarActivo={(idx) => setActivosSeleccionados(activos_seleccionados.filter((_, i) => i !== idx))}
-                      fecha_cita={formulario.fecha}
-                      readOnly={es_cita_pasada_edicion}
-                    />
-                  </TabsContent>
-                </Tabs>
-              )}
-            </TabsContent>
-          </Tabs>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogoAbierto(false)}
-              disabled={guardando}
-              className="hover:scale-105 transition-all duration-200"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={manejarGuardar}
-              disabled={guardando || (modo_edicion && !hay_cambios)}
-              className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-            >
-              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {modo_edicion ? 'Actualizar' : 'Crear'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DialogoGestionCita
+        abierto={dialogo_abierto}
+        onCerrar={() => setDialogoAbierto(false)}
+        modoEdicion={modo_edicion}
+        esCitaPasadaEdicion={es_cita_pasada_edicion}
+        formulario={formulario}
+        setFormulario={setFormulario}
+        pacientes={pacientes}
+        inventarios={inventarios}
+        productosPorInventario={productos_por_inventario}
+        cargarInventarios={cargarInventarios}
+        cargarProductosInventario={cargarProductosInventario}
+        consumiblesSeleccionados={consumibles_seleccionados}
+        setConsumiblesSeleccionados={setConsumiblesSeleccionados}
+        activosSeleccionados={activos_seleccionados}
+        setActivosSeleccionados={setActivosSeleccionados}
+        guardando={guardando}
+        hayCambios={hay_cambios}
+        manejarGuardar={manejarGuardar}
+        opcionesEstadosPago={estados_pago}
+      />
 
       { }
-      <Dialog open={dialogo_confirmar_materiales_abierto} onOpenChange={setDialogoConfirmarMaterialesAbierto}>
-        <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Confirmar Cita Realizada</DialogTitle>
-            <DialogDescription>
-              Confirma el estado de pago, monto y materiales realmente utilizados en esta cita
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-4">
-            <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Esta acción registrará el estado final de la cita, consumo de materiales y actualizará el inventario
-            </p>
-          </div>
-
-          <Tabs defaultValue="datos" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="datos" className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Datos de Cierre
-              </TabsTrigger>
-              <TabsTrigger value="recursos" className="flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Recursos Utilizados
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="datos" className="flex-1 overflow-y-auto">
-              <div className="border rounded-lg p-4 space-y-3 bg-blue-500/5">
-                <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  Estado de Pago y Monto
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Estado de Pago</Label>
-                    <Combobox
-                      opciones={opciones_estados}
-                      valor={estado_pago_confirmacion}
-                      onChange={setEstadoPagoConfirmacion}
-                      placeholder="Selecciona estado"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Monto Final (Bs.)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={monto_confirmacion}
-                      onChange={(e) => setMontoConfirmacion(e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="recursos" className="flex-1 overflow-y-auto flex flex-col">
-              {cargando_materiales ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : (
-                <Tabs defaultValue="consumibles" className="flex-1 flex flex-col">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="consumibles" className="flex items-center gap-2">
-                      <Package className="h-4 w-4" />
-                      Consumibles
-                      {consumibles_confirmacion.length > 0 && (
-                        <Badge variant="secondary" className="ml-1">
-                          {consumibles_confirmacion.length}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="activos" className="flex items-center gap-2">
-                      <Wrench className="h-4 w-4" />
-                      Activos Fijos
-                      {activos_confirmacion.length > 0 && (
-                        <Badge variant="secondary" className="ml-1">
-                          {activos_confirmacion.length}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="consumibles" className="space-y-4">
-                    <WizardConsumibles
-                      inventarios={inventarios}
-                      productos_por_inventario={productos_por_inventario}
-                      cargarProductos={cargarProductosInventario}
-                      materialesSeleccionados={consumibles_confirmacion}
-                      onAgregarMaterial={(material) => setConsumiblesConfirmacion([...consumibles_confirmacion, material])}
-                      onEliminarMaterial={(idx) => setConsumiblesConfirmacion(consumibles_confirmacion.filter((_, i) => i !== idx))}
-                      onActualizarCantidad={(idx, cantidad) => {
-                        const nuevos = [...consumibles_confirmacion];
-                        nuevos[idx] = { ...nuevos[idx], cantidad };
-                        setConsumiblesConfirmacion(nuevos);
-                      }}
-                      readOnly={false}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="activos" className="space-y-4">
-                    <WizardActivosFijos
-                      inventarios={inventarios}
-                      productos_por_inventario={productos_por_inventario}
-                      cargarProductos={cargarProductosInventario}
-                      activosSeleccionados={activos_confirmacion}
-                      onAgregarActivo={(activo) => setActivosConfirmacion([...activos_confirmacion, activo])}
-                      onEliminarActivo={(idx) => setActivosConfirmacion(activos_confirmacion.filter((_, i) => i !== idx))}
-                      fecha_cita={cita_seleccionada?.fecha ? new Date(cita_seleccionada.fecha) : new Date()}
-                      readOnly={true}
-                    />
-                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                      <p className="text-xs text-blue-700 dark:text-blue-400 flex items-center gap-2">
-                        <AlertCircle className="h-3 w-3" />
-                        Los activos fijos se liberarán automáticamente al confirmar la cita.
-                      </p>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              )}
-            </TabsContent>
-          </Tabs>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogoConfirmarMaterialesAbierto(false)}
-              disabled={guardando}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={manejarConfirmarMateriales}
-              disabled={guardando}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirmar Cita y Materiales
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DialogoConfirmacionCita
+        abierto={dialogo_confirmar_materiales_abierto}
+        onCerrar={() => setDialogoConfirmarMaterialesAbierto(false)}
+        estadoPago={estado_pago_confirmacion}
+        setEstadoPago={setEstadoPagoConfirmacion}
+        monto={monto_confirmacion}
+        setMonto={setMontoConfirmacion}
+        consumibles={consumibles_confirmacion}
+        setConsumibles={setConsumiblesConfirmacion}
+        activos={activos_confirmacion}
+        setActivos={setActivosConfirmacion}
+        inventarios={inventarios}
+        productosPorInventario={productos_por_inventario}
+        cargarProductosInventario={cargarProductosInventario}
+        cargandoMateriales={cargando_materiales}
+        guardando={guardando}
+        manejarConfirmar={manejarConfirmarMateriales}
+        fechaCita={cita_seleccionada?.fecha ? new Date(cita_seleccionada.fecha) : new Date()}
+        opcionesEstadosPago={estados_pago}
+      />
 
       <Toaster />
     </div>

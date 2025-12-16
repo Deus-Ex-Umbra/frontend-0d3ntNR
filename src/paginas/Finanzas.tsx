@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { MenuLateral } from '@/componentes/MenuLateral';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/componentes/ui/tabs';
-import { FinanzasMovimientos } from '@/componentes/finanzas/FinanzasMovimientos';
-import { FinanzasAnalisis } from '@/componentes/finanzas/FinanzasAnalisis';
+import { FinanzasMovimientos } from '@/componentes/finanzas/finanzas-movimientos';
+import { FinanzasAnalisis } from '@/componentes/finanzas/finanzas-analisis';
 import { Toaster } from '@/componentes/ui/toaster';
 
 export default function Finanzas() {
