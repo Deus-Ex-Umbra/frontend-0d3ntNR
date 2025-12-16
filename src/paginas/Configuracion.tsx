@@ -7,7 +7,7 @@ import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
-import { User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill } from 'lucide-react';
+import { User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill, Building2, ImageIcon, X } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { useTema } from '@/contextos/tema-contexto';
 import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';
@@ -35,7 +35,7 @@ export default function Configuracion() {
   const [notas_anteriores, setNotasAnteriores] = useState<Nota[]>([]);
   const [cargando_notas, setCargandoNotas] = useState(true);
   const [dias_mostrar, setDiasMostrar] = useState(30);
-  
+
   const [formulario_perfil, setFormularioPerfil] = useState({
     nombre: usuario?.nombre || '',
   });
@@ -64,6 +64,16 @@ export default function Configuracion() {
   const [etiquetas_plantillas, setEtiquetasPlantillas] = useState<ItemCatalogo[]>([]);
   const [cargando_catalogos, setCargandoCatalogos] = useState(false);
 
+  // Estado para configuración de clínica
+  const [config_clinica, setConfigClinica] = useState({
+    logo: '',
+    nombre_clinica: '',
+    mensaje_bienvenida_antes: 'Bienvenido,',
+    mensaje_bienvenida_despues: '¿qué haremos hoy?',
+  });
+  const [cargando_clinica, setCargandoClinica] = useState(true);
+  const [guardando_clinica, setGuardandoClinica] = useState(false);
+
   const temas_disponibles = [
     { valor: 'sistema', nombre: 'Sistema', icono: Monitor, descripcion: 'Usar tema del sistema', categoria: 'General' },
     { valor: 'claro', nombre: 'Claro', icono: Sun, descripcion: 'Tema claro tradicional', categoria: 'General' },
@@ -89,6 +99,7 @@ export default function Configuracion() {
 
   useEffect(() => {
     cargarCatalogos();
+    cargarConfiguracionClinica();
   }, []);
 
   useEffect(() => {
@@ -137,6 +148,64 @@ export default function Configuracion() {
     } finally {
       setCargandoCatalogos(false);
     }
+  };
+
+  const cargarConfiguracionClinica = async () => {
+    setCargandoClinica(true);
+    try {
+      const config = await catalogoApi.obtenerConfiguracionClinica();
+      setConfigClinica({
+        logo: config.logo || '',
+        nombre_clinica: config.nombre_clinica || '',
+        mensaje_bienvenida_antes: config.mensaje_bienvenida_antes || 'Bienvenido,',
+        mensaje_bienvenida_despues: config.mensaje_bienvenida_despues || '¿qué haremos hoy?',
+      });
+    } catch (error) {
+      console.error('Error al cargar configuración de clínica:', error);
+    } finally {
+      setCargandoClinica(false);
+    }
+  };
+
+  const manejarGuardarConfiguracionClinica = async () => {
+    setGuardandoClinica(true);
+    try {
+      await catalogoApi.actualizarConfiguracionClinica(config_clinica);
+      toast({
+        title: 'Éxito',
+        description: 'Configuración de clínica guardada correctamente',
+      });
+    } catch (error: any) {
+      console.error('Error al guardar configuración de clínica:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo guardar la configuración',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardandoClinica(false);
+    }
+  };
+
+  const manejarSubirLogoClinica = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+
+    if (!archivo.type.startsWith('image/')) {
+      toast({
+        title: 'Error',
+        description: 'Solo se permiten archivos de imagen',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const lector = new FileReader();
+    lector.onload = () => {
+      const base64 = lector.result as string;
+      setConfigClinica({ ...config_clinica, logo: base64 });
+    };
+    lector.readAsDataURL(archivo);
   };
 
   const manejarActualizarPerfil = async () => {
@@ -212,7 +281,7 @@ export default function Configuracion() {
         contrasena_actual: formulario_contrasena.contrasena_actual,
         nueva_contrasena: formulario_contrasena.nueva_contrasena,
       });
-      
+
       toast({
         title: 'Éxito',
         description: 'Contraseña actualizada correctamente',
@@ -256,7 +325,7 @@ export default function Configuracion() {
     const lector = new FileReader();
     lector.onload = async () => {
       const base64 = lector.result as string;
-      
+
       setGuardando(true);
       try {
         await usuariosApi.actualizarPerfil({ avatar: base64 });
@@ -360,7 +429,7 @@ export default function Configuracion() {
   return (
     <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
       <MenuLateral />
-      
+
       <div className="flex-1 overflow-y-auto">
         <div className="p-8 space-y-8">
           <div className="space-y-2">
@@ -378,9 +447,9 @@ export default function Configuracion() {
                 <User className="h-4 w-4 mr-2" />
                 Perfil
               </TabsTrigger>
-              <TabsTrigger value="notas" className="text-base">
-                <Bell className="h-4 w-4 mr-2" />
-                Notas Diarias
+              <TabsTrigger value="clinica" className="text-base">
+                <Building2 className="h-4 w-4 mr-2" />
+                Clínica
               </TabsTrigger>
               <TabsTrigger value="apariencia" className="text-base">
                 <Palette className="h-4 w-4 mr-2" />
@@ -415,8 +484,8 @@ export default function Configuracion() {
                           usuario?.nombre.charAt(0).toUpperCase()
                         )}
                       </div>
-                      <label 
-                        htmlFor="avatar-upload" 
+                      <label
+                        htmlFor="avatar-upload"
                         className="absolute bottom-0 right-0 p-2 bg-primary rounded-full cursor-pointer hover:scale-110 hover:shadow-[0_0_15px_rgba(59,130,246,0.5)] transition-all duration-200"
                       >
                         <Camera className="h-4 w-4 text-primary-foreground" />
@@ -463,8 +532,8 @@ export default function Configuracion() {
                     </p>
                   </div>
 
-                  <Button 
-                    onClick={manejarActualizarPerfil} 
+                  <Button
+                    onClick={manejarActualizarPerfil}
                     disabled={guardando}
                     className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
                   >
@@ -562,18 +631,18 @@ export default function Configuracion() {
                         {mostrar_contrasenas.confirmar ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    {formulario_contrasena.confirmar_contrasena && 
-                     formulario_contrasena.nueva_contrasena !== formulario_contrasena.confirmar_contrasena && (
-                      <p className="text-xs text-destructive">
-                        Las contraseñas no coinciden
-                      </p>
-                    )}
-                    {formulario_contrasena.confirmar_contrasena && 
-                     formulario_contrasena.nueva_contrasena === formulario_contrasena.confirmar_contrasena && (
-                      <p className="text-xs text-green-500">
-                        ✓ Las contraseñas coinciden
-                      </p>
-                    )}
+                    {formulario_contrasena.confirmar_contrasena &&
+                      formulario_contrasena.nueva_contrasena !== formulario_contrasena.confirmar_contrasena && (
+                        <p className="text-xs text-destructive">
+                          Las contraseñas no coinciden
+                        </p>
+                      )}
+                    {formulario_contrasena.confirmar_contrasena &&
+                      formulario_contrasena.nueva_contrasena === formulario_contrasena.confirmar_contrasena && (
+                        <p className="text-xs text-green-500">
+                          ✓ Las contraseñas coinciden
+                        </p>
+                      )}
                   </div>
 
                   <div className="p-3 rounded-lg bg-secondary/30 border border-border">
@@ -600,8 +669,8 @@ export default function Configuracion() {
                     </ul>
                   </div>
 
-                  <Button 
-                    onClick={manejarCambiarContrasena} 
+                  <Button
+                    onClick={manejarCambiarContrasena}
                     disabled={cambiando_contrasena}
                     className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
                   >
@@ -621,171 +690,209 @@ export default function Configuracion() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="notas" className="space-y-6 mt-6">
-              <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                      <Bell className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl">Nueva Nota</CardTitle>
-                      <CardDescription>Registra tus pensamientos y reflexiones del día</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="nota">Escribe tu nota del día</Label>
-                    <Textarea
-                      id="nota"
-                      value={nota_diaria}
-                      onChange={(e) => setNotaDiaria(e.target.value)}
-                      placeholder="Hoy fue un día productivo..."
-                      rows={5}
-                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                    />
-                  </div>
-
-                  <Button 
-                    onClick={manejarGuardarNota} 
-                    disabled={guardando_nota}
-                    className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-                  >
-                    {guardando_nota ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Guardar Nota
-                      </>
-                    )}
-                  </Button>
-
-                  <div className="border-t-2 border-border pt-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                          <Sparkles className="h-5 w-5 text-yellow-500" />
-                          Frase Motivacional
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Genera una frase basada en tus últimas 7 notas
-                        </p>
-                      </div>
-                      <Button
-                        onClick={obtenerFraseMotivacional}
-                        disabled={cargando_frase}
-                        variant="outline"
-                        className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
-                      >
-                        {cargando_frase ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Generando...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Generar Frase
-                          </>
-                        )}
-                      </Button>
-                    </div>
-
-                    {frase_motivacional && (
-                      <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <MarkdownRenderer contenido={frase_motivacional} />
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
+            <TabsContent value="clinica" className="space-y-6 mt-6">
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Formulario de configuración */}
+                <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
+                  <CardHeader>
                     <div className="flex items-center gap-3">
                       <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                        <FileText className="h-5 w-5 text-primary" />
+                        <Building2 className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <CardTitle className="text-xl">Notas Anteriores</CardTitle>
-                        <CardDescription>
-                          Visualiza tus notas de los últimos {dias_mostrar} días
-                        </CardDescription>
+                        <CardTitle className="text-xl">Configuración de Clínica</CardTitle>
+                        <CardDescription>Personaliza la identidad de tu consultorio</CardDescription>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="dias-mostrar" className="text-sm text-muted-foreground">
-                        Días:
-                      </Label>
-                      <Input
-                        id="dias-mostrar"
-                        type="number"
-                        min="1"
-                        max="365"
-                        value={dias_mostrar}
-                        onChange={(e) => setDiasMostrar(Math.max(1, Math.min(365, parseInt(e.target.value) || 30)))}
-                        className="w-20 h-9"
-                      />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {cargando_notas ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-center space-y-4">
-                        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-                        <p className="text-muted-foreground">Cargando notas...</p>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {cargando_clinica ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center space-y-4">
+                          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+                          <p className="text-muted-foreground">Cargando configuración...</p>
+                        </div>
                       </div>
-                    </div>
-                  ) : notas_anteriores.length === 0 ? (
-                    <div className="text-center py-12 space-y-4">
-                      <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center">
-                        <FileText className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-semibold text-foreground">
-                          No hay notas registradas
-                        </h3>
-                        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                          Las notas que crees aparecerán aquí para que puedas consultarlas
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[500px] pr-4">
-                      <div className="space-y-4">
-                        {notas_anteriores.map((nota) => (
-                          <Card key={nota.id} className="border hover:border-primary/50 transition-all duration-200">
-                            <CardContent className="p-4">
-                              <div className="flex items-start gap-3">
-                                <div className="bg-primary/10 p-2 rounded-lg flex-shrink-0">
-                                  <Calendar className="h-4 w-4 text-primary" />
-                                </div>
-                                <div className="flex-1 space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-xs text-muted-foreground font-medium">
-                                      {formatearFecha(nota.fecha_creacion)}
-                                    </p>
-                                  </div>
-                                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                                    {nota.contenido}
-                                  </p>
-                                </div>
+                    ) : (
+                      <>
+                        {/* Logo de la clínica */}
+                        <div className="space-y-3">
+                          <Label>Logo de la Clínica</Label>
+                          <div className="flex items-center gap-4">
+                            <div className="relative group">
+                              <div className="h-24 w-24 rounded-xl bg-gradient-to-br from-secondary to-secondary/70 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200 overflow-hidden border-2 border-border">
+                                {config_clinica.logo ? (
+                                  <img src={config_clinica.logo} alt="Logo" className="h-full w-full object-contain" />
+                                ) : (
+                                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                                )}
                               </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                              <label
+                                htmlFor="logo-clinica-upload"
+                                className="absolute bottom-0 right-0 p-2 bg-primary rounded-full cursor-pointer hover:scale-110 hover:shadow-[0_0_15px_rgba(59,130,246,0.5)] transition-all duration-200"
+                              >
+                                <Camera className="h-4 w-4 text-primary-foreground" />
+                              </label>
+                              <input
+                                id="logo-clinica-upload"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={manejarSubirLogoClinica}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm text-muted-foreground mb-2">
+                                Haz clic en el ícono de cámara para cambiar el logo
+                              </p>
+                              {config_clinica.logo && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setConfigClinica({ ...config_clinica, logo: '' })}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <X className="h-4 w-4 mr-1" />
+                                  Quitar logo
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Nombre de la clínica */}
+                        <div className="space-y-2">
+                          <Label htmlFor="nombre_clinica">Nombre de la Clínica</Label>
+                          <Input
+                            id="nombre_clinica"
+                            value={config_clinica.nombre_clinica}
+                            onChange={(e) => setConfigClinica({ ...config_clinica, nombre_clinica: e.target.value })}
+                            placeholder="Ej: Consultorio Dental Sonrisa"
+                            className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Si está vacío, el mensaje de bienvenida no incluirá el nombre de la clínica
+                          </p>
+                        </div>
+
+                        {/* Mensaje de bienvenida */}
+                        <div className="space-y-4">
+                          <Label>Mensaje de Bienvenida</Label>
+                          <div className="grid gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="mensaje_antes" className="text-xs text-muted-foreground">Antes del nombre</Label>
+                              <Input
+                                id="mensaje_antes"
+                                value={config_clinica.mensaje_bienvenida_antes}
+                                onChange={(e) => setConfigClinica({ ...config_clinica, mensaje_bienvenida_antes: e.target.value })}
+                                placeholder="Bienvenido,"
+                                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="mensaje_despues" className="text-xs text-muted-foreground">Después del nombre</Label>
+                              <Input
+                                id="mensaje_despues"
+                                value={config_clinica.mensaje_bienvenida_despues}
+                                onChange={(e) => setConfigClinica({ ...config_clinica, mensaje_bienvenida_despues: e.target.value })}
+                                placeholder="¿qué haremos hoy?"
+                                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={manejarGuardarConfiguracionClinica}
+                          disabled={guardando_clinica}
+                          className="w-full hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+                        >
+                          {guardando_clinica ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Guardando...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="mr-2 h-4 w-4" />
+                              Guardar Configuración
+                            </>
+                          )}
+                        </Button>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Vista previa */}
+                <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                        <Eye className="h-5 w-5 text-primary" />
                       </div>
-                    </ScrollArea>
-                  )}
-                </CardContent>
-              </Card>
+                      <div>
+                        <CardTitle className="text-xl">Vista Previa</CardTitle>
+                        <CardDescription>Así se verá la página de inicio</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="p-6 rounded-xl bg-gradient-to-br from-background via-background to-secondary/20 border-2 border-border">
+                      <div className="space-y-4">
+                        {/* Logo preview */}
+                        {config_clinica.logo && (
+                          <div className="flex justify-center mb-4">
+                            <div className="h-16 w-auto max-w-[200px] overflow-hidden">
+                              <img
+                                src={config_clinica.logo}
+                                alt="Logo Preview"
+                                className="h-full w-auto object-contain"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Welcome message preview */}
+                        <div className="space-y-2">
+                          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                            {config_clinica.mensaje_bienvenida_antes}
+                            <span className="text-primary">{usuario?.nombre}</span>
+                            {config_clinica.mensaje_bienvenida_despues}
+                          </h1>
+                          <p className="text-lg text-muted-foreground">
+                            Panel de control de tu consultorio dental
+                            {config_clinica.nombre_clinica && (
+                              <>
+                                {' - '}
+                                <span className="text-primary hover:text-yellow-500 transition-colors duration-200 cursor-default">
+                                  {config_clinica.nombre_clinica}
+                                </span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+
+                        {/* Mock dashboard cards */}
+                        <div className="grid grid-cols-2 gap-3 mt-6">
+                          <div className="p-3 rounded-lg bg-secondary/50 border border-border">
+                            <p className="text-xs text-muted-foreground">Pacientes</p>
+                            <p className="text-lg font-bold text-foreground">--</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-secondary/50 border border-border">
+                            <p className="text-xs text-muted-foreground">Citas Hoy</p>
+                            <p className="text-lg font-bold text-foreground">--</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground text-center mt-4">
+                      Los cambios se reflejarán en la página de inicio después de guardar
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="apariencia" className="space-y-6 mt-6">
@@ -813,34 +920,30 @@ export default function Configuracion() {
                         </h3>
                         <div className="h-px flex-1 bg-border"></div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {temas.map((tema_opcion) => {
                           const Icono = tema_opcion.icono;
                           const esta_activo = tema === tema_opcion.valor;
-                          
+
                           return (
                             <button
                               key={tema_opcion.valor}
                               onClick={() => cambiarTema(tema_opcion.valor as any)}
-                              className={`p-5 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${
-                                esta_activo
-                                  ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
-                                  : 'border-border hover:border-primary/50 hover:bg-secondary/50'
-                              }`}
+                              className={`p-5 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${esta_activo
+                                ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
+                                : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                                }`}
                             >
                               <div className="flex items-center gap-3">
-                                <div className={`p-2.5 rounded-lg ${
-                                  esta_activo ? 'bg-primary/20' : 'bg-secondary'
-                                }`}>
-                                  <Icono className={`h-5 w-5 ${
-                                    esta_activo ? 'text-primary' : 'text-muted-foreground'
-                                  }`} />
+                                <div className={`p-2.5 rounded-lg ${esta_activo ? 'bg-primary/20' : 'bg-secondary'
+                                  }`}>
+                                  <Icono className={`h-5 w-5 ${esta_activo ? 'text-primary' : 'text-muted-foreground'
+                                    }`} />
                                 </div>
                                 <div className="text-left flex-1">
-                                  <h4 className={`font-semibold text-base ${
-                                    esta_activo ? 'text-primary' : 'text-foreground'
-                                  }`}>
+                                  <h4 className={`font-semibold text-base ${esta_activo ? 'text-primary' : 'text-foreground'
+                                    }`}>
                                     {tema_opcion.nombre}
                                   </h4>
                                   <p className="text-xs text-muted-foreground">
@@ -948,7 +1051,7 @@ export default function Configuracion() {
                     ayudaDescripcion="Opcional: Agrega información sobre presentación, dosis típica o uso común"
                   />
 
-                  
+
 
                   <div className="border-t border-border" />
 

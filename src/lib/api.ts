@@ -434,6 +434,19 @@ export const catalogoApi = {
     const respuesta = await api.delete(`/catalogo/tamanos-papel/${id}`);
     return respuesta.data;
   },
+  obtenerConfiguracionClinica: async () => {
+    const respuesta = await api.get('/catalogo/configuracion-clinica');
+    return respuesta.data;
+  },
+  actualizarConfiguracionClinica: async (datos: {
+    logo?: string;
+    nombre_clinica?: string;
+    mensaje_bienvenida_antes?: string;
+    mensaje_bienvenida_despues?: string;
+  }) => {
+    const respuesta = await api.put('/catalogo/configuracion-clinica', datos);
+    return respuesta.data;
+  },
 };
 
 export const archivosApi = {

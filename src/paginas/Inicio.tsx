@@ -4,9 +4,8 @@ import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { Card, CardContent, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { Toaster } from '@/componentes/ui/toaster';
-import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Sparkles, Loader2, TrendingDown, FileSignature, BarChart3, Pill } from 'lucide-react';
-import { estadisticasApi, asistenteApi } from '@/lib/api';
-import { MarkdownRenderer } from '@/componentes/ui/markdown-rendered';
+import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Loader2, TrendingDown, FileSignature, BarChart3, Pill } from 'lucide-react';
+import { estadisticasApi, catalogoApi } from '@/lib/api';
 import { GestionReportes } from '@/componentes/reportes/gestion-reportes';
 import { GestionPlantillasConsentimiento } from '@/componentes/plantillas/gestion-plantillas-consentimiento';
 import { GestionPlantillasRecetas } from '@/componentes/plantillas/gestion-plantillas-recetas';
@@ -40,77 +39,34 @@ interface Estadisticas {
   ultimas_transacciones: Transaccion[];
 }
 
-interface MensajeGuardado {
-  mensaje: string;
-  fecha: string;
-  usuario_id: number;
-}
-
 export default function Inicio() {
   const { usuario } = useAutenticacion();
   const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null);
-  const [frase_motivacional, setFraseMotivacional] = useState<string>('Bienvenido, ¿qué haremos hoy?');
   const [cargando, setCargando] = useState(true);
-  const [cargando_frase, setCargandoFrase] = useState(false);
+  const [config_clinica, setConfigClinica] = useState({
+    logo: '',
+    nombre_clinica: '',
+    mensaje_bienvenida_antes: 'Bienvenido,',
+    mensaje_bienvenida_despues: '¿qué haremos hoy?',
+  });
 
   useEffect(() => {
     cargarEstadisticas();
-    cargarFraseMotivacional();
+    cargarConfiguracionClinica();
   }, []);
 
-  const obtenerFechaHoy = (): string => {
-    const hoy = new Date();
-    const anio = hoy.getFullYear();
-    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-    const dia = String(hoy.getDate()).padStart(2, '0');
-    return `${anio}-${mes}-${dia}`;
-  };
-
-  const obtenerMensajeGuardado = (): MensajeGuardado | null => {
+  const cargarConfiguracionClinica = async () => {
     try {
-      const mensaje_guardado = localStorage.getItem('mensaje_dia');
-      if (mensaje_guardado) {
-        return JSON.parse(mensaje_guardado) as MensajeGuardado;
-      }
+      const config = await catalogoApi.obtenerConfiguracionClinica();
+      setConfigClinica({
+        logo: config.logo || '',
+        nombre_clinica: config.nombre_clinica || '',
+        mensaje_bienvenida_antes: config.mensaje_bienvenida_antes || 'Bienvenido,',
+        mensaje_bienvenida_despues: config.mensaje_bienvenida_despues || '¿qué haremos hoy?',
+      });
     } catch (error) {
-      console.error('Error al leer mensaje guardado:', error);
+      console.error('Error al cargar configuración de clínica:', error);
     }
-    return null;
-  };
-
-  const guardarMensaje = (mensaje: string) => {
-    if (!usuario?.id) return;
-
-    const datos: MensajeGuardado = {
-      mensaje,
-      fecha: obtenerFechaHoy(),
-      usuario_id: usuario.id,
-    };
-
-    try {
-      localStorage.setItem('mensaje_dia', JSON.stringify(datos));
-    } catch (error) {
-      console.error('Error al guardar mensaje:', error);
-    }
-  };
-
-  const necesitaNuevoMensaje = (): boolean => {
-    const mensaje_guardado = obtenerMensajeGuardado();
-
-    if (!mensaje_guardado) {
-      return true;
-    }
-
-    if (usuario?.id && mensaje_guardado.usuario_id !== usuario.id) {
-      return true;
-    }
-
-    const fecha_hoy = obtenerFechaHoy();
-    if (mensaje_guardado.fecha !== fecha_hoy) {
-      return true;
-    }
-
-    return false;
   };
 
   const cargarEstadisticas = async () => {
@@ -122,27 +78,6 @@ export default function Inicio() {
       console.error('Error al cargar estadísticas:', error);
     } finally {
       setCargando(false);
-    }
-  };
-
-  const cargarFraseMotivacional = async () => {
-    const mensaje_guardado = obtenerMensajeGuardado();
-
-    if (!necesitaNuevoMensaje() && mensaje_guardado) {
-      setFraseMotivacional(mensaje_guardado.mensaje);
-      return;
-    }
-
-    setCargandoFrase(true);
-    try {
-      const frase = await asistenteApi.obtenerFraseMotivacional(7);
-      setFraseMotivacional(frase);
-      guardarMensaje(frase);
-    } catch (error) {
-      console.error('Error al cargar frase:', error);
-      setFraseMotivacional('Bienvenido, ¿qué haremos hoy?');
-    } finally {
-      setCargandoFrase(false);
     }
   };
 
@@ -224,28 +159,22 @@ export default function Inicio() {
         <div className="p-8 space-y-8">
           <div className="space-y-4">
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
-                Bienvenido, <span className="text-primary">{usuario?.nombre}</span>
+              <h1 className="text-4xl font-bold text-foreground tracking-tight">
+                {config_clinica.mensaje_bienvenida_antes}
+                <span className="text-primary">{usuario?.nombre}</span>
+                {config_clinica.mensaje_bienvenida_despues}
               </h1>
               <p className="text-lg text-muted-foreground">
                 Panel de control de tu consultorio dental
+                {config_clinica.nombre_clinica && (
+                  <>
+                    {' - '}
+                    <span className="text-primary hover:text-yellow-500 transition-colors duration-200 cursor-default">
+                      {config_clinica.nombre_clinica}
+                    </span>
+                  </>
+                )}
               </p>
-            </div>
-
-            <div className="p-5 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 hover:border-primary/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-              <div className="flex items-start gap-4">
-                <div className="bg-primary/20 p-3 rounded-xl mt-1 hover:scale-110 transition-transform duration-200">
-                  {cargando_frase ? (
-                    <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                  ) : (
-                    <Sparkles className="h-6 w-6 text-primary" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-primary mb-2">Mensaje del día</h3>
-                  <MarkdownRenderer contenido={frase_motivacional} />
-                </div>
-              </div>
             </div>
           </div>
 
@@ -329,8 +258,8 @@ export default function Inicio() {
                             <div key={`${transaccion.tipo}-${transaccion.id}`} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200">
                               <div className="flex items-center gap-3 flex-1">
                                 <div className={`p-1.5 rounded-lg ${transaccion.tipo === 'ingreso'
-                                    ? 'bg-green-500/10'
-                                    : 'bg-red-500/10'
+                                  ? 'bg-green-500/10'
+                                  : 'bg-red-500/10'
                                   }`}>
                                   {transaccion.tipo === 'ingreso' ? (
                                     <TrendingUp className="h-4 w-4 text-green-500" />
@@ -344,8 +273,8 @@ export default function Inicio() {
                                 </div>
                               </div>
                               <span className={`text-sm font-bold ${transaccion.tipo === 'ingreso'
-                                  ? 'text-green-500'
-                                  : 'text-red-500'
+                                ? 'text-green-500'
+                                : 'text-red-500'
                                 }`}>
                                 {transaccion.tipo === 'ingreso' ? '+' : '-'}
                                 {formatearMoneda(transaccion.monto)}

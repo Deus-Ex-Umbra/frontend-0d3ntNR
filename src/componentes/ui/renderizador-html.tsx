@@ -63,7 +63,8 @@ export function RenderizadorHtml({
   const [colorEtiquetas, setColorEtiquetas] = useState('#dbeafe');
   const [barraTranslucida, setBarraTranslucida] = useState(false);
   const [anchoContenedor, setAnchoContenedor] = useState(0);
-  const [zoomManual, setZoomManual] = useState(false); 
+  const [zoomManual, setZoomManual] = useState(false);
+  const [pageBreaks, setPageBreaks] = useState<number[]>([0]);
   useEffect(() => {
     let nuevoContenido = contenido;
 
@@ -122,10 +123,10 @@ export function RenderizadorHtml({
     return {
       widthMm: base.widthMm,
       heightMm: base.heightMm,
-      paddingTop: mmToPx(m.top),
-      paddingBottom: mmToPx(m.bottom),
-      paddingLeft: mmToPx(m.left),
-      paddingRight: mmToPx(m.right),
+      paddingTop: Math.round(mmToPx(m.top)),
+      paddingBottom: Math.round(mmToPx(m.bottom)),
+      paddingLeft: Math.round(mmToPx(m.left)),
+      paddingRight: Math.round(mmToPx(m.right)),
       marginTop: m.top,
       marginBottom: m.bottom,
       marginLeft: m.left,
@@ -142,7 +143,7 @@ export function RenderizadorHtml({
   const ZOOM_MAX = 2.0;
   const escalaCalculada = useMemo(() => {
     if (!ajustarAncho || zoomManual || anchoContenedor <= 0) return zoom;
-    const padding = 32; 
+    const padding = 32;
     const disponible = anchoContenedor - padding;
     const escalaAuto = disponible / pageWidthPx;
     return Math.min(Math.max(escalaAuto, ZOOM_MIN), escalaInicial || 1);
@@ -158,6 +159,81 @@ export function RenderizadorHtml({
     });
     ro.observe(scrollContainerRef.current);
     return () => ro.disconnect();
+  }, []);
+
+  // Función para calcular saltos de página respetando límites de líneas
+  const calcularSaltosDePagina = useCallback((container: HTMLDivElement, alturaDisponible: number): number[] => {
+    const breaks: number[] = [0];
+
+    // Calcular line-height dinámicamente del contenedor
+    const computedStyle = window.getComputedStyle(container);
+    const fontSize = parseFloat(computedStyle.fontSize) || 16;
+    const lineHeight = parseFloat(computedStyle.lineHeight) || fontSize * 1.625;
+    
+    // Buffer de seguridad basado en line-height real (1.5x para estar seguros)
+    const bufferSeguridad = lineHeight * 1.5;
+
+    // Obtener todos los elementos de bloque dentro del contenedor
+    const elementos = container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, div, table, tr, blockquote');
+
+    if (elementos.length === 0) {
+      // Si no hay elementos de bloque, usar el método tradicional
+      const totalHeight = container.scrollHeight;
+      const numPages = Math.max(1, Math.ceil(totalHeight / alturaDisponible));
+      for (let i = 1; i < numPages; i++) {
+        breaks.push(i * alturaDisponible);
+      }
+      return breaks;
+    }
+
+    let paginaActualTop = 0;
+    let alturaAcumulada = 0;
+
+    elementos.forEach((elemento) => {
+      const rect = elemento.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const elementoTop = rect.top - containerRect.top;
+      const elementoBottom = rect.bottom - containerRect.top;
+      const elementoHeight = rect.height;
+
+      // Calcular posición relativa desde el inicio de la página actual
+      const posicionEnPagina = elementoBottom - paginaActualTop;
+
+      // Si el elemento completo excede la altura disponible de la página
+      if (posicionEnPagina > alturaDisponible) {
+        // Verificar si el elemento cabe completo en una página
+        if (elementoHeight <= alturaDisponible) {
+          // El elemento cabe completo, hacer salto antes de él
+          const nuevoBreak = elementoTop;
+          if (nuevoBreak > breaks[breaks.length - 1]) {
+            breaks.push(nuevoBreak);
+            paginaActualTop = nuevoBreak;
+            alturaAcumulada = elementoHeight;
+          }
+        } else {
+          // El elemento es más alto que una página (por ejemplo, una tabla grande)
+          // Hacer salto de página donde estamos y dejar que se corte
+          const nuevoBreak = paginaActualTop + alturaDisponible;
+          if (nuevoBreak > breaks[breaks.length - 1]) {
+            breaks.push(nuevoBreak);
+            paginaActualTop = nuevoBreak;
+            alturaAcumulada = elementoBottom - nuevoBreak;
+
+            // Continuar agregando saltos si el elemento sigue siendo muy alto
+            while (alturaAcumulada > alturaDisponible - bufferSeguridad) {
+              const siguienteBreak = paginaActualTop + alturaDisponible;
+              breaks.push(siguienteBreak);
+              paginaActualTop = siguienteBreak;
+              alturaAcumulada = elementoBottom - siguienteBreak;
+            }
+          }
+        }
+      } else {
+        alturaAcumulada = posicionEnPagina;
+      }
+    });
+
+    return breaks;
   }, []);
 
   useEffect(() => {
@@ -186,9 +262,11 @@ export function RenderizadorHtml({
       }
       setHtmlParaMostrar(container.innerHTML);
       if (modoDocumento) {
-        const totalHeight = container.scrollHeight;
-        const effectivePageHeight = contentAreaHeight;
-        const numPages = Math.max(1, Math.ceil(totalHeight / effectivePageHeight));
+        // Calcular saltos de página respetando límites de elementos
+        const breaks = calcularSaltosDePagina(container, contentAreaHeight);
+        setPageBreaks(breaks);
+
+        const numPages = breaks.length;
         const pageArray = Array.from({ length: numPages }, (_, i) => i);
         setPaginas(pageArray.map(String));
         setHtmlParaMostrar(container.innerHTML);
@@ -198,7 +276,7 @@ export function RenderizadorHtml({
     const timer = setTimeout(procesarContenido, 100);
     return () => clearTimeout(timer);
 
-  }, [contenidoLocal, modoDocumento, contentAreaHeight, contentAreaWidth, modoInteractivo, modoPlantilla, PAGE.paddingTop, PAGE.paddingBottom, pageHeightPx]);
+  }, [contenidoLocal, modoDocumento, contentAreaHeight, contentAreaWidth, modoInteractivo, modoPlantilla, PAGE.paddingTop, PAGE.paddingBottom, pageHeightPx, calcularSaltosDePagina]);
 
   const handleContainerClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -259,17 +337,35 @@ export function RenderizadorHtml({
     return () => container.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
+  // Estilos sincronizados con el editor TipTap (prose-sm) para evitar discrepancias
+  // IMPORTANTE: Debe coincidir EXACTAMENTE con el editor para evitar diferencias de ajuste de texto
   const contentStyle: React.CSSProperties = {
     whiteSpace: 'pre-wrap',
     wordWrap: 'break-word',
     overflowWrap: 'break-word',
     wordBreak: 'break-word',
     width: '100%',
-    fontFamily: 'Arial, sans-serif',
+    // Usar la misma familia de fuentes que el navegador usa en TipTap prose-sm
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
     fontSize: '16px',
+    // Mantener exactamente el mismo line-height que el editor ProseMirror (prose-sm)
     lineHeight: '1.5',
     color: modoDocumento ? '#000' : 'inherit',
-    textAlign: 'left'
+    textAlign: 'left',
+    // Evitar ligaduras que puedan causar diferencias de anchura
+    fontVariantLigatures: 'none',
+    // Establecer letter-spacing normal para evitar diferencias
+    letterSpacing: 'normal',
+    // Asegurar el mismo kerning
+    fontKerning: 'normal',
+    // Box-sizing para cálculos consistentes
+    boxSizing: 'border-box',
+    // Padding 0 explícito para evitar diferencias
+    padding: '0',
+    margin: '0',
+    // Forzar el mismo rendering de texto
+    WebkitFontSmoothing: 'antialiased',
+    MozOsxFontSmoothing: 'grayscale',
   };
 
 
@@ -403,14 +499,18 @@ export function RenderizadorHtml({
           position: 'absolute',
           visibility: 'hidden',
           pointerEvents: 'none',
-          width: modoDocumento ? contentAreaWidth : '100%',
+          width: modoDocumento ? `${contentAreaWidth}px` : '100%',
           left: 0,
-          top: 0
+          top: 0,
+          paddingLeft: '0',
+          paddingRight: '0',
+          boxSizing: 'border-box'
         }}
         ref={measurerRef}
         className="renderizador-contenido"
         dangerouslySetInnerHTML={{ __html: contenidoLocal }}
       />
+
 
       <style>{`
         .renderizador-contenido {
@@ -421,14 +521,28 @@ export function RenderizadorHtml({
             word-break: break-word;
             hyphens: auto;
             color: #000000;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            letter-spacing: normal;
+            font-kerning: normal;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            box-sizing: border-box;
         }
-        .renderizador-contenido p { 
+        .renderizador-contenido p {
           margin: 0.5em 0;
           min-height: 1em;
           min-width: 0;
           box-sizing: border-box;
           max-width: 100%;
           white-space: pre-wrap;
+          line-height: 1.5;
+          color: inherit;
+        }
+        .renderizador-contenido p:first-child {
+          margin-top: 0;
+        }
+        .renderizador-contenido p:last-child {
+          margin-bottom: 0;
         }
         .renderizador-contenido p:empty,
         .renderizador-contenido p:has(> br:only-child) {
@@ -444,9 +558,9 @@ export function RenderizadorHtml({
           display: inline;
           margin: 0;
         }
-        .renderizador-contenido h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0; white-space: pre-wrap; }
-        .renderizador-contenido h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0; white-space: pre-wrap; }
-        .renderizador-contenido h3 { font-size: 1.17em; font-weight: bold; margin: 1em 0; white-space: pre-wrap; }
+        .renderizador-contenido h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0; white-space: pre-wrap; line-height: 1.5; }
+        .renderizador-contenido h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0; white-space: pre-wrap; line-height: 1.5; }
+        .renderizador-contenido h3 { font-size: 1.17em; font-weight: bold; margin: 1em 0; white-space: pre-wrap; line-height: 1.5; }
         .renderizador-contenido ul, 
         .renderizador-contenido ol { 
           margin: 0.5rem 0; 
@@ -459,6 +573,7 @@ export function RenderizadorHtml({
           margin: 0.25rem 0;
           display: list-item;
           white-space: pre-wrap;
+          line-height: 1.5;
         }
         .renderizador-contenido li::marker {
           color: currentColor;
@@ -576,7 +691,9 @@ export function RenderizadorHtml({
                   >
                     <div className="flex flex-col items-center" style={{ gap: PAGE_GAP }}>
                       {paginas.length > 0 ? paginas.map((_, pageIndex) => {
-                        const offsetY = pageIndex * contentAreaHeight;
+                        const offsetY = pageBreaks[pageIndex] || 0;
+                        const nextBreak = pageBreaks[pageIndex + 1];
+                        const pageContentHeight = nextBreak ? (nextBreak - offsetY) : contentAreaHeight;
 
                         return (
                           <div
@@ -610,7 +727,7 @@ export function RenderizadorHtml({
                                 top: PAGE.paddingTop,
                                 left: PAGE.paddingLeft,
                                 width: contentAreaWidth,
-                                height: contentAreaHeight,
+                                height: pageContentHeight,
                                 overflow: 'hidden'
                               }}
                             >
@@ -619,6 +736,9 @@ export function RenderizadorHtml({
                                 style={{
                                   ...contentStyle,
                                   transform: `translateY(-${offsetY}px)`,
+                                  paddingLeft: '0',
+                                  paddingRight: '0',
+                                  boxSizing: 'border-box'
                                 }}
                                 dangerouslySetInnerHTML={{ __html: htmlParaMostrar }}
                               />

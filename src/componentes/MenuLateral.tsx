@@ -1,16 +1,16 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Users, 
-  Calendar, 
-  FileText, 
-  DollarSign, 
-  Settings, 
+import {
+  Users,
+  Calendar,
+  FileText,
+  DollarSign,
+  Settings,
   LogOut,
   Home,
   ImageIcon,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   Package
 } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
@@ -18,6 +18,7 @@ import { useMenu } from '@/contextos/menu-contexto';
 import { cn } from '@/lib/utilidades';
 import { Button } from '@/componentes/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/componentes/ui/avatar';
+import { catalogoApi } from '@/lib/api';
 
 interface ItemMenu {
   icono: React.ElementType;
@@ -41,15 +42,29 @@ export function MenuLateral() {
   const ubicacion = useLocation();
   const { cerrarSesion, usuario } = useAutenticacion();
   const { colapsado, setColapsado } = useMenu();
-  const github_url = 'https://github.com/deus-ex-umbra';
+
+  const [config_clinica, setConfigClinica] = useState({
+    logo: '',
+  });
+
+  useEffect(() => {
+    cargarConfiguracionClinica();
+  }, []);
+
+  const cargarConfiguracionClinica = async () => {
+    try {
+      const config = await catalogoApi.obtenerConfiguracionClinica();
+      setConfigClinica({
+        logo: config.logo || '',
+      });
+    } catch (error) {
+      console.error('Error al cargar configuración de clínica:', error);
+    }
+  };
 
   const manejarCerrarSesion = () => {
     cerrarSesion();
     navegar('/inicio-sesion');
-  };
-
-  const abrirGithub = () => {
-    window.open(github_url, '_blank');
   };
 
   return (
@@ -60,19 +75,22 @@ export function MenuLateral() {
       <div className="border-b-2 border-border p-6 bg-gradient-to-br from-primary/10 to-transparent">
         <div className="flex items-center justify-between">
           <div className={cn("flex items-center gap-3", colapsado && "justify-center w-full")}>
-            <button
-              onClick={abrirGithub}
-              className="group relative h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 shadow-lg flex items-center justify-center flex-shrink-0 hover:scale-110 transition-transform overflow-hidden"
-              title="Visitar GitHub"
-            >
-              <img 
-                src="/app_0d3nt_logo.svg" 
-                alt="GitHub"
-                className="h-8 w-8 transition-all duration-300 group-hover:scale-110 relative z-10"
-              />
+            <div className="group relative h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 shadow-lg flex items-center justify-center flex-shrink-0 hover:scale-110 transition-transform overflow-hidden">
+              {config_clinica.logo ? (
+                <img
+                  src={config_clinica.logo}
+                  alt="Logo"
+                  className="h-10 w-10 transition-all duration-300 group-hover:scale-110 relative z-10 object-contain"
+                />
+              ) : (
+                <img
+                  src="/app_0d3nt_logo.svg"
+                  alt="Logo"
+                  className="h-8 w-8 transition-all duration-300 group-hover:scale-110 relative z-10"
+                />
+              )}
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[0_0_15px_rgba(59,130,246,0.5)] group-hover:shadow-[0_0_25px_rgba(59,130,246,0.8)]" />
-              <ExternalLink className="absolute top-1 right-1 h-3 w-3 text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity z-20" />
-            </button>
+            </div>
             {!colapsado && (
               <div>
                 <h1 className="text-2xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
@@ -110,7 +128,7 @@ export function MenuLateral() {
           {items_menu.map((item) => {
             const Icono = item.icono;
             const activo = ubicacion.pathname === item.ruta;
-            
+
             return (
               <Button
                 key={item.ruta}
@@ -118,8 +136,8 @@ export function MenuLateral() {
                 className={cn(
                   'w-full h-12 text-base font-medium transition-all duration-200',
                   colapsado ? 'justify-center px-0' : 'justify-start gap-3',
-                  activo 
-                    ? 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:shadow-lg hover:scale-105' 
+                  activo
+                    ? 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:shadow-lg hover:scale-105'
                     : 'hover:bg-secondary/80 text-muted-foreground hover:text-foreground hover:scale-105 hover:shadow-md'
                 )}
                 onClick={() => navegar(item.ruta)}
@@ -148,7 +166,7 @@ export function MenuLateral() {
                 <p className="truncate text-xs text-muted-foreground">{usuario?.correo}</p>
               </div>
             </div>
-            
+
             <Button
               variant="ghost"
               className="w-full justify-start gap-3 h-11 text-destructive hover:text-destructive hover:bg-destructive/15 border border-transparent hover:border-destructive/30 font-medium transition-all duration-200 hover:scale-105 hover:shadow-md"
