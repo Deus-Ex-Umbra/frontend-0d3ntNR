@@ -75,8 +75,8 @@ import {
 import WizardConsumibles from '@/componentes/materiales/wizard-consumibles';
 import WizardActivosFijos from '@/componentes/materiales/wizard-activos-fijos';
 import { Wrench } from 'lucide-react';
-import DialogoGestionCita from '@/componentes/citas/DialogoGestionCita';
-import DialogoConfirmacionCita from '@/componentes/citas/DialogoConfirmacionCita';
+import DialogoGestionCita from '@/componentes/citas/dialogo-gestion-cita';
+import DialogoConfirmacionCita from '@/componentes/citas/dialogo-confirmacion-cita';
 
 interface PlanTratamiento {
   id: number;

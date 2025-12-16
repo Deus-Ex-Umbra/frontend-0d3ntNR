@@ -241,7 +241,7 @@ export function FinanzasMovimientos() {
 
         await finanzasApi.actualizarPago(movimiento_seleccionado.id, datos);
         toast({
-          title: 'Ã‰xito',
+          title: 'Éxito',
           description: 'Ingreso actualizado correctamente',
         });
       } else {
@@ -257,9 +257,9 @@ export function FinanzasMovimientos() {
 
         await finanzasApi.registrarPago(datos);
         toast({
-          title: 'Ã‰xito',
+          title: 'Éxito',
           description: formulario_ingreso.cita_id
-            ? 'Ingreso registrado correctamente. La cita se marcÃ³ como pagada.'
+            ? 'Ingreso registrado correctamente. La cita se marcó como pagada.'
             : 'Ingreso registrado correctamente.',
         });
       }
@@ -293,7 +293,7 @@ export function FinanzasMovimientos() {
     if (isNaN(monto) || monto <= 0) {
       toast({
         title: 'Error',
-        description: 'El monto debe ser un nÃºmero positivo',
+        description: 'El monto debe ser un número positivo',
         variant: 'destructive',
       });
       return;
@@ -310,7 +310,7 @@ export function FinanzasMovimientos() {
 
         await finanzasApi.actualizarEgreso(movimiento_seleccionado.id, datos);
         toast({
-          title: 'Ã‰xito',
+          title: 'Éxito',
           description: 'Egreso actualizado correctamente',
         });
       } else {
@@ -322,7 +322,7 @@ export function FinanzasMovimientos() {
 
         await finanzasApi.registrarEgreso(datos);
         toast({
-          title: 'Ã‰xito',
+          title: 'Éxito',
           description: 'Egreso registrado correctamente',
         });
       }
@@ -358,7 +358,7 @@ export function FinanzasMovimientos() {
       }
 
       toast({
-        title: 'Ã‰xito',
+        title: 'Éxito',
         description: `${movimiento_a_eliminar.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} eliminado correctamente`,
       });
 
@@ -466,10 +466,10 @@ export function FinanzasMovimientos() {
       <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-foreground tracking-tight">
-            {busqueda ? 'Resultados de BÃºsqueda' : 'Movimientos de Hoy'}
+            {busqueda ? 'Resultados de Búsqueda' : 'Movimientos de Hoy'}
           </h2>
           <p className="text-muted-foreground">
-            {busqueda ? `Mostrando resultados para "${busqueda}"` : 'Resumen financiero del dÃ­a actual'}
+            {busqueda ? `Mostrando resultados para "${busqueda}"` : 'Resumen financiero del día actual'}
           </p>
         </div>
 
@@ -612,9 +612,9 @@ export function FinanzasMovimientos() {
             <div className="flex items-center justify-between gap-4">
               <Tabs value={tipo_grafico} onValueChange={(value) => setTipoGrafico(value as 'dia' | 'mes' | 'ano')} className="flex-1">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="dia">Por DÃ­a</TabsTrigger>
+                  <TabsTrigger value="dia">Por Día</TabsTrigger>
                   <TabsTrigger value="mes">Por Mes</TabsTrigger>
-                  <TabsTrigger value="ano">Por AÃ±o</TabsTrigger>
+                  <TabsTrigger value="ano">Por Año</TabsTrigger>
                 </TabsList>
               </Tabs>
 
@@ -666,7 +666,8 @@ export function FinanzasMovimientos() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={450}>
+              <div style={{ width: '100%', height: '450px', minHeight: '450px' }}>
+                <ResponsiveContainer width="100%" height="100%">
                 {modo_grafico === 'ingresos-egresos' ? (
                   tipo_visualizacion === 'barras' ? (
                     <BarChart data={datos_grafico}>
@@ -797,6 +798,7 @@ export function FinanzasMovimientos() {
                   )
                 )}
               </ResponsiveContainer>
+              </div>
             )}
           </div>
         </CardContent>

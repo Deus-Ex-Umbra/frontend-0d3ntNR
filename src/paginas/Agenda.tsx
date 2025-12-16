@@ -19,8 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs'
 import WizardConsumibles from '@/componentes/materiales/wizard-consumibles';
 import WizardActivosFijos from '@/componentes/materiales/wizard-activos-fijos';
 import SelectorMateriales from '@/componentes/materiales/selector-materiales';
-import DialogoGestionCita from '@/componentes/citas/DialogoGestionCita';
-import DialogoConfirmacionCita from '@/componentes/citas/DialogoConfirmacionCita';
+import DialogoGestionCita from '@/componentes/citas/dialogo-gestion-cita';
+import DialogoConfirmacionCita from '@/componentes/citas/dialogo-confirmacion-cita';
 import {
   Cita,
   HoraLibre,

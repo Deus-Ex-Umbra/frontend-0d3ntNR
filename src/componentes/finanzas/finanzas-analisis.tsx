@@ -363,7 +363,7 @@ export function FinanzasAnalisis() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <div className="h-[400px] w-full">
+                <div className="h-[400px] w-full" style={{ minHeight: '400px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     {modo_grafico === 'ingresos-egresos' ? (
                       tipo_visualizacion === 'barras' ? (
