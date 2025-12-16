@@ -182,11 +182,13 @@ export default function Inventarios() {
     monto: '',
     motivo: '',
     generar_movimiento_financiero: true,
+    fecha_ajuste: new Date(),
   });
 
   const [formulario_venta_activo, setFormularioVentaActivo] = useState({
     monto_venta: '',
     registrar_pago: true,
+    fecha_venta: new Date(),
   });
 
   const subtipos_material = [
@@ -838,6 +840,7 @@ export default function Inventarios() {
       monto: costo_estimado.toFixed(2),
       motivo: '',
       generar_movimiento_financiero: true,
+      fecha_ajuste: new Date(),
     });
     setDialogoAjusteStockAbierto(true);
   };
@@ -882,6 +885,7 @@ export default function Inventarios() {
         tipo_ajuste: formulario_ajuste_stock.tipo_ajuste,
         cantidad: cantidad,
         motivo: formulario_ajuste_stock.motivo || `Ajuste ${formulario_ajuste_stock.tipo_ajuste} manual`,
+        fecha: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_ajuste_stock.fecha_ajuste)),
       });
 
       toast({
@@ -1124,6 +1128,7 @@ export default function Inventarios() {
     setFormularioVentaActivo({
       monto_venta: precio_sugerido,
       registrar_pago: true,
+      fecha_venta: new Date(),
     });
     setDialogoVenderActivoAbierto(true);
   };
@@ -1156,6 +1161,7 @@ export default function Inventarios() {
         monto_venta: monto,
         registrar_pago: formulario_venta_activo.registrar_pago,
         tipo_salida: 'venta',
+        fecha_venta: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_venta_activo.fecha_venta)),
       });
 
       toast({
@@ -1253,7 +1259,7 @@ export default function Inventarios() {
       camposAMostrar = camposRelevantes.activo;
     } else {
       const todosCampos = new Set([...Object.keys(anterior), ...Object.keys(nuevo)]);
-      camposAMostrar = Array.from(todosCampos).filter(campo => 
+      camposAMostrar = Array.from(todosCampos).filter(campo =>
         !campo.startsWith('_') && !['id', 'created_at', 'updated_at', 'deleted_at', 'activo'].includes(campo)
       );
     }
@@ -1299,11 +1305,11 @@ export default function Inventarios() {
 
       const sonDiferentes = JSON.stringify(valorAnterior) !== JSON.stringify(valorNuevo);
       const nombreCampo = nombresAmigables[campo] || campo.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
-      
+
       campos.push(nombreCampo);
       valoresAnteriores[nombreCampo] = formatearValor(valorAnterior);
       valoresNuevos[nombreCampo] = formatearValor(valorNuevo);
-      
+
       if (sonDiferentes) {
         camposModificados.add(nombreCampo);
       }
@@ -2004,55 +2010,55 @@ export default function Inventarios() {
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Operación</TableHead>
-                        <TableHead>Producto</TableHead>
-                        <TableHead>Entidad</TableHead>
-                        <TableHead>Cantidad</TableHead>
-                        <TableHead>Stock</TableHead>
-                        <TableHead>Usuario</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {kardex.map((mov) => (
-                        <TableRow key={mov.id}>
-                          <TableCell>{format(new Date(mov.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
-                          <TableCell>{mov.tipo}</TableCell>
-                          <TableCell>
-                            <Badge variant={mov.operacion === 'entrada' ? 'default' : 'destructive'}>
-                              {mov.operacion}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{mov.producto?.nombre || '-'}</TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
-                            {(mov as any).material?.nro_lote || (mov as any).material?.nro_serie || '-'}
-                          </TableCell>
-                          <TableCell>
-                            {mov.producto?.permite_decimales !== false
-                              ? Number(mov.cantidad).toFixed(2)
-                              : Math.round(Number(mov.cantidad))}
-                          </TableCell>
-                          <TableCell>
-                            {mov.producto?.permite_decimales !== false
-                              ? `${Number(mov.stock_anterior).toFixed(2)} → ${Number(mov.stock_nuevo).toFixed(2)}`
-                              : `${Math.round(Number(mov.stock_anterior))} → ${Math.round(Number(mov.stock_nuevo))}`}
-                          </TableCell>
-                          <TableCell>{mov.usuario?.nombre || 'Desconocido'}</TableCell>
-                        </TableRow>
-                      ))}
-                      {kardex.length === 0 && (
+                    <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                            No hay movimientos registrados
-                          </TableCell>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Operación</TableHead>
+                          <TableHead>Producto</TableHead>
+                          <TableHead>Entidad</TableHead>
+                          <TableHead>Cantidad</TableHead>
+                          <TableHead>Stock</TableHead>
+                          <TableHead>Usuario</TableHead>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {kardex.map((mov) => (
+                          <TableRow key={mov.id}>
+                            <TableCell>{format(new Date(mov.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                            <TableCell>{mov.tipo}</TableCell>
+                            <TableCell>
+                              <Badge variant={mov.operacion === 'entrada' ? 'default' : 'destructive'}>
+                                {mov.operacion}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{mov.producto?.nombre || '-'}</TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {(mov as any).material?.nro_lote || (mov as any).material?.nro_serie || '-'}
+                            </TableCell>
+                            <TableCell>
+                              {mov.producto?.permite_decimales !== false
+                                ? Number(mov.cantidad).toFixed(2)
+                                : Math.round(Number(mov.cantidad))}
+                            </TableCell>
+                            <TableCell>
+                              {mov.producto?.permite_decimales !== false
+                                ? `${Number(mov.stock_anterior).toFixed(2)} → ${Number(mov.stock_nuevo).toFixed(2)}`
+                                : `${Math.round(Number(mov.stock_anterior))} → ${Math.round(Number(mov.stock_nuevo))}`}
+                            </TableCell>
+                            <TableCell>{mov.usuario?.nombre || 'Desconocido'}</TableCell>
+                          </TableRow>
+                        ))}
+                        {kardex.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                              No hay movimientos registrados
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
                   )}
                 </div>
               </ScrollArea>
@@ -2098,45 +2104,45 @@ export default function Inventarios() {
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Activo</TableHead>
-                        <TableHead>Identificación</TableHead>
-                        <TableHead>Cambio de Estado</TableHead>
-                        <TableHead>Usuario</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {bitacora.map((evento) => (
-                        <TableRow key={evento.id}>
-                          <TableCell>{format(new Date(evento.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
-                          <TableCell>{evento.activo?.nombre_asignado || evento.activo?.codigo_interno || '-'}</TableCell>
-                          <TableCell>{evento.activo?.nro_serie || evento.activo?.codigo_interno || '-'}</TableCell>
-                          <TableCell>
-                            {evento.estado_anterior && evento.estado_nuevo ? (
-                              <span className="flex items-center gap-2">
-                                <Badge variant="secondary">{evento.estado_anterior}</Badge>
-                                <span>→</span>
-                                <Badge variant="default">{evento.estado_nuevo}</Badge>
-                              </span>
-                            ) : (
-                              <Badge>{evento.estado_nuevo || '-'}</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{evento.usuario?.nombre || 'Desconocido'}</TableCell>
-                        </TableRow>
-                      ))}
-                      {bitacora.length === 0 && (
+                    <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                            No hay eventos registrados
-                          </TableCell>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Activo</TableHead>
+                          <TableHead>Identificación</TableHead>
+                          <TableHead>Cambio de Estado</TableHead>
+                          <TableHead>Usuario</TableHead>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {bitacora.map((evento) => (
+                          <TableRow key={evento.id}>
+                            <TableCell>{format(new Date(evento.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                            <TableCell>{evento.activo?.nombre_asignado || evento.activo?.codigo_interno || '-'}</TableCell>
+                            <TableCell>{evento.activo?.nro_serie || evento.activo?.codigo_interno || '-'}</TableCell>
+                            <TableCell>
+                              {evento.estado_anterior && evento.estado_nuevo ? (
+                                <span className="flex items-center gap-2">
+                                  <Badge variant="secondary">{evento.estado_anterior}</Badge>
+                                  <span>→</span>
+                                  <Badge variant="default">{evento.estado_nuevo}</Badge>
+                                </span>
+                              ) : (
+                                <Badge>{evento.estado_nuevo || '-'}</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{evento.usuario?.nombre || 'Desconocido'}</TableCell>
+                          </TableRow>
+                        ))}
+                        {bitacora.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                              No hay eventos registrados
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
                   )}
                 </div>
               </ScrollArea>
@@ -2182,67 +2188,67 @@ export default function Inventarios() {
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Acción</TableHead>
-                        <TableHead>Entidad</TableHead>
-                        <TableHead>Identificación</TableHead>
-                        <TableHead>Usuario</TableHead>
-                        <TableHead>Detalles</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {auditoria.map((reg) => (
-                        <TableRow key={reg.id}>
-                          <TableCell>{format(new Date(reg.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {reg.accion?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '-'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-1">
-                              <Badge variant="secondary" className="w-fit text-xs">
-                                {reg.categoria?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '-'}
-                              </Badge>
-                              <span className="text-sm">
-                                {reg.producto?.nombre ||
-                                  (reg.material as any)?.producto?.nombre ||
-                                  reg.activo?.nombre_asignado ||
-                                  reg.activo?.nro_serie ||
-                                  '-'}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {reg.material?.nro_lote || reg.material?.nro_serie || reg.activo?.nro_serie || reg.activo?.codigo_interno || '-'}
-                          </TableCell>
-                          <TableCell>{reg.usuario?.nombre || 'Desconocido'}</TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setDetallesAuditoriaSeleccionada(reg);
-                                setDialogoDetallesAuditoriaAbierto(true);
-                              }}
-                            >
-                              Ver cambios
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {auditoria.length === 0 && (
+                    <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                            No hay registros de actividad
-                          </TableCell>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Acción</TableHead>
+                          <TableHead>Entidad</TableHead>
+                          <TableHead>Identificación</TableHead>
+                          <TableHead>Usuario</TableHead>
+                          <TableHead>Detalles</TableHead>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {auditoria.map((reg) => (
+                          <TableRow key={reg.id}>
+                            <TableCell>{format(new Date(reg.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {reg.accion?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '-'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                <Badge variant="secondary" className="w-fit text-xs">
+                                  {reg.categoria?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '-'}
+                                </Badge>
+                                <span className="text-sm">
+                                  {reg.producto?.nombre ||
+                                    (reg.material as any)?.producto?.nombre ||
+                                    reg.activo?.nombre_asignado ||
+                                    reg.activo?.nro_serie ||
+                                    '-'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {reg.material?.nro_lote || reg.material?.nro_serie || reg.activo?.nro_serie || reg.activo?.codigo_interno || '-'}
+                            </TableCell>
+                            <TableCell>{reg.usuario?.nombre || 'Desconocido'}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setDetallesAuditoriaSeleccionada(reg);
+                                  setDialogoDetallesAuditoriaAbierto(true);
+                                }}
+                              >
+                                Ver cambios
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {auditoria.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                              No hay registros de actividad
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
                   )}
                 </div>
               </ScrollArea>
@@ -2250,153 +2256,153 @@ export default function Inventarios() {
 
             <TabsContent value="usuarios" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
               <ScrollArea className="flex-1 p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between pb-4 border-b">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        Usuarios
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="Buscar por nombre..."
-                          value={filtro_usuarios.busqueda}
-                          onChange={(e) => setFiltroUsuarios({ ...filtro_usuarios, busqueda: e.target.value })}
-                          className="w-48"
-                          disabled={cargando_detalle}
-                        />
-                        <div className="flex border rounded-md">
-                          <Button
-                            variant={filtro_usuarios.rol === 'todos' ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'todos' })}
-                            disabled={cargando_detalle}
-                          >
-                            Todos
-                          </Button>
-                          <Button
-                            variant={filtro_usuarios.rol === 'editor' ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'editor' })}
-                            disabled={cargando_detalle}
-                          >
-                            Editores
-                          </Button>
-                          <Button
-                            variant={filtro_usuarios.rol === 'lector' ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'lector' })}
-                            disabled={cargando_detalle}
-                          >
-                            Lectores
-                          </Button>
-                        </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-4 border-b">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Usuarios
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Buscar por nombre..."
+                        value={filtro_usuarios.busqueda}
+                        onChange={(e) => setFiltroUsuarios({ ...filtro_usuarios, busqueda: e.target.value })}
+                        className="w-48"
+                        disabled={cargando_detalle}
+                      />
+                      <div className="flex border rounded-md">
                         <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => inventario_seleccionado && cargarDetalleInventario(inventario_seleccionado)}
-                          title="Recargar"
-                          disabled={!inventario_seleccionado || cargando_detalle}
+                          variant={filtro_usuarios.rol === 'todos' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'todos' })}
+                          disabled={cargando_detalle}
                         >
-                          <RefreshCw className={`h-4 w-4 ${cargando_detalle ? 'animate-spin' : ''}`} />
+                          Todos
+                        </Button>
+                        <Button
+                          variant={filtro_usuarios.rol === 'editor' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'editor' })}
+                          disabled={cargando_detalle}
+                        >
+                          Editores
+                        </Button>
+                        <Button
+                          variant={filtro_usuarios.rol === 'lector' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'lector' })}
+                          disabled={cargando_detalle}
+                        >
+                          Lectores
                         </Button>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => inventario_seleccionado && cargarDetalleInventario(inventario_seleccionado)}
+                        title="Recargar"
+                        disabled={!inventario_seleccionado || cargando_detalle}
+                      >
+                        <RefreshCw className={`h-4 w-4 ${cargando_detalle ? 'animate-spin' : ''}`} />
+                      </Button>
                     </div>
-
-                    {cargando_detalle ? (
-                      <div className="flex items-center justify-center h-64">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      </div>
-                    ) : (
-                      <>
-
-                    {inventario_seleccionado?.propietario && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Shield className="h-4 w-4 text-primary" />
-                            Propietario
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">{inventario_seleccionado.propietario?.nombre || 'Desconocido'}</p>
-                              <p className="text-sm text-muted-foreground">{inventario_seleccionado.propietario?.correo}</p>
-                            </div>
-                            <Badge>Propietario</Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {inventario_seleccionado?.permisos && inventario_seleccionado.permisos.length > 0 && (
-                      <div className="space-y-2">
-                        <h3 className="font-semibold text-sm text-muted-foreground uppercase">Usuarios con Acceso</h3>
-                        {inventario_seleccionado.permisos
-                          .filter((permiso) => {
-                            const matchesSearch = !filtro_usuarios.busqueda ||
-                              permiso.usuario_invitado?.nombre?.toLowerCase().includes(filtro_usuarios.busqueda.toLowerCase()) ||
-                              permiso.usuario_invitado?.correo?.toLowerCase().includes(filtro_usuarios.busqueda.toLowerCase());
-                            const matchesRole = filtro_usuarios.rol === 'todos' || permiso.rol === filtro_usuarios.rol;
-                            return matchesSearch && matchesRole;
-                          })
-                          .map((permiso) => (
-                            <Card key={permiso.id}>
-                              <CardContent className="py-4">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="font-medium">{permiso.usuario_invitado?.nombre || 'Desconocido'}</p>
-                                    <p className="text-sm text-muted-foreground">{permiso.usuario_invitado?.correo}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Badge>{permiso.rol.charAt(0).toUpperCase() + permiso.rol.slice(1)}</Badge>
-                                    {inventario_seleccionado.es_propietario && (
-                                      <>
-                                        <Button
-                                          onClick={() => abrirDialogoEditarPermiso(permiso)}
-                                          variant="outline"
-                                          size="sm"
-                                          disabled={cargando_detalle}
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          onClick={() => abrirDialogoRemoverUsuario(permiso)}
-                                          variant="destructive"
-                                          size="sm"
-                                          disabled={cargando_detalle}
-                                        >
-                                          <X className="h-4 w-4" />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                      </div>
-                    )}
-
-                    {(!inventario_seleccionado?.permisos || inventario_seleccionado.permisos.length === 0) && (
-                      <div className="text-center py-12">
-                        <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">No hay usuarios invitados</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Invita usuarios para que puedan acceder a este inventario
-                        </p>
-                        {inventario_seleccionado?.es_propietario &&
-                          inventario_seleccionado?.visibilidad === 'publico' && (
-                            <Button onClick={abrirDialogoInvitar} disabled={cargando_detalle}>
-                              <UserPlus className="h-4 w-4 mr-2" />
-                              Invitar Usuario
-                            </Button>
-                          )}
-                      </div>
-                    )}
-                      </>
-                    )}
                   </div>
+
+                  {cargando_detalle ? (
+                    <div className="flex items-center justify-center h-64">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <>
+
+                      {inventario_seleccionado?.propietario && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <Shield className="h-4 w-4 text-primary" />
+                              Propietario
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium">{inventario_seleccionado.propietario?.nombre || 'Desconocido'}</p>
+                                <p className="text-sm text-muted-foreground">{inventario_seleccionado.propietario?.correo}</p>
+                              </div>
+                              <Badge>Propietario</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {inventario_seleccionado?.permisos && inventario_seleccionado.permisos.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="font-semibold text-sm text-muted-foreground uppercase">Usuarios con Acceso</h3>
+                          {inventario_seleccionado.permisos
+                            .filter((permiso) => {
+                              const matchesSearch = !filtro_usuarios.busqueda ||
+                                permiso.usuario_invitado?.nombre?.toLowerCase().includes(filtro_usuarios.busqueda.toLowerCase()) ||
+                                permiso.usuario_invitado?.correo?.toLowerCase().includes(filtro_usuarios.busqueda.toLowerCase());
+                              const matchesRole = filtro_usuarios.rol === 'todos' || permiso.rol === filtro_usuarios.rol;
+                              return matchesSearch && matchesRole;
+                            })
+                            .map((permiso) => (
+                              <Card key={permiso.id}>
+                                <CardContent className="py-4">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="font-medium">{permiso.usuario_invitado?.nombre || 'Desconocido'}</p>
+                                      <p className="text-sm text-muted-foreground">{permiso.usuario_invitado?.correo}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Badge>{permiso.rol.charAt(0).toUpperCase() + permiso.rol.slice(1)}</Badge>
+                                      {inventario_seleccionado.es_propietario && (
+                                        <>
+                                          <Button
+                                            onClick={() => abrirDialogoEditarPermiso(permiso)}
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={cargando_detalle}
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            onClick={() => abrirDialogoRemoverUsuario(permiso)}
+                                            variant="destructive"
+                                            size="sm"
+                                            disabled={cargando_detalle}
+                                          >
+                                            <X className="h-4 w-4" />
+                                          </Button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                        </div>
+                      )}
+
+                      {(!inventario_seleccionado?.permisos || inventario_seleccionado.permisos.length === 0) && (
+                        <div className="text-center py-12">
+                          <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">No hay usuarios invitados</h3>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Invita usuarios para que puedan acceder a este inventario
+                          </p>
+                          {inventario_seleccionado?.es_propietario &&
+                            inventario_seleccionado?.visibilidad === 'publico' && (
+                              <Button onClick={abrirDialogoInvitar} disabled={cargando_detalle}>
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Invitar Usuario
+                              </Button>
+                            )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </ScrollArea>
             </TabsContent>
           </Tabs>
@@ -2733,13 +2739,12 @@ export default function Inventarios() {
                   <Label className="text-sm font-medium">Formato de Cantidad</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div
-                      className={`border rounded-md p-3 transition-all relative ${
-                        formulario_producto.permite_decimales === false
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                          : modo_edicion_producto 
-                            ? 'opacity-50 cursor-not-allowed border-muted'
-                            : 'hover:bg-muted/50 border-muted cursor-pointer'
-                      }`}
+                      className={`border rounded-md p-3 transition-all relative ${formulario_producto.permite_decimales === false
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        : modo_edicion_producto
+                          ? 'opacity-50 cursor-not-allowed border-muted'
+                          : 'hover:bg-muted/50 border-muted cursor-pointer'
+                        }`}
                       onClick={() => {
                         if (modo_edicion_producto) return;
                         let nuevo_stock_minimo = formulario_producto.stock_minimo;
@@ -2767,21 +2772,20 @@ export default function Inventarios() {
                     </div>
 
                     <div
-                      className={`border rounded-md p-3 transition-all relative ${
-                        formulario_producto.permite_decimales !== false
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                          : modo_edicion_producto 
-                            ? 'opacity-50 cursor-not-allowed border-muted'
-                            : 'hover:bg-muted/50 border-muted cursor-pointer'
-                      }`}
+                      className={`border rounded-md p-3 transition-all relative ${formulario_producto.permite_decimales !== false
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        : modo_edicion_producto
+                          ? 'opacity-50 cursor-not-allowed border-muted'
+                          : 'hover:bg-muted/50 border-muted cursor-pointer'
+                        }`}
                       onClick={() => {
                         if (modo_edicion_producto) return;
                         let nuevo_stock_minimo = formulario_producto.stock_minimo;
                         if (nuevo_stock_minimo && !nuevo_stock_minimo.includes('.')) {
                           nuevo_stock_minimo = nuevo_stock_minimo + '.00';
                         }
-                        setFormularioProducto({ 
-                          ...formulario_producto, 
+                        setFormularioProducto({
+                          ...formulario_producto,
                           permite_decimales: true,
                           stock_minimo: nuevo_stock_minimo
                         });
@@ -3152,6 +3156,14 @@ export default function Inventarios() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="fecha_ajuste">Fecha y Hora del Ajuste *</Label>
+              <DateTimePicker
+                valor={formulario_ajuste_stock.fecha_ajuste}
+                onChange={(fecha) => setFormularioAjusteStock({ ...formulario_ajuste_stock, fecha_ajuste: fecha || new Date() })}
+              />
+            </div>
+
             <div className="flex items-center space-x-2">
               <Switch
                 id="generar_movimiento_ajuste"
@@ -3373,6 +3385,14 @@ export default function Inventarios() {
               )}
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="fecha_venta">Fecha y Hora de la Venta *</Label>
+              <DateTimePicker
+                valor={formulario_venta_activo.fecha_venta}
+                onChange={(fecha) => setFormularioVentaActivo({ ...formulario_venta_activo, fecha_venta: fecha || new Date() })}
+              />
+            </div>
+
             <div className="flex items-center space-x-2">
               <Switch
                 id="registrar_pago_venta"
@@ -3454,7 +3474,7 @@ export default function Inventarios() {
           <div className="flex-1 overflow-hidden py-4">
             {detalles_auditoria_seleccionada && (() => {
               const resultado = compararCambios(detalles_auditoria_seleccionada.datos_anteriores, detalles_auditoria_seleccionada.datos_nuevos);
-              
+
               if (resultado.campos.length === 0) {
                 return <p className="text-center text-muted-foreground">No hay cambios detectados o registrados.</p>;
               }
@@ -3483,8 +3503,8 @@ export default function Inventarios() {
                         <TableRow>
                           <TableCell className="font-medium sticky left-0 bg-background z-10 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">Ahora</TableCell>
                           {resultado.campos.map((campo, idx) => (
-                            <TableCell 
-                              key={idx} 
+                            <TableCell
+                              key={idx}
                               className={`whitespace-nowrap px-4 ${resultado.camposModificados.has(campo) ? 'text-red-600 font-medium bg-red-50 dark:bg-red-900/20' : ''}`}
                             >
                               {resultado.valoresNuevos[campo]}

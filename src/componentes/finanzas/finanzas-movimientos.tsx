@@ -6,13 +6,13 @@ import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, BarChart3, ChevronLeft, ChevronRight, LineChart as LineChartIcon, Search } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Plus, FileText, Loader2, AlertCircle, Edit, Trash2, BarChart3, ChevronLeft, ChevronRight, LineChart as LineChartIcon, Search } from 'lucide-react';
 import { finanzasApi, agendaApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Badge } from '@/componentes/ui/badge';
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { DatePicker } from '@/componentes/ui/date-picker';
+import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { formatearFechaISO } from '@/lib/utilidades';
 import { Movimiento, ReporteFinanzas, DatosGrafico } from '@/tipos';
 
@@ -827,101 +827,101 @@ export function FinanzasMovimientos() {
             </div>
           </div>
         </CardHeader>
-    <CardContent className="space-y-4">
-      {(!reporte?.movimientos || reporte.movimientos.length === 0) ? (
-        <div className="text-center py-12 space-y-4">
-          <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-12 transition-all duration-300">
-            <AlertCircle className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-foreground">
-              No hay movimientos hoy
-            </h3>
-            <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              Los ingresos y egresos que registres hoy aparecerÃ¡n aquÃ­
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="space-y-2">
-            {reporte.movimientos.map((movimiento) => (
-              <div
-                key={`${movimiento.tipo}-${movimiento.id}`}
-                className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
-              >
-                <div className="flex items-center gap-4 flex-1">
-                  <div className={`p-2 rounded-lg hover:scale-110 transition-transform duration-200 ${movimiento.tipo === 'ingreso'
-                    ? 'bg-green-500/10'
-                    : 'bg-red-500/10'
-                    }`}>
-                    {movimiento.tipo === 'ingreso' ? (
-                      <TrendingUp className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <TrendingDown className="h-5 w-5 text-red-500" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-foreground">
-                        {movimiento.concepto}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        â€¢ {formatearHora(movimiento.fecha)}
-                      </p>
-                    </div>
-                    {(movimiento.cita_id || movimiento.plan_tratamiento_id) && (
-                      <div className="flex gap-2 mt-1">
-                        {movimiento.cita_id && (
-                          <Badge variant="outline" className="text-xs">
-                            Cita #{movimiento.cita_id}
-                          </Badge>
-                        )}
-                        {movimiento.plan_tratamiento_id && (
-                          <Badge variant="outline" className="text-xs">
-                            Plan #{movimiento.plan_tratamiento_id}
-                          </Badge>
+        <CardContent className="space-y-4">
+          {(!reporte?.movimientos || reporte.movimientos.length === 0) ? (
+            <div className="text-center py-12 space-y-4">
+              <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-12 transition-all duration-300">
+                <AlertCircle className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-foreground">
+                  No hay movimientos hoy
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  Los ingresos y egresos que registres hoy aparecerÃ¡n aquÃ­
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                {reporte.movimientos.map((movimiento) => (
+                  <div
+                    key={`${movimiento.tipo}-${movimiento.id}`}
+                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className={`p-2 rounded-lg hover:scale-110 transition-transform duration-200 ${movimiento.tipo === 'ingreso'
+                        ? 'bg-green-500/10'
+                        : 'bg-red-500/10'
+                        }`}>
+                        {movimiento.tipo === 'ingreso' ? (
+                          <TrendingUp className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <TrendingDown className="h-5 w-5 text-red-500" />
                         )}
                       </div>
-                    )}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-foreground">
+                            {movimiento.concepto}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            â€¢ {formatearHora(movimiento.fecha)}
+                          </p>
+                        </div>
+                        {(movimiento.cita_id || movimiento.plan_tratamiento_id) && (
+                          <div className="flex gap-2 mt-1">
+                            {movimiento.cita_id && (
+                              <Badge variant="outline" className="text-xs">
+                                Cita #{movimiento.cita_id}
+                              </Badge>
+                            )}
+                            {movimiento.plan_tratamiento_id && (
+                              <Badge variant="outline" className="text-xs">
+                                Plan #{movimiento.plan_tratamiento_id}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className={`text-lg font-bold ${movimiento.tipo === 'ingreso'
+                        ? 'text-green-500'
+                        : 'text-red-500'
+                        }`}>
+                        {movimiento.tipo === 'ingreso' ? '+' : '-'}
+                        {formatearMoneda(movimiento.monto)}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 ml-4">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => movimiento.tipo === 'ingreso'
+                          ? abrirEditarIngreso(movimiento)
+                          : abrirEditarEgreso(movimiento)
+                        }
+                        className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                        title="Editar"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => abrirDialogoConfirmarEliminar(movimiento)}
+                        className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className={`text-lg font-bold ${movimiento.tipo === 'ingreso'
-                    ? 'text-green-500'
-                    : 'text-red-500'
-                    }`}>
-                    {movimiento.tipo === 'ingreso' ? '+' : '-'}
-                    {formatearMoneda(movimiento.monto)}
-                  </div>
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => movimiento.tipo === 'ingreso'
-                      ? abrirEditarIngreso(movimiento)
-                      : abrirEditarEgreso(movimiento)
-                    }
-                    className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
-                    title="Editar"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => abrirDialogoConfirmarEliminar(movimiento)}
-                    className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
-                    title="Eliminar"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </CardContent>
+            </div>
+          )}
+        </CardContent>
       </Card >
 
       <Dialog open={dialogo_ingreso_abierto} onOpenChange={setDialogoIngresoAbierto}>
@@ -971,28 +971,26 @@ export function FinanzasMovimientos() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fecha_ingreso">Fecha *</Label>
-                <DatePicker
-                  valor={formulario_ingreso.fecha}
-                  onChange={(fecha) => fecha && setFormularioIngreso({ ...formulario_ingreso, fecha })}
-                  placeholder="Selecciona fecha"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="fecha_ingreso">Fecha y Hora *</Label>
+              <DateTimePicker
+                valor={formulario_ingreso.fecha}
+                onChange={(fecha) => fecha && setFormularioIngreso({ ...formulario_ingreso, fecha })}
+                placeholder="Selecciona fecha y hora"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="monto_ingreso">Monto (Bs.) *</Label>
-                <Input
-                  id="monto_ingreso"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formulario_ingreso.monto}
-                  onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, monto: e.target.value })}
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="monto_ingreso">Monto (Bs.) *</Label>
+              <Input
+                id="monto_ingreso"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formulario_ingreso.monto}
+                onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, monto: e.target.value })}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
             </div>
 
             {modo_edicion_ingreso && movimiento_seleccionado && (
@@ -1052,28 +1050,26 @@ export function FinanzasMovimientos() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fecha_egreso">Fecha *</Label>
-                <DatePicker
-                  valor={formulario_egreso.fecha}
-                  onChange={(fecha) => fecha && setFormularioEgreso({ ...formulario_egreso, fecha })}
-                  placeholder="Selecciona fecha"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="fecha_egreso">Fecha y Hora *</Label>
+              <DateTimePicker
+                valor={formulario_egreso.fecha}
+                onChange={(fecha) => fecha && setFormularioEgreso({ ...formulario_egreso, fecha })}
+                placeholder="Selecciona fecha y hora"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="monto_egreso">Monto (Bs.) *</Label>
-                <Input
-                  id="monto_egreso"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formulario_egreso.monto}
-                  onChange={(e) => setFormularioEgreso({ ...formulario_egreso, monto: e.target.value })}
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="monto_egreso">Monto (Bs.) *</Label>
+              <Input
+                id="monto_egreso"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formulario_egreso.monto}
+                onChange={(e) => setFormularioEgreso({ ...formulario_egreso, monto: e.target.value })}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
             </div>
           </div>
 

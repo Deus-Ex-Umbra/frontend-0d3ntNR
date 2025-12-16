@@ -878,6 +878,7 @@ export const inventarioApi = {
     cantidad: number;
     motivo: string;
     observaciones?: string;
+    fecha?: string;
   }) => {
     const respuesta = await api.post(`/inventario/${inventario_id}/ajustar-stock`, datos);
     return respuesta.data;
@@ -887,6 +888,7 @@ export const inventarioApi = {
     registrar_pago?: boolean;
     tipo_salida: 'venta' | 'desecho' | 'robo';
     observaciones?: string;
+    fecha_venta?: string;
   }) => {
     const respuesta = await api.post(`/inventario/${inventario_id}/activos/${activo_id}/vender`, datos);
     return respuesta.data;
