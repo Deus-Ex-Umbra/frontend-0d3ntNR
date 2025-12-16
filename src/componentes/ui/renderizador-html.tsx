@@ -161,23 +161,15 @@ export function RenderizadorHtml({
     return () => ro.disconnect();
   }, []);
 
-  // Función para calcular saltos de página respetando límites de líneas
   const calcularSaltosDePagina = useCallback((container: HTMLDivElement, alturaDisponible: number): number[] => {
     const breaks: number[] = [0];
-
-    // Calcular line-height dinámicamente del contenedor
     const computedStyle = window.getComputedStyle(container);
     const fontSize = parseFloat(computedStyle.fontSize) || 16;
     const lineHeight = parseFloat(computedStyle.lineHeight) || fontSize * 1.625;
-    
-    // Buffer de seguridad basado en line-height real (1.5x para estar seguros)
     const bufferSeguridad = lineHeight * 1.5;
-
-    // Obtener todos los elementos de bloque dentro del contenedor
     const elementos = container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, div, table, tr, blockquote');
 
     if (elementos.length === 0) {
-      // Si no hay elementos de bloque, usar el método tradicional
       const totalHeight = container.scrollHeight;
       const numPages = Math.max(1, Math.ceil(totalHeight / alturaDisponible));
       for (let i = 1; i < numPages; i++) {
@@ -195,15 +187,9 @@ export function RenderizadorHtml({
       const elementoTop = rect.top - containerRect.top;
       const elementoBottom = rect.bottom - containerRect.top;
       const elementoHeight = rect.height;
-
-      // Calcular posición relativa desde el inicio de la página actual
       const posicionEnPagina = elementoBottom - paginaActualTop;
-
-      // Si el elemento completo excede la altura disponible de la página
       if (posicionEnPagina > alturaDisponible) {
-        // Verificar si el elemento cabe completo en una página
         if (elementoHeight <= alturaDisponible) {
-          // El elemento cabe completo, hacer salto antes de él
           const nuevoBreak = elementoTop;
           if (nuevoBreak > breaks[breaks.length - 1]) {
             breaks.push(nuevoBreak);
@@ -211,15 +197,11 @@ export function RenderizadorHtml({
             alturaAcumulada = elementoHeight;
           }
         } else {
-          // El elemento es más alto que una página (por ejemplo, una tabla grande)
-          // Hacer salto de página donde estamos y dejar que se corte
           const nuevoBreak = paginaActualTop + alturaDisponible;
           if (nuevoBreak > breaks[breaks.length - 1]) {
             breaks.push(nuevoBreak);
             paginaActualTop = nuevoBreak;
             alturaAcumulada = elementoBottom - nuevoBreak;
-
-            // Continuar agregando saltos si el elemento sigue siendo muy alto
             while (alturaAcumulada > alturaDisponible - bufferSeguridad) {
               const siguienteBreak = paginaActualTop + alturaDisponible;
               breaks.push(siguienteBreak);
@@ -262,7 +244,6 @@ export function RenderizadorHtml({
       }
       setHtmlParaMostrar(container.innerHTML);
       if (modoDocumento) {
-        // Calcular saltos de página respetando límites de elementos
         const breaks = calcularSaltosDePagina(container, contentAreaHeight);
         setPageBreaks(breaks);
 
@@ -336,34 +317,23 @@ export function RenderizadorHtml({
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
-
-  // Estilos sincronizados con el editor TipTap (prose-sm) para evitar discrepancias
-  // IMPORTANTE: Debe coincidir EXACTAMENTE con el editor para evitar diferencias de ajuste de texto
   const contentStyle: React.CSSProperties = {
     whiteSpace: 'pre-wrap',
     wordWrap: 'break-word',
     overflowWrap: 'break-word',
     wordBreak: 'break-word',
     width: '100%',
-    // Usar la misma familia de fuentes que el navegador usa en TipTap prose-sm
     fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
     fontSize: '16px',
-    // Mantener exactamente el mismo line-height que el editor ProseMirror (prose-sm)
     lineHeight: '1.5',
     color: modoDocumento ? '#000' : 'inherit',
     textAlign: 'left',
-    // Evitar ligaduras que puedan causar diferencias de anchura
     fontVariantLigatures: 'none',
-    // Establecer letter-spacing normal para evitar diferencias
     letterSpacing: 'normal',
-    // Asegurar el mismo kerning
     fontKerning: 'normal',
-    // Box-sizing para cálculos consistentes
     boxSizing: 'border-box',
-    // Padding 0 explícito para evitar diferencias
     padding: '0',
     margin: '0',
-    // Forzar el mismo rendering de texto
     WebkitFontSmoothing: 'antialiased',
     MozOsxFontSmoothing: 'grayscale',
   };

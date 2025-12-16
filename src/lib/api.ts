@@ -443,6 +443,7 @@ export const catalogoApi = {
     nombre_clinica?: string;
     mensaje_bienvenida_antes?: string;
     mensaje_bienvenida_despues?: string;
+    tema_personalizado?: string;
   }) => {
     const respuesta = await api.put('/catalogo/configuracion-clinica', datos);
     return respuesta.data;
@@ -1030,6 +1031,7 @@ export const reportesApi = {
     areas: string[];
     fecha_inicio?: string;
     fecha_fin?: string;
+    incluir_sugerencias?: boolean;
   }) => {
     const respuesta = await api.post('/reportes/generar', datos);
     return respuesta.data;

@@ -315,8 +315,6 @@ export default function Tratamientos() {
   const formularioPlantillaCambio = (): boolean => {
     if (!modo_edicion) return true;
     const datos_cambiaron = JSON.stringify(formulario_plantilla) !== JSON.stringify(formulario_plantilla_inicial);
-
-    // Comparación profunda de arrays
     const generales_cambiaron = JSON.stringify(materiales_generales) !== JSON.stringify(materiales_generales_iniciales);
     const consumibles_cambiaron = JSON.stringify(consumibles_plantilla) !== JSON.stringify(consumibles_plantilla_inicial);
     const activos_cambiaron = JSON.stringify(activos_plantilla) !== JSON.stringify(activos_plantilla_inicial);
@@ -453,8 +451,6 @@ export default function Tratamientos() {
         (mat.tipo === 'unico' || mat.tipo === 'inicio') && mat.confirmado === true
       );
       setMaterialesGeneralesConfirmados(materiales_confirmados);
-
-      // Transformar a estructura plana para WizardConsumibles
       const nuevos_materiales = materiales
         .filter((mat: any) => mat.tipo === 'unico' || mat.tipo === 'inicio')
         .map((mat: any) => ({
@@ -464,7 +460,7 @@ export default function Tratamientos() {
           producto_nombre: mat.producto_nombre || 'Producto',
           material_id: mat.material_id || 0,
           cantidad: mat.cantidad_planeada,
-          stock_disponible: 0, // No relevante para visualización aquí
+          stock_disponible: 0,
           unidad_medida: mat.unidad_medida || 'unidades',
           permite_decimales: mat.permite_decimales,
           momento_confirmacion: mat.momento_confirmacion
@@ -507,7 +503,6 @@ export default function Tratamientos() {
     setModoEdicion(false);
     setMomentoConfirmacionGlobal('primera_cita');
 
-    // Forzar carga de inventarios si no están cargados
     if (inventarios.length === 0) {
       try {
         const datos_inventarios = await inventarioApi.obtenerInventarios();
@@ -544,7 +539,6 @@ export default function Tratamientos() {
     setModoEdicion(true);
     setCargandoMateriales(true);
 
-    // Forzar carga de inventarios si no están cargados
     if (inventarios.length === 0) {
       try {
         const datos_inventarios = await inventarioApi.obtenerInventarios();
@@ -560,7 +554,6 @@ export default function Tratamientos() {
       const materiales = await tratamientosApi.obtenerMaterialesPlantilla(tratamiento.id);
 
       if (materiales && materiales.length > 0) {
-        // Generales (unica vez)
         const generales = materiales.filter((m: any) => m.tipo_material === 'general' || m.es_general);
         const nuevosGenerales = generales.map((m: any) => ({
           inventario_id: m.inventario_id,
@@ -575,18 +568,12 @@ export default function Tratamientos() {
           momento_confirmacion: m.momento_confirmacion || 'primera_cita',
         }));
         setMaterialesGenerales(nuevosGenerales);
-
-        // Establecer momento de confirmación global basado en el primer elemento (o defecto)
         if (nuevosGenerales.length > 0) {
           setMomentoConfirmacionGlobal(nuevosGenerales[0].momento_confirmacion || 'primera_cita');
         } else {
           setMomentoConfirmacionGlobal('primera_cita');
         }
-
-        // Por Cita (recurrentes)
         const porCita = materiales.filter((m: any) => m.tipo_material === 'por_cita' || (!m.es_general && m.tipo_material !== 'general'));
-
-        // Separar en Consumibles y Activos usando tipo_producto
         const cons = porCita.filter((m: any) => m.tipo_producto === 'material' || !m.tipo_producto);
         const acts = porCita.filter((m: any) => m.tipo_producto === 'activo_fijo');
 
@@ -613,8 +600,6 @@ export default function Tratamientos() {
           nombre_producto: m.producto_nombre || 'Activo',
           estado: 'disponible'
         })));
-
-        // Establecer estados iniciales después de cargar y procesar
         setMaterialesGeneralesIniciales(JSON.parse(JSON.stringify(nuevosGenerales)));
         setConsumiblesPlantillaInicial(JSON.parse(JSON.stringify(cons.map((m: any) => ({
           inventario_id: m.inventario_id,
@@ -748,7 +733,7 @@ export default function Tratamientos() {
           })),
           ...activos_plantilla.map(a => ({
             producto_id: a.producto_id,
-            cantidad: 1, // Los activos fijos son unitarios por definición en asignación
+            cantidad: 1,
             tipo: 'activo_fijo'
           }))
         ],
@@ -887,7 +872,6 @@ export default function Tratamientos() {
   };
 
   const verDetallePlan = async (plan: PlanTratamiento) => {
-    // Ordenar citas cronológicamente antes de establecer el plan
     const plan_ordenado = {
       ...plan,
       citas: [...(plan.citas || [])].sort((a, b) =>
@@ -937,8 +921,6 @@ export default function Tratamientos() {
     setActivosSeleccionadosCita([]);
     setConsumiblesSeleccionadosCitaInicial([]);
     setActivosSeleccionadosCitaInicial([]);
-
-    // Forzar carga de inventarios si no están cargados
     if (inventarios.length === 0) {
       try {
         const datos_inventarios = await inventarioApi.obtenerInventarios();
@@ -951,10 +933,7 @@ export default function Tratamientos() {
     if (!es_pasada && cita.id) {
       setCargandoMateriales(true);
       try {
-        // Usar obtenerPorIdCompleto para obtener reservas reales
         const cita_completa = await agendaApi.obtenerPorIdCompleto(cita.id);
-
-        // Mapear reservas de materiales a consumibles seleccionados
         const consumibles_mapped = (cita_completa.reservas_materiales || []).map((rm: any) => ({
           inventario_id: rm.material?.producto?.inventario?.id || 0,
           inventario_nombre: rm.material?.producto?.inventario?.nombre || 'Inventario',
@@ -967,8 +946,6 @@ export default function Tratamientos() {
           unidad_medida: rm.material?.producto?.unidad_medida || 'unidades',
           permite_decimales: rm.material?.producto?.permite_decimales ?? true,
         }));
-
-        // Mapear reservas de activos
         const activos_mapped = (cita_completa.reservas_activos || []).map((ra: any) => ({
           inventario_id: ra.activo?.producto?.inventario?.id || 0,
           inventario_nombre: ra.activo?.producto?.inventario?.nombre || 'Inventario',
@@ -980,11 +957,8 @@ export default function Tratamientos() {
           nombre_asignado: ra.activo?.nombre_asignado,
           estado: ra.activo?.estado || 'disponible',
         }));
-
         setConsumiblesSeleccionadosCita(consumibles_mapped);
         setActivosSeleccionadosCita(activos_mapped);
-
-        // Set initial
         setConsumiblesSeleccionadosCitaInicial(JSON.parse(JSON.stringify(consumibles_mapped)));
         setActivosSeleccionadosCitaInicial(JSON.parse(JSON.stringify(activos_mapped)));
 
@@ -2530,8 +2504,6 @@ export default function Tratamientos() {
                   </Button>
                 </div>
               )}
-
-              {/* Botón para ver consumibles cuando NO están confirmados pero existen */}
               {!materiales_generales_confirmados && materiales_generales.length > 0 && (
                 <div className="flex justify-end">
                   <Button
@@ -3137,8 +3109,6 @@ export default function Tratamientos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Diálogo para Visualizar Consumibles Generales */}
       <Dialog open={dialogo_ver_consumibles_abierto} onOpenChange={setDialogoVerConsumiblesAbierto}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

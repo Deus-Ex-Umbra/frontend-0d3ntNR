@@ -973,23 +973,15 @@ export default function Agenda() {
     setCargandoMateriales(true);
     setEstadoPagoConfirmacion(cita.estado_pago || 'pendiente');
     setMontoConfirmacion(cita.monto_esperado?.toString() || '');
-
-    // Limpiar estados anteriores
     setConsumiblesConfirmacion([]);
     setActivosConfirmacion([]);
-    setMaterialesConfirmacion([]); // Mantener por compatibilidad si se usa en otro lado, pero vacio
-    setMaterialesAdicionalesConfirmacion([]);
+    setMaterialesConfirmacion([]);
     setMostrarAgregarMaterialesConfirmacion(false);
-
     try {
-      // Cargar inventarios para los selectores
       await cargarInventarios();
-
       const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
-
       const consumibles_mapeados: any[] = [];
       const activos_mapeados: any[] = [];
-
       if (respuesta.materiales) {
         for (const reserva of respuesta.materiales) {
           const cant_planeada = parseFloat(reserva.cantidad_reservada?.toString() || '0');
@@ -1055,22 +1047,16 @@ export default function Agenda() {
         minutos_aproximados: cita_seleccionada.minutos_aproximados,
         paciente_id: cita_seleccionada.paciente?.id,
       });
-
-      // 1. Identificar materiales nuevos (sin ID de reserva) y existentes
       const consumibles_nuevos = consumibles_confirmacion.filter(m => !m.material_cita_id);
       const consumibles_existentes = consumibles_confirmacion.filter(m => m.material_cita_id);
-
       const activos_nuevos = activos_confirmacion.filter(a => !a.material_cita_id);
       const activos_existentes = activos_confirmacion.filter(a => a.material_cita_id);
-
-      // 2. Agregar nuevos materiales
       const materiales_a_agregar = [];
-
       for (const m of consumibles_nuevos) {
         materiales_a_agregar.push({
           producto_id: m.producto_id,
           inventario_id: m.inventario_id,
-          lote_id: m.material_id, // En WizardConsumibles, material_id es el ID del lote/stock
+          lote_id: m.material_id,
           cantidad_planeada: m.cantidad
         });
       }
@@ -1083,14 +1069,11 @@ export default function Agenda() {
           cantidad_planeada: 1
         });
       }
-
       if (materiales_a_agregar.length > 0) {
         await inventarioApi.agregarMaterialesCita(cita_seleccionada.id, {
           materiales: materiales_a_agregar
         });
       }
-
-      // 3. Confirmar materiales existentes
       const materiales_a_confirmar = [];
 
       for (const m of consumibles_existentes) {
@@ -1114,8 +1097,6 @@ export default function Agenda() {
           });
         }
       }
-
-      // Siempre llamar a confirmar para marcar la cita como confirmada, incluso si no hay materiales
       await inventarioApi.confirmarMaterialesCita(cita_seleccionada.id, {
         materiales: materiales_a_confirmar
       });

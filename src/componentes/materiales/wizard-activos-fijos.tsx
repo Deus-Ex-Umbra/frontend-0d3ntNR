@@ -17,7 +17,7 @@ interface ActivoSeleccionado {
     nro_serie?: string;
     nombre_asignado?: string;
     estado: string;
-    material_cita_id?: number; // ID de la reserva si ya existe
+    material_cita_id?: number;
 }
 
 interface WizardActivosFijosProps {
@@ -91,7 +91,6 @@ export default function WizardActivosFijos({
 
         setCargandoActivo(true);
         setEstado({ ...estado, activo: activo });
-        // Simulate a brief loading state to give visual feedback
         setTimeout(() => setCargandoActivo(false), 300);
     };
 

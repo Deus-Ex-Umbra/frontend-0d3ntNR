@@ -7,9 +7,10 @@ import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
-import { User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill, Building2, ImageIcon, X } from 'lucide-react';
+import { User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill, Building2, ImageIcon, X, Settings2 } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
-import { useTema } from '@/contextos/tema-contexto';
+import { useTema, TemaPersonalizado } from '@/contextos/tema-contexto';
+import { useClinica } from '@/contextos/clinica-contexto';
 import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
@@ -19,6 +20,9 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ItemCatalogo } from '@/tipos';
 import { GestionTamanosPapel } from '@/componentes/catalogo/gestion-tamanos-papel';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/componentes/ui/dialog';
+import { HexColorPicker } from 'react-colorful';
+import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
 
 interface Nota {
   id: number;
@@ -28,7 +32,22 @@ interface Nota {
 
 export default function Configuracion() {
   const { usuario, actualizarUsuario } = useAutenticacion();
-  const { tema, cambiarTema, tema_efectivo } = useTema();
+  const { tema, cambiarTema, tema_efectivo, tema_personalizado, actualizarTemaPersonalizado, aplicarColoresPersonalizados } = useTema();
+  const { actualizarConfigClinica } = useClinica();
+  const [colores_personalizados, setColoresPersonalizados] = useState<TemaPersonalizado>({
+    background: '#ffffff',
+    foreground: '#0a0a0a',
+    primary: '#3b82f6',
+    secondary: '#f1f5f9',
+    accent: '#e0f2fe',
+    muted: '#f1f5f9',
+    border: '#e2e8f0',
+  });
+  const [guardando_tema, setGuardandoTema] = useState(false);
+  const [dialogo_personalizado_abierto, setDialogoPersonalizadoAbierto] = useState(false);
+  const [dialogo_confirmar_salir, setDialogoConfirmarSalir] = useState(false);
+  const [colores_temporales, setColoresTemporales] = useState<TemaPersonalizado | null>(null);
+  const [tema_modificado, setTemaModificado] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [cargando_frase, setCargandoFrase] = useState(false);
   const [frase_motivacional, setFraseMotivacional] = useState('');
@@ -53,10 +72,8 @@ export default function Configuracion() {
   });
 
   const [cambiando_contrasena, setCambiandoContrasena] = useState(false);
-
   const [nota_diaria, setNotaDiaria] = useState('');
   const [guardando_nota, setGuardandoNota] = useState(false);
-
   const [alergias, setAlergias] = useState<ItemCatalogo[]>([]);
   const [enfermedades, setEnfermedades] = useState<ItemCatalogo[]>([]);
   const [medicamentos, setMedicamentos] = useState<ItemCatalogo[]>([]);
@@ -64,7 +81,6 @@ export default function Configuracion() {
   const [etiquetas_plantillas, setEtiquetasPlantillas] = useState<ItemCatalogo[]>([]);
   const [cargando_catalogos, setCargandoCatalogos] = useState(false);
 
-  // Estado para configuración de clínica
   const [config_clinica, setConfigClinica] = useState({
     logo: '',
     nombre_clinica: '',
@@ -75,18 +91,43 @@ export default function Configuracion() {
   const [guardando_clinica, setGuardandoClinica] = useState(false);
 
   const temas_disponibles = [
-    { valor: 'sistema', nombre: 'Sistema', icono: Monitor, descripcion: 'Usar tema del sistema', categoria: 'General' },
-    { valor: 'claro', nombre: 'Claro', icono: Sun, descripcion: 'Tema claro tradicional', categoria: 'General' },
-    { valor: 'oscuro', nombre: 'Oscuro', icono: Moon, descripcion: 'Tema oscuro clásico', categoria: 'General' },
+    // Base - Los fundamentales
+    { valor: 'claro', nombre: 'Claro', icono: Sun, descripcion: 'Tema claro tradicional', categoria: 'Base' },
+    { valor: 'oscuro', nombre: 'Oscuro', icono: Moon, descripcion: 'Tema oscuro clásico', categoria: 'Base' },
+    { valor: 'azul', nombre: 'Azul Océano', icono: Droplet, descripcion: 'Tonos azules profundos', categoria: 'Base' },
+    // Médico - Temas profesionales para clínica
     { valor: 'clinico', nombre: 'Clínico Blanco', icono: Stethoscope, descripcion: 'Limpio y profesional', categoria: 'Médico' },
     { valor: 'menta', nombre: 'Menta Dental', icono: Pill, descripcion: 'Verde menta relajante', categoria: 'Médico' },
-    { valor: 'azul', nombre: 'Azul Océano', icono: Droplet, descripcion: 'Tonos azules profundos', categoria: 'Colores' },
-    { valor: 'verde', nombre: 'Verde Bosque', icono: Leaf, descripcion: 'Tonos verdes naturales', categoria: 'Colores' },
-    { valor: 'rosa', nombre: 'Rosa Elegante', icono: Heart, descripcion: 'Tonos rosa suaves', categoria: 'Colores' },
-    { valor: 'beige', nombre: 'Beige Cálido', icono: Coffee, descripcion: 'Tonos beige y hueso', categoria: 'Colores' },
-    { valor: 'gris', nombre: 'Gris Neutro', icono: Layers, descripcion: 'Escala de grises pura', categoria: 'Colores' },
-    { valor: 'morado', nombre: 'Morado Real', icono: Grape, descripcion: 'Tonos morados elegantes', categoria: 'Colores' },
-    { valor: 'naranja', nombre: 'Naranja Fuego', icono: Flame, descripcion: 'Tonos naranjas cálidos', categoria: 'Colores' },
+    { valor: 'menta-claro', nombre: 'Menta Claro', icono: Pill, descripcion: 'Menta dental refrescante', categoria: 'Médico' },
+    // Colores Claros - Variantes luminosas
+    { valor: 'azul-claro', nombre: 'Azul Claro', icono: Droplet, descripcion: 'Azul suave y luminoso', categoria: 'Colores Claros' },
+    { valor: 'verde-claro', nombre: 'Verde Claro', icono: Leaf, descripcion: 'Verde natural y fresco', categoria: 'Colores Claros' },
+    { valor: 'rosa-claro', nombre: 'Rosa Claro', icono: Heart, descripcion: 'Rosa suave y elegante', categoria: 'Colores Claros' },
+    { valor: 'beige-claro', nombre: 'Beige Claro', icono: Coffee, descripcion: 'Beige cálido y acogedor', categoria: 'Colores Claros' },
+    { valor: 'gris-claro', nombre: 'Gris Claro', icono: Layers, descripcion: 'Gris neutro y minimalista', categoria: 'Colores Claros' },
+    { valor: 'morado-claro', nombre: 'Morado Claro', icono: Grape, descripcion: 'Morado suave y delicado', categoria: 'Colores Claros' },
+    { valor: 'naranja-claro', nombre: 'Naranja Claro', icono: Flame, descripcion: 'Naranja cálido y energético', categoria: 'Colores Claros' },
+    // Colores Oscuros - Variantes profundas
+    { valor: 'verde', nombre: 'Verde Bosque', icono: Leaf, descripcion: 'Tonos verdes naturales', categoria: 'Colores Oscuros' },
+    { valor: 'rosa', nombre: 'Rosa Elegante', icono: Heart, descripcion: 'Tonos rosa intensos', categoria: 'Colores Oscuros' },
+    { valor: 'beige', nombre: 'Beige Cálido', icono: Coffee, descripcion: 'Tonos beige y hueso', categoria: 'Colores Oscuros' },
+    { valor: 'gris', nombre: 'Gris Neutro', icono: Layers, descripcion: 'Escala de grises pura', categoria: 'Colores Oscuros' },
+    { valor: 'morado', nombre: 'Morado Real', icono: Grape, descripcion: 'Tonos morados elegantes', categoria: 'Colores Oscuros' },
+    { valor: 'naranja', nombre: 'Naranja Fuego', icono: Flame, descripcion: 'Tonos naranjas cálidos', categoria: 'Colores Oscuros' },
+    // Especiales - Temas únicos y creativos
+    { valor: 'cielo-abierto', nombre: 'Cielo Abierto', icono: Sun, descripcion: 'Azul cielo luminoso', categoria: 'Especiales' },
+    { valor: 'esmeralda', nombre: 'Esmeralda', icono: Leaf, descripcion: 'Verde esmeralda vibrante', categoria: 'Especiales' },
+    { valor: 'atardecer', nombre: 'Atardecer', icono: Moon, descripcion: 'Tonos cálidos nocturnos', categoria: 'Especiales' },
+    { valor: 'cafe-leche', nombre: 'Café con Leche', icono: Coffee, descripcion: 'Tonos café acogedores', categoria: 'Especiales' },
+    { valor: 'artico', nombre: 'Ártico', icono: Layers, descripcion: 'Blanco y gris helado', categoria: 'Especiales' },
+    { valor: 'neon-cyber', nombre: 'Neón Cyber', icono: Flame, descripcion: 'Verde neón futurista', categoria: 'Especiales' },
+    { valor: 'vintage-sepia', nombre: 'Vintage Sepia', icono: Coffee, descripcion: 'Estilo retro cálido', categoria: 'Especiales' },
+    { valor: 'azul-hielo', nombre: 'Azul Hielo', icono: Droplet, descripcion: 'Azul cristalino', categoria: 'Especiales' },
+    // Monocromáticos - Escala de grises pura (sin colores)
+    { valor: 'mono-claro', nombre: 'Monocromático Claro', icono: Layers, descripcion: 'Blanco puro, serio y minimalista', categoria: 'Monocromáticos' },
+    { valor: 'mono-oscuro', nombre: 'Monocromático Oscuro', icono: Layers, descripcion: 'Negro puro, elegante y sobrio', categoria: 'Monocromáticos' },
+    // Personalizado - Crea tu propio tema
+    { valor: 'personalizado', nombre: 'Personalizado', icono: Settings2, descripcion: 'Crea tu propio tema', categoria: 'Personalizado' },
   ];
 
   const temas_por_categoria = temas_disponibles.reduce((acc, tema) => {
@@ -171,6 +212,13 @@ export default function Configuracion() {
     setGuardandoClinica(true);
     try {
       await catalogoApi.actualizarConfiguracionClinica(config_clinica);
+      // Actualizar el contexto global para que el menú lateral se actualice inmediatamente
+      actualizarConfigClinica({
+        logo: config_clinica.logo,
+        nombre_clinica: config_clinica.nombre_clinica,
+        mensaje_bienvenida_antes: config_clinica.mensaje_bienvenida_antes,
+        mensaje_bienvenida_despues: config_clinica.mensaje_bienvenida_despues,
+      });
       toast({
         title: 'Éxito',
         description: 'Configuración de clínica guardada correctamente',
@@ -413,17 +461,71 @@ export default function Configuracion() {
     const nombres: Record<string, string> = {
       'claro': 'Claro',
       'oscuro': 'Oscuro',
-      'azul': 'Azul Océano',
-      'verde': 'Verde Bosque',
-      'rosa': 'Rosa Elegante',
-      'beige': 'Beige Cálido',
-      'gris': 'Gris Neutro',
-      'morado': 'Morado Real',
-      'naranja': 'Naranja Fuego',
       'clinico': 'Clínico Blanco',
+      'azul': 'Azul Océano',
+      'azul-claro': 'Azul Claro',
+      'verde': 'Verde Bosque',
+      'verde-claro': 'Verde Claro',
+      'rosa': 'Rosa Elegante',
+      'rosa-claro': 'Rosa Claro',
+      'beige': 'Beige Cálido',
+      'beige-claro': 'Beige Claro',
+      'gris': 'Gris Neutro',
+      'gris-claro': 'Gris Claro',
+      'morado': 'Morado Real',
+      'morado-claro': 'Morado Claro',
+      'naranja': 'Naranja Fuego',
+      'naranja-claro': 'Naranja Claro',
       'menta': 'Menta Dental',
+      'menta-claro': 'Menta Claro',
+      'personalizado': 'Personalizado',
     };
     return nombres[tema_efectivo] || tema_efectivo;
+  };
+
+  // Cargar tema personalizado desde backend al iniciar
+  useEffect(() => {
+    if (tema_personalizado) {
+      setColoresPersonalizados(tema_personalizado);
+    }
+  }, [tema_personalizado]);
+
+  // Manejar cambio de color en tiempo real
+  const manejarCambioColor = (campo: keyof TemaPersonalizado, valor: string) => {
+    const nuevos_colores = { ...colores_personalizados, [campo]: valor };
+    setColoresPersonalizados(nuevos_colores);
+
+    // Si estamos en tema personalizado, aplicar en tiempo real
+    if (tema === 'personalizado') {
+      aplicarColoresPersonalizados(nuevos_colores);
+    }
+  };
+
+  // Guardar tema personalizado en backend
+  const guardarTemaPersonalizado = async (colores?: TemaPersonalizado) => {
+    const coloresAGuardar = colores || colores_temporales || colores_personalizados;
+    setGuardandoTema(true);
+    try {
+      await catalogoApi.actualizarConfiguracionClinica({
+        tema_personalizado: JSON.stringify(coloresAGuardar),
+      });
+      setColoresPersonalizados(coloresAGuardar);
+      actualizarTemaPersonalizado(coloresAGuardar);
+      aplicarColoresPersonalizados(coloresAGuardar);
+      toast({
+        title: 'Éxito',
+        description: 'Tu tema personalizado ha sido guardado',
+      });
+    } catch (error: any) {
+      console.error('Error al guardar tema:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo guardar el tema personalizado',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardandoTema(false);
+    }
   };
 
   return (
@@ -692,7 +794,6 @@ export default function Configuracion() {
 
             <TabsContent value="clinica" className="space-y-6 mt-6">
               <div className="grid gap-6 lg:grid-cols-2">
-                {/* Formulario de configuración */}
                 <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
                   <CardHeader>
                     <div className="flex items-center gap-3">
@@ -715,7 +816,6 @@ export default function Configuracion() {
                       </div>
                     ) : (
                       <>
-                        {/* Logo de la clínica */}
                         <div className="space-y-3">
                           <Label>Logo de la Clínica</Label>
                           <div className="flex items-center gap-4">
@@ -759,8 +859,6 @@ export default function Configuracion() {
                             </div>
                           </div>
                         </div>
-
-                        {/* Nombre de la clínica */}
                         <div className="space-y-2">
                           <Label htmlFor="nombre_clinica">Nombre de la Clínica</Label>
                           <Input
@@ -774,8 +872,6 @@ export default function Configuracion() {
                             Si está vacío, el mensaje de bienvenida no incluirá el nombre de la clínica
                           </p>
                         </div>
-
-                        {/* Mensaje de bienvenida */}
                         <div className="space-y-4">
                           <Label>Mensaje de Bienvenida</Label>
                           <div className="grid gap-4">
@@ -823,8 +919,6 @@ export default function Configuracion() {
                     )}
                   </CardContent>
                 </Card>
-
-                {/* Vista previa */}
                 <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
                   <CardHeader>
                     <div className="flex items-center gap-3">
@@ -840,7 +934,6 @@ export default function Configuracion() {
                   <CardContent>
                     <div className="p-6 rounded-xl bg-gradient-to-br from-background via-background to-secondary/20 border-2 border-border">
                       <div className="space-y-4">
-                        {/* Logo preview */}
                         {config_clinica.logo && (
                           <div className="flex justify-center mb-4">
                             <div className="h-16 w-auto max-w-[200px] overflow-hidden">
@@ -852,8 +945,6 @@ export default function Configuracion() {
                             </div>
                           </div>
                         )}
-
-                        {/* Welcome message preview */}
                         <div className="space-y-2">
                           <h1 className="text-2xl font-bold text-foreground tracking-tight">
                             {config_clinica.mensaje_bienvenida_antes}
@@ -872,8 +963,6 @@ export default function Configuracion() {
                             )}
                           </p>
                         </div>
-
-                        {/* Mock dashboard cards */}
                         <div className="grid grid-cols-2 gap-3 mt-6">
                           <div className="p-3 rounded-lg bg-secondary/50 border border-border">
                             <p className="text-xs text-muted-foreground">Pacientes</p>
@@ -964,6 +1053,690 @@ export default function Configuracion() {
                       </div>
                     </div>
                   ))}
+
+                  {/* Botón para abrir editor de tema personalizado */}
+                  {tema === 'personalizado' && (
+                    <div className="p-4 rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-primary/20 p-2 rounded-lg">
+                            <Settings2 className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-foreground">Tema Personalizado Activo</h3>
+                            <p className="text-sm text-muted-foreground">Haz clic para personalizar los colores</p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => {
+                            setColoresTemporales({ ...colores_personalizados });
+                            setTemaModificado(false);
+                            setDialogoPersonalizadoAbierto(true);
+                          }}
+                          variant="outline"
+                          className="hover:shadow-lg transition-all"
+                        >
+                          <Palette className="mr-2 h-4 w-4" />
+                          Personalizar Colores
+                        </Button>
+                      </div>
+
+                      {/* Mini preview de los colores actuales */}
+                      <div className="flex gap-2 mt-4">
+                        {[
+                          { color: colores_personalizados.background, tooltip: 'Fondo' },
+                          { color: colores_personalizados.primary, tooltip: 'Primario' },
+                          { color: colores_personalizados.secondary, tooltip: 'Secundario' },
+                          { color: colores_personalizados.accent, tooltip: 'Acento' },
+                          { color: colores_personalizados.muted, tooltip: 'Atenuado' },
+                          { color: colores_personalizados.border, tooltip: 'Bordes' },
+                        ].map((item, i) => (
+                          <div
+                            key={i}
+                            className="h-6 w-6 rounded-md border border-border/50 shadow-sm"
+                            style={{ backgroundColor: item.color }}
+                            title={item.tooltip}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dialog para editar tema personalizado */}
+                  <Dialog
+                    open={dialogo_personalizado_abierto}
+                    onOpenChange={(open) => {
+                      if (!open && tema_modificado) {
+                        setDialogoConfirmarSalir(true);
+                      } else {
+                        setDialogoPersonalizadoAbierto(open);
+                      }
+                    }}
+                  >
+                    <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <Settings2 className="h-5 w-5" />
+                          Editor de Tema Personalizado
+                        </DialogTitle>
+                        <DialogDescription>
+                          Los colores se aplican en tiempo real a la interfaz. Si cancelas, se revertirán automáticamente.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      {/* Paletas predefinidas organizadas por categoría */}
+                      <div className="mt-4">
+                        <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-3">
+                          💡 Paletas de Inspiración
+                        </h4>
+                        <Tabs defaultValue="base" className="w-full">
+                          <TabsList className="w-full grid grid-cols-6 mb-3">
+                            <TabsTrigger value="base" className="text-xs">Base</TabsTrigger>
+                            <TabsTrigger value="medico" className="text-xs">Médico</TabsTrigger>
+                            <TabsTrigger value="claros" className="text-xs">Claros</TabsTrigger>
+                            <TabsTrigger value="oscuros" className="text-xs">Oscuros</TabsTrigger>
+                            <TabsTrigger value="especiales" className="text-xs">Especiales</TabsTrigger>
+                            <TabsTrigger value="mono" className="text-xs">Mono</TabsTrigger>
+                          </TabsList>
+
+                          <TabsContent value="base" className="mt-0">
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                // :root (Claro) - tema por defecto
+                                {
+                                  nombre: 'Claro', colores: {
+                                    background: '#ffffff', foreground: '#0a0a0a', primary: '#3b82f6', secondary: '#f1f5f9',
+                                    accent: '#f1f5f9', muted: '#f1f5f9', border: '#e2e8f0',
+                                    card: '#ffffff', cardForeground: '#0a0a0a', popover: '#ffffff', popoverForeground: '#0a0a0a',
+                                    primaryForeground: '#f8fafc', secondaryForeground: '#1e293b', mutedForeground: '#64748b',
+                                    accentForeground: '#1e293b', destructive: '#ef4444', destructiveForeground: '#f8fafc',
+                                    input: '#e2e8f0', ring: '#3b82f6'
+                                  }
+                                },
+                                // .dark (Oscuro) - bg 224 71% 4%, fg 213 31% 91%
+                                {
+                                  nombre: 'Oscuro', colores: {
+                                    background: '#020817', foreground: '#e1e7ef', primary: '#f8fafc', secondary: '#1e293b',
+                                    accent: '#1e3a5f', muted: '#1c1f26', border: '#1e3a5f',
+                                    card: '#020817', cardForeground: '#e1e7ef', popover: '#020817', popoverForeground: '#e1e7ef',
+                                    primaryForeground: '#1e293b', secondaryForeground: '#f8fafc', mutedForeground: '#8291a5',
+                                    accentForeground: '#f8fafc', destructive: '#7f1d1d', destructiveForeground: '#f8fafc',
+                                    input: '#1e3a5f', ring: '#1e3a5f'
+                                  }
+                                },
+                                // .blue (Azul Océano) - bg 210 100% 6%, primary 200 100% 50%
+                                {
+                                  nombre: 'Azul Océano', colores: {
+                                    background: '#001a33', foreground: '#f5f9fc', primary: '#00bfff', secondary: '#0d2b47',
+                                    accent: '#0f3354', muted: '#0d2b47', border: '#0f3354',
+                                    card: '#002040', cardForeground: '#f5f9fc', popover: '#001a33', popoverForeground: '#f5f9fc',
+                                    primaryForeground: '#001a33', secondaryForeground: '#f5f9fc', mutedForeground: '#8ab8d9',
+                                    accentForeground: '#f5f9fc', destructive: '#e53e3e', destructiveForeground: '#f5f9fc',
+                                    input: '#0d2b47', ring: '#00bfff'
+                                  }
+                                },
+                              ].map((paleta) => (
+                                <button key={paleta.nombre} onClick={() => { setColoresTemporales(paleta.colores); aplicarColoresPersonalizados(paleta.colores); setTemaModificado(true); }} className="p-2 rounded-lg border border-border hover:border-primary/50 hover:bg-secondary/30 transition-all text-left">
+                                  <div className="flex gap-1 mb-1">{[paleta.colores.background, paleta.colores.primary, paleta.colores.secondary, paleta.colores.accent].map((c, i) => (<div key={i} className="h-4 w-4 rounded-sm border border-border/30" style={{ backgroundColor: c }} />))}</div>
+                                  <span className="text-xs font-medium">{paleta.nombre}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="medico" className="mt-0">
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                // .clinical - Clínico Blanco
+                                {
+                                  nombre: 'Clínico Blanco', colores: {
+                                    background: '#f7f9fb', foreground: '#1f2d3d', primary: '#0d8ccf', secondary: '#edf2f7',
+                                    accent: '#c3e0f5', muted: '#edf2f7', border: '#d4dfe8',
+                                    card: '#ffffff', cardForeground: '#1f2d3d', popover: '#ffffff', popoverForeground: '#1f2d3d',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#1f2d3d', mutedForeground: '#5c7185',
+                                    accentForeground: '#1f2d3d', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#e6ecf2', ring: '#0d8ccf'
+                                  }
+                                },
+                                // .mint - Menta Dental (oscuro)
+                                {
+                                  nombre: 'Menta Dental', colores: {
+                                    background: '#0a1f1a', foreground: '#f2f7f5', primary: '#22c9a6', secondary: '#19332b',
+                                    accent: '#1b3d32', muted: '#19332b', border: '#1b3d32',
+                                    card: '#0d261f', cardForeground: '#f2f7f5', popover: '#0a1f1a', popoverForeground: '#f2f7f5',
+                                    primaryForeground: '#0a1f1a', secondaryForeground: '#f2f7f5', mutedForeground: '#8ab3a5',
+                                    accentForeground: '#f2f7f5', destructive: '#e53e3e', destructiveForeground: '#f2f7f5',
+                                    input: '#19332b', ring: '#22c9a6'
+                                  }
+                                },
+                                // .mint-light - Menta Claro
+                                {
+                                  nombre: 'Menta Claro', colores: {
+                                    background: '#f5fbf9', foreground: '#133d31', primary: '#1b9e7d', secondary: '#e6f4f0',
+                                    accent: '#d1ede4', muted: '#e6f4f0', border: '#c6e3da',
+                                    card: '#ffffff', cardForeground: '#133d31', popover: '#ffffff', popoverForeground: '#133d31',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#133d31', mutedForeground: '#5c8576',
+                                    accentForeground: '#133d31', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#d6ece5', ring: '#1b9e7d'
+                                  }
+                                },
+                              ].map((paleta) => (
+                                <button key={paleta.nombre} onClick={() => { setColoresTemporales(paleta.colores); aplicarColoresPersonalizados(paleta.colores); setTemaModificado(true); }} className="p-2 rounded-lg border border-border hover:border-primary/50 hover:bg-secondary/30 transition-all text-left">
+                                  <div className="flex gap-1 mb-1">{[paleta.colores.background, paleta.colores.primary, paleta.colores.secondary, paleta.colores.accent].map((c, i) => (<div key={i} className="h-4 w-4 rounded-sm border border-border/30" style={{ backgroundColor: c }} />))}</div>
+                                  <span className="text-xs font-medium">{paleta.nombre}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="claros" className="mt-0">
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                // .blue-light
+                                {
+                                  nombre: 'Azul Claro', colores: {
+                                    background: '#f5faff', foreground: '#0a3a66', primary: '#0091e6', secondary: '#e6f4fc',
+                                    accent: '#c2e5fa', muted: '#e6f4fc', border: '#c7e3f7',
+                                    card: '#ffffff', cardForeground: '#0a3a66', popover: '#ffffff', popoverForeground: '#0a3a66',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#0a3a66', mutedForeground: '#5c7a94',
+                                    accentForeground: '#0a3a66', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#e0f0fa', ring: '#0091e6'
+                                  }
+                                },
+                                // .green-light
+                                {
+                                  nombre: 'Verde Claro', colores: {
+                                    background: '#f5fcf7', foreground: '#133d1f', primary: '#22a352', secondary: '#e5f6eb',
+                                    accent: '#c2ebd1', muted: '#e5f6eb', border: '#bce6cb',
+                                    card: '#ffffff', cardForeground: '#133d1f', popover: '#ffffff', popoverForeground: '#133d1f',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#133d1f', mutedForeground: '#5c8568',
+                                    accentForeground: '#133d1f', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#daf2e3', ring: '#22a352'
+                                  }
+                                },
+                                // .rose-light
+                                {
+                                  nombre: 'Rosa Claro', colores: {
+                                    background: '#fdf5f8', foreground: '#3d1328', primary: '#db2778', secondary: '#fae6ed',
+                                    accent: '#f5c7db', muted: '#fae6ed', border: '#f2bdd4',
+                                    card: '#ffffff', cardForeground: '#3d1328', popover: '#ffffff', popoverForeground: '#3d1328',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#3d1328', mutedForeground: '#855c6e',
+                                    accentForeground: '#3d1328', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#f5d9e5', ring: '#db2778'
+                                  }
+                                },
+                                // .beige-light
+                                {
+                                  nombre: 'Beige Claro', colores: {
+                                    background: '#faf8f5', foreground: '#3d2914', primary: '#a36b2b', secondary: '#f2ebe2',
+                                    accent: '#e0d1be', muted: '#f2ebe2', border: '#d9cab5',
+                                    card: '#fcfaf8', cardForeground: '#3d2914', popover: '#fcfaf8', popoverForeground: '#3d2914',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#3d2914', mutedForeground: '#7a6652',
+                                    accentForeground: '#3d2914', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#ede4d9', ring: '#a36b2b'
+                                  }
+                                },
+                                // .purple-light
+                                {
+                                  nombre: 'Morado Claro', colores: {
+                                    background: '#faf5ff', foreground: '#3d1366', primary: '#9333ea', secondary: '#f0e6fa',
+                                    accent: '#e0c7f5', muted: '#f0e6fa', border: '#d4b8f0',
+                                    card: '#ffffff', cardForeground: '#3d1366', popover: '#ffffff', popoverForeground: '#3d1366',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#3d1366', mutedForeground: '#7a5c94',
+                                    accentForeground: '#3d1366', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#e8d9f5', ring: '#9333ea'
+                                  }
+                                },
+                                // .orange-light
+                                {
+                                  nombre: 'Naranja Claro', colores: {
+                                    background: '#fffbf5', foreground: '#662200', primary: '#ea580c', secondary: '#faeade',
+                                    accent: '#f5d1b8', muted: '#faeade', border: '#f0c4a6',
+                                    card: '#ffffff', cardForeground: '#662200', popover: '#ffffff', popoverForeground: '#662200',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#662200', mutedForeground: '#946652',
+                                    accentForeground: '#662200', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#f5e0cc', ring: '#ea580c'
+                                  }
+                                },
+                              ].map((paleta) => (
+                                <button key={paleta.nombre} onClick={() => { setColoresTemporales(paleta.colores); aplicarColoresPersonalizados(paleta.colores); setTemaModificado(true); }} className="p-2 rounded-lg border border-border hover:border-primary/50 hover:bg-secondary/30 transition-all text-left">
+                                  <div className="flex gap-1 mb-1">{[paleta.colores.background, paleta.colores.primary, paleta.colores.secondary, paleta.colores.accent].map((c, i) => (<div key={i} className="h-4 w-4 rounded-sm border border-border/30" style={{ backgroundColor: c }} />))}</div>
+                                  <span className="text-xs font-medium">{paleta.nombre}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="oscuros" className="mt-0">
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                // .green (Verde Bosque) - HSL: bg 140 30% 8%, fg 140 20% 96%, primary 142 76% 45%, etc.
+                                {
+                                  nombre: 'Verde Bosque', colores: {
+                                    background: '#0f1a14', foreground: '#f0f5f2', primary: '#22c55e', secondary: '#152618',
+                                    accent: '#1a321f', muted: '#152618', border: '#1a321f',
+                                    card: '#142117', cardForeground: '#f0f5f2', popover: '#0f1a14', popoverForeground: '#f0f5f2',
+                                    primaryForeground: '#0f1a14', secondaryForeground: '#f0f5f2', mutedForeground: '#8aab95',
+                                    accentForeground: '#f0f5f2', destructive: '#e53e3e', destructiveForeground: '#f0f5f2',
+                                    input: '#152618', ring: '#22c55e'
+                                  }
+                                },
+                                // .rose (Rosa Elegante) - HSL: bg 340 50% 8%, fg 340 20% 96%, primary 346 77% 60%
+                                {
+                                  nombre: 'Rosa Elegante', colores: {
+                                    background: '#1f0a14', foreground: '#f6e4ed', primary: '#e5619e', secondary: '#2e1220',
+                                    accent: '#3a1629', muted: '#2e1220', border: '#3a1629',
+                                    card: '#261019', cardForeground: '#f6e4ed', popover: '#1f0a14', popoverForeground: '#f6e4ed',
+                                    primaryForeground: '#1f0a14', secondaryForeground: '#f6e4ed', mutedForeground: '#b38a9f',
+                                    accentForeground: '#f6e4ed', destructive: '#e53e3e', destructiveForeground: '#f6e4ed',
+                                    input: '#2e1220', ring: '#e5619e'
+                                  }
+                                },
+                                // .purple (Morado Real) - HSL: bg 270 50% 8%, fg 270 20% 96%, primary 272 70% 60%
+                                {
+                                  nombre: 'Morado Real', colores: {
+                                    background: '#170a1f', foreground: '#f0e4f6', primary: '#a855f7', secondary: '#221231',
+                                    accent: '#2c173f', muted: '#221231', border: '#2c173f',
+                                    card: '#1c0e28', cardForeground: '#f0e4f6', popover: '#170a1f', popoverForeground: '#f0e4f6',
+                                    primaryForeground: '#170a1f', secondaryForeground: '#f0e4f6', mutedForeground: '#a08ab3',
+                                    accentForeground: '#f0e4f6', destructive: '#e53e3e', destructiveForeground: '#f0e4f6',
+                                    input: '#221231', ring: '#a855f7'
+                                  }
+                                },
+                                // .orange (Naranja Fuego) - HSL: bg 25 60% 8%, fg 25 20% 96%, primary 25 95% 55%
+                                {
+                                  nombre: 'Naranja Fuego', colores: {
+                                    background: '#211108', foreground: '#f7ede4', primary: '#f97316', secondary: '#332011',
+                                    accent: '#402715', muted: '#332011', border: '#402715',
+                                    card: '#29160b', cardForeground: '#f7ede4', popover: '#211108', popoverForeground: '#f7ede4',
+                                    primaryForeground: '#211108', secondaryForeground: '#f7ede4', mutedForeground: '#b3988a',
+                                    accentForeground: '#f7ede4', destructive: '#e53e3e', destructiveForeground: '#f7ede4',
+                                    input: '#332011', ring: '#f97316'
+                                  }
+                                },
+                                // .gray (Gris Neutro) - HSL: bg 0 0% 10%, fg 0 0% 95%, primary 0 0% 75%
+                                {
+                                  nombre: 'Gris Neutro', colores: {
+                                    background: '#1a1a1a', foreground: '#f2f2f2', primary: '#bfbfbf', secondary: '#2e2e2e',
+                                    accent: '#383838', muted: '#2e2e2e', border: '#383838',
+                                    card: '#1f1f1f', cardForeground: '#f2f2f2', popover: '#1a1a1a', popoverForeground: '#f2f2f2',
+                                    primaryForeground: '#1a1a1a', secondaryForeground: '#f2f2f2', mutedForeground: '#a6a6a6',
+                                    accentForeground: '#f2f2f2', destructive: '#e53e3e', destructiveForeground: '#f2f2f2',
+                                    input: '#2e2e2e', ring: '#bfbfbf'
+                                  }
+                                },
+                              ].map((paleta) => (
+                                <button key={paleta.nombre} onClick={() => { setColoresTemporales(paleta.colores); aplicarColoresPersonalizados(paleta.colores); setTemaModificado(true); }} className="p-2 rounded-lg border border-border hover:border-primary/50 hover:bg-secondary/30 transition-all text-left">
+                                  <div className="flex gap-1 mb-1">{[paleta.colores.background, paleta.colores.primary, paleta.colores.secondary, paleta.colores.accent].map((c, i) => (<div key={i} className="h-4 w-4 rounded-sm border border-border/30" style={{ backgroundColor: c }} />))}</div>
+                                  <span className="text-xs font-medium">{paleta.nombre}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="especiales" className="mt-0">
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                // .sky-open (Cielo Abierto)
+                                {
+                                  nombre: 'Cielo Abierto', colores: {
+                                    background: '#f0fbff', foreground: '#0a3a52', primary: '#0099cc', secondary: '#d9f4fc',
+                                    accent: '#a8e4f5', muted: '#f0fbff', border: '#66c9e6',
+                                    card: '#ffffff', cardForeground: '#0a3a52', popover: '#ffffff', popoverForeground: '#0a3a52',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#0a3a52', mutedForeground: '#5c8a9e',
+                                    accentForeground: '#0a3a52', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#d6f0fa', ring: '#0099cc'
+                                  }
+                                },
+                                // .emerald (Esmeralda)
+                                {
+                                  nombre: 'Esmeralda', colores: {
+                                    background: '#ecfdf5', foreground: '#064e3b', primary: '#10b981', secondary: '#d1fae5',
+                                    accent: '#a7f3d0', muted: '#ecfdf5', border: '#6ee7b7',
+                                    card: '#ffffff', cardForeground: '#064e3b', popover: '#ffffff', popoverForeground: '#064e3b',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#064e3b', mutedForeground: '#4d7c6b',
+                                    accentForeground: '#064e3b', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#ccf5e7', ring: '#10b981'
+                                  }
+                                },
+                                // .sunset (Atardecer)
+                                {
+                                  nombre: 'Atardecer', colores: {
+                                    background: '#1a1a2e', foreground: '#ebebeb', primary: '#e94560', secondary: '#16213e',
+                                    accent: '#0f3460', muted: '#16213e', border: '#0f3460',
+                                    card: '#1a1a2e', cardForeground: '#ebebeb', popover: '#1a1a2e', popoverForeground: '#ebebeb',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#ebebeb', mutedForeground: '#b3b3b3',
+                                    accentForeground: '#ebebeb', destructive: '#7f1d1d', destructiveForeground: '#ffffff',
+                                    input: '#0f3460', ring: '#e94560'
+                                  }
+                                },
+                                // .coffee-cream (Café con Leche)
+                                {
+                                  nombre: 'Café con Leche', colores: {
+                                    background: '#faf6f1', foreground: '#3d2914', primary: '#8b5a2b', secondary: '#f5ebe0',
+                                    accent: '#e6d5c3', muted: '#faf6f1', border: '#d4c4b0',
+                                    card: '#fcfaf8', cardForeground: '#3d2914', popover: '#fcfaf8', popoverForeground: '#3d2914',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#3d2914', mutedForeground: '#7a6652',
+                                    accentForeground: '#3d2914', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#ede4d9', ring: '#8b5a2b'
+                                  }
+                                },
+                                // .arctic (Ártico)
+                                {
+                                  nombre: 'Ártico', colores: {
+                                    background: '#f8fafc', foreground: '#1e293b', primary: '#0f172a', secondary: '#e2e8f0',
+                                    accent: '#cbd5e1', muted: '#f1f5f9', border: '#94a3b8',
+                                    card: '#f8fafc', cardForeground: '#1e293b', popover: '#f8fafc', popoverForeground: '#1e293b',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#1e293b', mutedForeground: '#64748b',
+                                    accentForeground: '#1e293b', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#cbd5e1', ring: '#0f172a'
+                                  }
+                                },
+                                // .neon-cyber (Neón Cyber)
+                                {
+                                  nombre: 'Neón Cyber', colores: {
+                                    background: '#0d0d0d', foreground: '#00ff88', primary: '#00ff88', secondary: '#1a1a1a',
+                                    accent: '#262626', muted: '#1a1a1a', border: '#333333',
+                                    card: '#0d0d0d', cardForeground: '#00ff88', popover: '#0d0d0d', popoverForeground: '#00ff88',
+                                    primaryForeground: '#000000', secondaryForeground: '#00ff88', mutedForeground: '#00b362',
+                                    accentForeground: '#00ff88', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#262626', ring: '#00ff88'
+                                  }
+                                },
+                                // .vintage-sepia (Vintage Sepia)
+                                {
+                                  nombre: 'Vintage Sepia', colores: {
+                                    background: '#f5f0e8', foreground: '#4a3728', primary: '#8b4513', secondary: '#ebe5db',
+                                    accent: '#ddd5c7', muted: '#f5f0e8', border: '#c9bfae',
+                                    card: '#f5f0e8', cardForeground: '#4a3728', popover: '#f5f0e8', popoverForeground: '#4a3728',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#4a3728', mutedForeground: '#7a6b5c',
+                                    accentForeground: '#4a3728', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#e0d8cc', ring: '#8b4513'
+                                  }
+                                },
+                                // .ice-blue (Azul Hielo)
+                                {
+                                  nombre: 'Azul Hielo', colores: {
+                                    background: '#f0f8ff', foreground: '#1a365d', primary: '#1e90ff', secondary: '#e6f3ff',
+                                    accent: '#b8dcff', muted: '#f0f8ff', border: '#87ceeb',
+                                    card: '#ffffff', cardForeground: '#1a365d', popover: '#ffffff', popoverForeground: '#1a365d',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#1a365d', mutedForeground: '#5c7a99',
+                                    accentForeground: '#1a365d', destructive: '#e53e3e', destructiveForeground: '#ffffff',
+                                    input: '#cce8ff', ring: '#1e90ff'
+                                  }
+                                },
+                              ].map((paleta) => (
+                                <button key={paleta.nombre} onClick={() => { setColoresTemporales(paleta.colores); aplicarColoresPersonalizados(paleta.colores); setTemaModificado(true); }} className="p-2 rounded-lg border border-border hover:border-primary/50 hover:bg-secondary/30 transition-all text-left">
+                                  <div className="flex gap-1 mb-1">{[paleta.colores.background, paleta.colores.primary, paleta.colores.secondary, paleta.colores.accent].map((c, i) => (<div key={i} className="h-4 w-4 rounded-sm border border-border/30" style={{ backgroundColor: c }} />))}</div>
+                                  <span className="text-xs font-medium">{paleta.nombre}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="mono" className="mt-0">
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                // Monocromático Claro - Todo blanco, texto negro
+                                {
+                                  nombre: 'Monocromático Claro', colores: {
+                                    background: '#ffffff', foreground: '#141414', primary: '#262626', secondary: '#f5f5f5',
+                                    accent: '#ebebeb', muted: '#f5f5f5', border: '#e0e0e0',
+                                    card: '#ffffff', cardForeground: '#141414', popover: '#ffffff', popoverForeground: '#141414',
+                                    primaryForeground: '#ffffff', secondaryForeground: '#262626', mutedForeground: '#737373',
+                                    accentForeground: '#262626', destructive: '#595959', destructiveForeground: '#ffffff',
+                                    input: '#ebebeb', ring: '#404040'
+                                  }
+                                },
+                                // Monocromático Oscuro - Todo negro, texto blanco
+                                {
+                                  nombre: 'Monocromático Oscuro', colores: {
+                                    background: '#0a0a0a', foreground: '#f5f5f5', primary: '#e6e6e6', secondary: '#1f1f1f',
+                                    accent: '#292929', muted: '#1f1f1f', border: '#333333',
+                                    card: '#0f0f0f', cardForeground: '#f5f5f5', popover: '#0a0a0a', popoverForeground: '#f5f5f5',
+                                    primaryForeground: '#0a0a0a', secondaryForeground: '#e6e6e6', mutedForeground: '#999999',
+                                    accentForeground: '#e6e6e6', destructive: '#b3b3b3', destructiveForeground: '#0a0a0a',
+                                    input: '#262626', ring: '#cccccc'
+                                  }
+                                },
+                              ].map((paleta) => (
+                                <button key={paleta.nombre} onClick={() => { setColoresTemporales(paleta.colores); aplicarColoresPersonalizados(paleta.colores); setTemaModificado(true); }} className="p-2 rounded-lg border border-border hover:border-primary/50 hover:bg-secondary/30 transition-all text-left">
+                                  <div className="flex gap-1 mb-1">{[paleta.colores.background, paleta.colores.primary, paleta.colores.secondary, paleta.colores.accent].map((c, i) => (<div key={i} className="h-4 w-4 rounded-sm border border-border/30" style={{ backgroundColor: c }} />))}</div>
+                                  <span className="text-xs font-medium">{paleta.nombre}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </TabsContent>
+                        </Tabs>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+                        {/* Panel de controles */}
+                        <div className="space-y-4">
+                          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Ajustar Colores</h4>
+                          {colores_temporales && [
+                            { campo: 'background' as const, nombre: 'Fondo', descripcion: 'Fondo principal de toda la app' },
+                            { campo: 'foreground' as const, nombre: 'Texto', descripcion: 'Color del texto e iconos' },
+                            { campo: 'primary' as const, nombre: 'Primario', descripcion: 'Botones principales, enlaces activos' },
+                            { campo: 'secondary' as const, nombre: 'Secundario', descripcion: 'Tarjetas, áreas destacadas' },
+                            { campo: 'accent' as const, nombre: 'Acento', descripcion: 'Hover, elementos seleccionados' },
+                            { campo: 'muted' as const, nombre: 'Atenuado', descripcion: 'Fondos sutiles, placeholders' },
+                            { campo: 'border' as const, nombre: 'Bordes', descripcion: 'Líneas divisorias, contornos' },
+                          ].map(({ campo, nombre, descripcion }) => (
+                            <div key={campo} className="flex items-start gap-3">
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    className="h-10 w-10 rounded-lg border-2 border-border shadow-md cursor-pointer flex-shrink-0 hover:scale-105 transition-transform"
+                                    style={{ backgroundColor: colores_temporales[campo] }}
+                                  />
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-3" align="start">
+                                  <HexColorPicker
+                                    color={colores_temporales[campo]}
+                                    onChange={(color) => {
+                                      const nuevos = { ...colores_temporales, [campo]: color };
+                                      setColoresTemporales(nuevos);
+                                      aplicarColoresPersonalizados(nuevos);
+                                      setTemaModificado(true);
+                                    }}
+                                  />
+                                  <Input
+                                    value={colores_temporales[campo]}
+                                    onChange={(e) => {
+                                      const nuevos = { ...colores_temporales, [campo]: e.target.value };
+                                      setColoresTemporales(nuevos);
+                                      aplicarColoresPersonalizados(nuevos);
+                                      setTemaModificado(true);
+                                    }}
+                                    className="mt-2 font-mono text-xs"
+                                    placeholder="#000000"
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{nombre}</span>
+                                  <span className="text-xs font-mono text-muted-foreground">{colores_temporales[campo]}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{descripcion}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Panel de vista previa mejorada */}
+                        <div className="space-y-4">
+                          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                            Vista Previa (También mira la interfaz real)
+                          </h4>
+                          {colores_temporales && (
+                            <div className="space-y-3">
+                              {/* Leyenda de colores */}
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: colores_temporales.background, border: `1px solid ${colores_temporales.border}` }}>
+                                  <div className="w-3 h-3 rounded" style={{ backgroundColor: colores_temporales.background, border: '1px solid #888' }} />
+                                  <span style={{ color: colores_temporales.foreground || '#000' }}>Fondo</span>
+                                </div>
+                                <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: colores_temporales.primary }}>
+                                  <div className="w-3 h-3 rounded bg-white/30" />
+                                  <span className="text-white">Primario</span>
+                                </div>
+                                <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: colores_temporales.secondary, border: `1px solid ${colores_temporales.border}` }}>
+                                  <div className="w-3 h-3 rounded" style={{ backgroundColor: colores_temporales.secondary, border: '1px solid #888' }} />
+                                  <span style={{ color: colores_temporales.foreground || '#000' }}>Secundario</span>
+                                </div>
+                                <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: colores_temporales.accent, border: `1px solid ${colores_temporales.border}` }}>
+                                  <div className="w-3 h-3 rounded" style={{ backgroundColor: colores_temporales.accent, border: '1px solid #888' }} />
+                                  <span style={{ color: colores_temporales.foreground || '#000' }}>Acento</span>
+                                </div>
+                              </div>
+
+                              {/* Simulación de interfaz */}
+                              <div
+                                className="rounded-xl border-2 overflow-hidden shadow-lg"
+                                style={{
+                                  backgroundColor: colores_temporales.background,
+                                  borderColor: colores_temporales.border
+                                }}
+                              >
+                                {/* Sidebar simulado */}
+                                <div className="flex">
+                                  <div
+                                    className="w-12 p-2 flex flex-col gap-2 border-r"
+                                    style={{ backgroundColor: colores_temporales.secondary, borderColor: colores_temporales.border }}
+                                  >
+                                    <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: colores_temporales.primary }} />
+                                    <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: colores_temporales.muted }} />
+                                    <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: colores_temporales.accent }} />
+                                  </div>
+
+                                  {/* Content area */}
+                                  <div className="flex-1 p-3">
+                                    {/* Header */}
+                                    <div className="flex items-center justify-between mb-3">
+                                      <span className="font-semibold text-sm" style={{ color: colores_temporales.foreground || (colores_temporales.background === '#ffffff' ? '#0a0a0a' : '#fafafa') }}>
+                                        Panel Principal
+                                      </span>
+                                      <button
+                                        className="px-2 py-1 text-xs rounded"
+                                        style={{ backgroundColor: colores_temporales.primary, color: '#fff' }}
+                                      >
+                                        Acción
+                                      </button>
+                                    </div>
+
+                                    {/* Cards */}
+                                    <div className="grid grid-cols-2 gap-2 mb-3">
+                                      <div
+                                        className="p-2 rounded-lg border"
+                                        style={{ backgroundColor: colores_temporales.secondary, borderColor: colores_temporales.border }}
+                                      >
+                                        <div className="text-xs font-medium mb-1" style={{ color: colores_temporales.foreground || '#000' }}>Tarjeta</div>
+                                        <div className="text-[10px]" style={{ color: colores_temporales.foreground ? `${colores_temporales.foreground}99` : '#666' }}>Contenido</div>
+                                      </div>
+                                      <div
+                                        className="p-2 rounded-lg"
+                                        style={{ backgroundColor: colores_temporales.accent }}
+                                      >
+                                        <div className="text-xs font-medium mb-1" style={{ color: colores_temporales.foreground || '#000' }}>Activo</div>
+                                        <div className="text-[10px]" style={{ color: colores_temporales.foreground ? `${colores_temporales.foreground}99` : '#666' }}>Seleccionado</div>
+                                      </div>
+                                    </div>
+
+                                    {/* Input simulado */}
+                                    <div
+                                      className="p-2 rounded border text-xs"
+                                      style={{
+                                        backgroundColor: colores_temporales.muted,
+                                        borderColor: colores_temporales.border,
+                                        color: colores_temporales.foreground ? `${colores_temporales.foreground}66` : '#999'
+                                      }}
+                                    >
+                                      Campo de texto...
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <p className="text-xs text-muted-foreground text-center">
+                                👆 Mira también la interfaz real detrás de este diálogo
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <DialogFooter className="mt-6 flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            if (tema_modificado) {
+                              setDialogoConfirmarSalir(true);
+                            } else {
+                              setDialogoPersonalizadoAbierto(false);
+                            }
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            if (colores_temporales) {
+                              await guardarTemaPersonalizado(colores_temporales);
+                              setTemaModificado(false);
+                              setDialogoPersonalizadoAbierto(false);
+                            }
+                          }}
+                          disabled={guardando_tema}
+                        >
+                          {guardando_tema ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Guardando...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="mr-2 h-4 w-4" />
+                              Guardar y Aplicar
+                            </>
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* Dialog de confirmación para salir sin guardar */}
+                  <Dialog open={dialogo_confirmar_salir} onOpenChange={setDialogoConfirmarSalir}>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>¿Descartar cambios?</DialogTitle>
+                        <DialogDescription>
+                          Tienes cambios sin guardar en tu tema personalizado. ¿Estás seguro de que quieres salir?
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setDialogoConfirmarSalir(false)}
+                        >
+                          Volver al editor
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            // Revertir los colores a los guardados
+                            aplicarColoresPersonalizados(colores_personalizados);
+                            setDialogoConfirmarSalir(false);
+                            setDialogoPersonalizadoAbierto(false);
+                            setTemaModificado(false);
+                          }}
+                        >
+                          Descartar cambios
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
 
                   <div className="p-4 rounded-lg bg-secondary/30 border border-border">
                     <div className="flex items-start gap-3">

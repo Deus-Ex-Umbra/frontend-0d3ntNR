@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { MenuLateral } from '@/componentes/MenuLateral';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
+import { useClinica } from '@/contextos/clinica-contexto';
 import { Card, CardContent, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Loader2, TrendingDown, FileSignature, BarChart3, Pill } from 'lucide-react';
-import { estadisticasApi, catalogoApi } from '@/lib/api';
+import { estadisticasApi } from '@/lib/api';
 import { GestionReportes } from '@/componentes/reportes/gestion-reportes';
 import { GestionPlantillasConsentimiento } from '@/componentes/plantillas/gestion-plantillas-consentimiento';
 import { GestionPlantillasRecetas } from '@/componentes/plantillas/gestion-plantillas-recetas';
@@ -41,33 +42,13 @@ interface Estadisticas {
 
 export default function Inicio() {
   const { usuario } = useAutenticacion();
+  const { config_clinica } = useClinica();
   const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [config_clinica, setConfigClinica] = useState({
-    logo: '',
-    nombre_clinica: '',
-    mensaje_bienvenida_antes: 'Bienvenido,',
-    mensaje_bienvenida_despues: '¿qué haremos hoy?',
-  });
 
   useEffect(() => {
     cargarEstadisticas();
-    cargarConfiguracionClinica();
   }, []);
-
-  const cargarConfiguracionClinica = async () => {
-    try {
-      const config = await catalogoApi.obtenerConfiguracionClinica();
-      setConfigClinica({
-        logo: config.logo || '',
-        nombre_clinica: config.nombre_clinica || '',
-        mensaje_bienvenida_antes: config.mensaje_bienvenida_antes || 'Bienvenido,',
-        mensaje_bienvenida_despues: config.mensaje_bienvenida_despues || '¿qué haremos hoy?',
-      });
-    } catch (error) {
-      console.error('Error al cargar configuración de clínica:', error);
-    }
-  };
 
   const cargarEstadisticas = async () => {
     setCargando(true);

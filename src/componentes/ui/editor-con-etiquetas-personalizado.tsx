@@ -482,9 +482,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
       }, 120);
 
       const tamano = editor.getAttributes('textStyle').fontSize;
-      if (tamano) {
-        setTamanoActual(tamano);
-      }
+      setTamanoActual(tamano || '16px');
     },
     onSelectionUpdate: ({ editor }) => {
       const color = editor.getAttributes('textStyle').color;
@@ -496,9 +494,8 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
       }
       
       const tamano = editor.getAttributes('textStyle').fontSize;
-      if (tamano) {
-        setTamanoActual(tamano);
-      }
+      setTamanoActual(tamano || '16px');
+
       setFormatosActivos({
         bold: editor.isActive('bold'),
         italic: editor.isActive('italic'),
@@ -649,18 +646,8 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   useEffect(() => {
     setPageInputValue(String(currentPage));
   }, [currentPage]);
-  useEffect(() => {
-    const cont = containerRef.current;
-    if (!cont) return;
-    const onScroll = () => {
-      const step = pageHeightPx * zoom;
-      const p = Math.floor(cont.scrollTop / Math.max(1, step)) + 1;
-      const clamped = Math.max(1, Math.min(p, pageCount));
-      setCurrentPage(clamped);
-    };
-    cont.addEventListener('scroll', onScroll, { passive: true } as any);
-    return () => cont.removeEventListener('scroll', onScroll);
-  }, [pageHeightPx, zoom, pageCount]);
+
+  /* Scroll listener removed to keep focus on caret position */
 
   useEffect(() => {
     forceAllTablesFull();

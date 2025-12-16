@@ -245,12 +245,445 @@
     --input: 165 35% 15%;
     --ring: 165 70% 45%;
   }
+
+  /* Light theme variants */
+  .blue-light {
+    --background: 210 50% 98%;
+    --foreground: 210 80% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 80% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 80% 15%;
+    --primary: 200 100% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 94%;
+    --secondary-foreground: 210 80% 15%;
+    --muted: 210 40% 94%;
+    --muted-foreground: 210 30% 40%;
+    --accent: 200 60% 90%;
+    --accent-foreground: 210 80% 15%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 40% 88%;
+    --input: 210 40% 90%;
+    --ring: 200 100% 45%;
+  }
+
+  .green-light {
+    --background: 140 30% 98%;
+    --foreground: 140 50% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 140 50% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 140 50% 15%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 140 30% 94%;
+    --secondary-foreground: 140 50% 15%;
+    --muted: 140 30% 94%;
+    --muted-foreground: 140 20% 40%;
+    --accent: 142 50% 90%;
+    --accent-foreground: 140 50% 15%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 140 30% 88%;
+    --input: 140 30% 90%;
+    --ring: 142 76% 36%;
+  }
+
+  .rose-light {
+    --background: 340 30% 98%;
+    --foreground: 340 50% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 340 50% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 340 50% 15%;
+    --primary: 346 77% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 340 30% 94%;
+    --secondary-foreground: 340 50% 15%;
+    --muted: 340 30% 94%;
+    --muted-foreground: 340 20% 40%;
+    --accent: 346 50% 92%;
+    --accent-foreground: 340 50% 15%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 340 30% 88%;
+    --input: 340 30% 90%;
+    --ring: 346 77% 50%;
+  }
+
+  .beige-light {
+    --background: 30 30% 97%;
+    --foreground: 30 40% 15%;
+    --card: 30 20% 99%;
+    --card-foreground: 30 40% 15%;
+    --popover: 30 20% 99%;
+    --popover-foreground: 30 40% 15%;
+    --primary: 35 65% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 25% 92%;
+    --secondary-foreground: 30 40% 15%;
+    --muted: 30 25% 92%;
+    --muted-foreground: 30 15% 45%;
+    --accent: 35 40% 88%;
+    --accent-foreground: 30 40% 15%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 25% 85%;
+    --input: 30 25% 88%;
+    --ring: 35 65% 45%;
+  }
+
+  .gray-light {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+    --primary: 0 0% 35%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 94%;
+    --secondary-foreground: 0 0% 15%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 90%;
+    --accent-foreground: 0 0% 15%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 88%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 35%;
+  }
+
+  .purple-light {
+    --background: 270 30% 98%;
+    --foreground: 270 50% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 270 50% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 270 50% 15%;
+    --primary: 272 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 270 30% 94%;
+    --secondary-foreground: 270 50% 15%;
+    --muted: 270 30% 94%;
+    --muted-foreground: 270 20% 40%;
+    --accent: 272 50% 92%;
+    --accent-foreground: 270 50% 15%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 270 30% 88%;
+    --input: 270 30% 90%;
+    --ring: 272 70% 50%;
+  }
+
+  .orange-light {
+    --background: 25 40% 98%;
+    --foreground: 25 60% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 25 60% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 25 60% 15%;
+    --primary: 25 95% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 25 35% 94%;
+    --secondary-foreground: 25 60% 15%;
+    --muted: 25 35% 94%;
+    --muted-foreground: 25 25% 40%;
+    --accent: 25 60% 90%;
+    --accent-foreground: 25 60% 15%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 25 35% 88%;
+    --input: 25 35% 90%;
+    --ring: 25 95% 45%;
+  }
+
+  .mint-light {
+    --background: 165 40% 98%;
+    --foreground: 165 50% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 165 50% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 165 50% 15%;
+    --primary: 165 70% 35%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 165 35% 94%;
+    --secondary-foreground: 165 50% 15%;
+    --muted: 165 35% 94%;
+    --muted-foreground: 165 25% 40%;
+    --accent: 165 50% 90%;
+    --accent-foreground: 165 50% 15%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 165 35% 88%;
+    --input: 165 35% 90%;
+    --ring: 165 70% 35%;
+  }
+
+  /* Especiales - Cielo Abierto */
+  .sky-open {
+    --background: 204 100% 97%;
+    --foreground: 201 90% 18%;
+    --card: 204 100% 97%;
+    --card-foreground: 201 90% 18%;
+    --popover: 204 100% 97%;
+    --popover-foreground: 201 90% 18%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 201 94% 94%;
+    --secondary-foreground: 201 90% 18%;
+    --muted: 204 100% 97%;
+    --muted-foreground: 201 40% 50%;
+    --accent: 199 89% 86%;
+    --accent-foreground: 201 90% 18%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 199 70% 82%;
+    --input: 199 70% 85%;
+    --ring: 199 89% 48%;
+  }
+
+  /* Especiales - Esmeralda */
+  .emerald {
+    --background: 152 81% 96%;
+    --foreground: 155 80% 14%;
+    --card: 152 81% 96%;
+    --card-foreground: 155 80% 14%;
+    --popover: 152 81% 96%;
+    --popover-foreground: 155 80% 14%;
+    --primary: 158 64% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 152 76% 90%;
+    --secondary-foreground: 155 80% 14%;
+    --muted: 152 81% 96%;
+    --muted-foreground: 155 40% 45%;
+    --accent: 158 64% 80%;
+    --accent-foreground: 155 80% 14%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 158 50% 78%;
+    --input: 158 50% 82%;
+    --ring: 158 64% 38%;
+  }
+
+  /* Especiales - Atardecer */
+  .sunset {
+    --background: 234 45% 13%;
+    --foreground: 0 0% 92%;
+    --card: 234 45% 13%;
+    --card-foreground: 0 0% 92%;
+    --popover: 234 45% 13%;
+    --popover-foreground: 0 0% 92%;
+    --primary: 348 83% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 223 45% 17%;
+    --secondary-foreground: 0 0% 92%;
+    --muted: 223 45% 17%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 217 56% 22%;
+    --accent-foreground: 0 0% 92%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 56% 22%;
+    --input: 217 56% 22%;
+    --ring: 348 83% 59%;
+  }
+
+  /* Especiales - Café con Leche */
+  .coffee-cream {
+    --background: 36 33% 96%;
+    --foreground: 28 65% 16%;
+    --card: 36 33% 96%;
+    --card-foreground: 28 65% 16%;
+    --popover: 36 33% 96%;
+    --popover-foreground: 28 65% 16%;
+    --primary: 28 56% 35%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 36 33% 93%;
+    --secondary-foreground: 28 65% 16%;
+    --muted: 36 33% 96%;
+    --muted-foreground: 28 30% 45%;
+    --accent: 30 30% 85%;
+    --accent-foreground: 28 65% 16%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 25% 80%;
+    --input: 30 25% 85%;
+    --ring: 28 56% 35%;
+  }
+
+  /* Especiales - Ártico */
+  .arctic {
+    --background: 210 40% 98%;
+    --foreground: 224 71% 14%;
+    --card: 210 40% 98%;
+    --card-foreground: 224 71% 14%;
+    --popover: 210 40% 98%;
+    --popover-foreground: 224 71% 14%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 32% 91%;
+    --secondary-foreground: 224 71% 14%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 25% 40%;
+    --accent: 215 28% 83%;
+    --accent-foreground: 224 71% 14%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 215 25% 70%;
+    --input: 215 25% 80%;
+    --ring: 222 47% 11%;
+  }
+
+  /* Especiales - Neón Cyber */
+  .neon-cyber {
+    --background: 0 0% 5%;
+    --foreground: 145 100% 50%;
+    --card: 0 0% 5%;
+    --card-foreground: 145 100% 50%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 145 100% 50%;
+    --primary: 145 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 145 100% 50%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 145 50% 40%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 145 100% 50%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 145 100% 50%;
+  }
+
+  /* Especiales - Vintage Sepia */
+  .vintage-sepia {
+    --background: 40 33% 94%;
+    --foreground: 25 40% 22%;
+    --card: 40 33% 94%;
+    --card-foreground: 25 40% 22%;
+    --popover: 40 33% 94%;
+    --popover-foreground: 25 40% 22%;
+    --primary: 25 76% 31%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 38 28% 91%;
+    --secondary-foreground: 25 40% 22%;
+    --muted: 40 33% 94%;
+    --muted-foreground: 25 25% 45%;
+    --accent: 35 22% 83%;
+    --accent-foreground: 25 40% 22%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 35 20% 75%;
+    --input: 35 20% 82%;
+    --ring: 25 76% 31%;
+  }
+
+  /* Especiales - Azul Hielo */
+  .ice-blue {
+    --background: 208 100% 97%;
+    --foreground: 221 44% 26%;
+    --card: 208 100% 97%;
+    --card-foreground: 221 44% 26%;
+    --popover: 208 100% 97%;
+    --popover-foreground: 221 44% 26%;
+    --primary: 209 100% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 207 89% 94%;
+    --secondary-foreground: 221 44% 26%;
+    --muted: 208 100% 97%;
+    --muted-foreground: 209 40% 50%;
+    --accent: 209 70% 82%;
+    --accent-foreground: 221 44% 26%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 197 71% 73%;
+    --input: 197 71% 80%;
+    --ring: 209 100% 56%;
+  }
+
+  /* Monocromáticos - Temas de escala de grises pura (sin colores) */
+
+  /* Monocromático Claro - Todo blanco, texto negro, bordes grises sutiles */
+  .mono-light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
+    --primary: 0 0% 15%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 15%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 94%;
+    --accent-foreground: 0 0% 15%;
+    --destructive: 0 0% 35%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 88%;
+    --input: 0 0% 92%;
+    --ring: 0 0% 25%;
+  }
+
+  /* Monocromático Oscuro - Todo negro, texto blanco, bordes grises sutiles */
+  .mono-dark {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 96%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 0 0% 90%;
+    --primary-foreground: 0 0% 4%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 16%;
+    --accent-foreground: 0 0% 90%;
+    --destructive: 0 0% 70%;
+    --destructive-foreground: 0 0% 4%;
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 0 0% 80%;
+  }
+
+  /* Custom theme - uses CSS custom properties that can be overridden via JavaScript */
+  .custom {
+    --background: var(--custom-background, 0 0% 100%);
+    --foreground: var(--custom-foreground, 222.2 84% 4.9%);
+    --card: var(--custom-card, 0 0% 100%);
+    --card-foreground: var(--custom-card-foreground, 222.2 84% 4.9%);
+    --popover: var(--custom-popover, 0 0% 100%);
+    --popover-foreground: var(--custom-popover-foreground, 222.2 84% 4.9%);
+    --primary: var(--custom-primary, 221.2 83.2% 53.3%);
+    --primary-foreground: var(--custom-primary-foreground, 210 40% 98%);
+    --secondary: var(--custom-secondary, 210 40% 96.1%);
+    --secondary-foreground: var(--custom-secondary-foreground, 222.2 47.4% 11.2%);
+    --muted: var(--custom-muted, 210 40% 96.1%);
+    --muted-foreground: var(--custom-muted-foreground, 215.4 16.3% 46.9%);
+    --accent: var(--custom-accent, 210 40% 96.1%);
+    --accent-foreground: var(--custom-accent-foreground, 222.2 47.4% 11.2%);
+    --destructive: var(--custom-destructive, 0 84.2% 60.2%);
+    --destructive-foreground: var(--custom-destructive-foreground, 210 40% 98%);
+    --border: var(--custom-border, 214.3 31.8% 91.4%);
+    --input: var(--custom-input, 214.3 31.8% 91.4%);
+    --ring: var(--custom-ring, 221.2 83.2% 53.3%);
+  }
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
@@ -258,11 +691,70 @@
   }
 }
 
+/* ========================================
+   ESTILOS GLOBALES DE SCROLLBAR
+   ======================================== */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+/* Webkit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: hsl(var(--muted-foreground) / 0.7);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Scrollbar más delgado en elementos pequeños */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Scrollbar oculto pero funcional */
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 @layer utilities {
   .desktop-window {
     @apply rounded-xl border-2 border-border shadow-2xl backdrop-blur-sm;
   }
-  
+
   .sidebar-desktop {
     @apply border-r-2 border-border bg-card/50 backdrop-blur-sm;
   }

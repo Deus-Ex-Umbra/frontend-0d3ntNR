@@ -18,7 +18,7 @@ interface MaterialSeleccionado {
     stock_disponible: number;
     unidad_medida?: string;
     permite_decimales?: boolean;
-    material_cita_id?: number; // ID de la reserva si ya existe
+    material_cita_id?: number;
 }
 
 interface WizardConsumiblesProps {
@@ -88,7 +88,6 @@ export default function WizardConsumibles({
     const seleccionarMaterial = (mat: Material) => {
         setCargandoMaterial(true);
         setEstado({ ...estado, material: mat });
-        // Simulate a brief loading state to give visual feedback
         setTimeout(() => setCargandoMaterial(false), 300);
     };
 

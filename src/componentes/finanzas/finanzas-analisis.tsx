@@ -71,7 +71,7 @@ export function FinanzasAnalisis() {
 
     setData(prev => prev ? { ...prev, movimientos: filtrados } : null);
     setPaginaActual(1);
-  }; // Recargar cuando cambia la precisión
+  };
 
   const cargarAnalisis = async () => {
     if (!filtros.fecha_inicio || !filtros.fecha_fin) {
@@ -96,7 +96,7 @@ export function FinanzasAnalisis() {
       const resultado = await finanzasApi.obtenerAnalisis(filtros_api);
       setData(resultado);
       setTodosMovimientos(resultado.movimientos || []);
-      setPaginaActual(1); // Resetear paginación al cargar nuevos datos
+      setPaginaActual(1);
     } catch (error) {
       console.error('Error al cargar análisis:', error);
       toast({
@@ -125,8 +125,6 @@ export function FinanzasAnalisis() {
       minute: '2-digit',
     });
   };
-
-  // Paginación
   const movimientos_paginados = data?.movimientos.slice(
     (pagina_actual - 1) * items_por_pagina,
     pagina_actual * items_por_pagina
@@ -517,8 +515,6 @@ export function FinanzasAnalisis() {
               ))}
             </div>
           )}
-
-          {/* Paginación */}
           {total_paginas > 1 && (
             <div className="flex items-center justify-center gap-2 mt-4">
               <Button

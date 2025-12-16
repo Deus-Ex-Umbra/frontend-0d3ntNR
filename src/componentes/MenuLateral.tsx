@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Users,
@@ -15,10 +14,10 @@ import {
 } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { useMenu } from '@/contextos/menu-contexto';
+import { useClinica } from '@/contextos/clinica-contexto';
 import { cn } from '@/lib/utilidades';
 import { Button } from '@/componentes/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/componentes/ui/avatar';
-import { catalogoApi } from '@/lib/api';
 
 interface ItemMenu {
   icono: React.ElementType;
@@ -42,25 +41,7 @@ export function MenuLateral() {
   const ubicacion = useLocation();
   const { cerrarSesion, usuario } = useAutenticacion();
   const { colapsado, setColapsado } = useMenu();
-
-  const [config_clinica, setConfigClinica] = useState({
-    logo: '',
-  });
-
-  useEffect(() => {
-    cargarConfiguracionClinica();
-  }, []);
-
-  const cargarConfiguracionClinica = async () => {
-    try {
-      const config = await catalogoApi.obtenerConfiguracionClinica();
-      setConfigClinica({
-        logo: config.logo || '',
-      });
-    } catch (error) {
-      console.error('Error al cargar configuración de clínica:', error);
-    }
-  };
+  const { config_clinica } = useClinica();
 
   const manejarCerrarSesion = () => {
     cerrarSesion();
