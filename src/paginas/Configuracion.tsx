@@ -91,15 +91,12 @@ export default function Configuracion() {
   const [guardando_clinica, setGuardandoClinica] = useState(false);
 
   const temas_disponibles = [
-    // Base - Los fundamentales
     { valor: 'claro', nombre: 'Claro', icono: Sun, descripcion: 'Tema claro tradicional', categoria: 'Base' },
     { valor: 'oscuro', nombre: 'Oscuro', icono: Moon, descripcion: 'Tema oscuro clásico', categoria: 'Base' },
     { valor: 'azul', nombre: 'Azul Océano', icono: Droplet, descripcion: 'Tonos azules profundos', categoria: 'Base' },
-    // Médico - Temas profesionales para clínica
     { valor: 'clinico', nombre: 'Clínico Blanco', icono: Stethoscope, descripcion: 'Limpio y profesional', categoria: 'Médico' },
     { valor: 'menta', nombre: 'Menta Dental', icono: Pill, descripcion: 'Verde menta relajante', categoria: 'Médico' },
     { valor: 'menta-claro', nombre: 'Menta Claro', icono: Pill, descripcion: 'Menta dental refrescante', categoria: 'Médico' },
-    // Colores Claros - Variantes luminosas
     { valor: 'azul-claro', nombre: 'Azul Claro', icono: Droplet, descripcion: 'Azul suave y luminoso', categoria: 'Colores Claros' },
     { valor: 'verde-claro', nombre: 'Verde Claro', icono: Leaf, descripcion: 'Verde natural y fresco', categoria: 'Colores Claros' },
     { valor: 'rosa-claro', nombre: 'Rosa Claro', icono: Heart, descripcion: 'Rosa suave y elegante', categoria: 'Colores Claros' },
@@ -107,14 +104,12 @@ export default function Configuracion() {
     { valor: 'gris-claro', nombre: 'Gris Claro', icono: Layers, descripcion: 'Gris neutro y minimalista', categoria: 'Colores Claros' },
     { valor: 'morado-claro', nombre: 'Morado Claro', icono: Grape, descripcion: 'Morado suave y delicado', categoria: 'Colores Claros' },
     { valor: 'naranja-claro', nombre: 'Naranja Claro', icono: Flame, descripcion: 'Naranja cálido y energético', categoria: 'Colores Claros' },
-    // Colores Oscuros - Variantes profundas
     { valor: 'verde', nombre: 'Verde Bosque', icono: Leaf, descripcion: 'Tonos verdes naturales', categoria: 'Colores Oscuros' },
     { valor: 'rosa', nombre: 'Rosa Elegante', icono: Heart, descripcion: 'Tonos rosa intensos', categoria: 'Colores Oscuros' },
     { valor: 'beige', nombre: 'Beige Cálido', icono: Coffee, descripcion: 'Tonos beige y hueso', categoria: 'Colores Oscuros' },
     { valor: 'gris', nombre: 'Gris Neutro', icono: Layers, descripcion: 'Escala de grises pura', categoria: 'Colores Oscuros' },
     { valor: 'morado', nombre: 'Morado Real', icono: Grape, descripcion: 'Tonos morados elegantes', categoria: 'Colores Oscuros' },
     { valor: 'naranja', nombre: 'Naranja Fuego', icono: Flame, descripcion: 'Tonos naranjas cálidos', categoria: 'Colores Oscuros' },
-    // Especiales - Temas únicos y creativos
     { valor: 'cielo-abierto', nombre: 'Cielo Abierto', icono: Sun, descripcion: 'Azul cielo luminoso', categoria: 'Especiales' },
     { valor: 'esmeralda', nombre: 'Esmeralda', icono: Leaf, descripcion: 'Verde esmeralda vibrante', categoria: 'Especiales' },
     { valor: 'atardecer', nombre: 'Atardecer', icono: Moon, descripcion: 'Tonos cálidos nocturnos', categoria: 'Especiales' },
@@ -123,10 +118,8 @@ export default function Configuracion() {
     { valor: 'neon-cyber', nombre: 'Neón Cyber', icono: Flame, descripcion: 'Verde neón futurista', categoria: 'Especiales' },
     { valor: 'vintage-sepia', nombre: 'Vintage Sepia', icono: Coffee, descripcion: 'Estilo retro cálido', categoria: 'Especiales' },
     { valor: 'azul-hielo', nombre: 'Azul Hielo', icono: Droplet, descripcion: 'Azul cristalino', categoria: 'Especiales' },
-    // Monocromáticos - Escala de grises pura (sin colores)
     { valor: 'mono-claro', nombre: 'Monocromático Claro', icono: Layers, descripcion: 'Blanco puro, serio y minimalista', categoria: 'Monocromáticos' },
     { valor: 'mono-oscuro', nombre: 'Monocromático Oscuro', icono: Layers, descripcion: 'Negro puro, elegante y sobrio', categoria: 'Monocromáticos' },
-    // Personalizado - Crea tu propio tema
     { valor: 'personalizado', nombre: 'Personalizado', icono: Settings2, descripcion: 'Crea tu propio tema', categoria: 'Personalizado' },
   ];
 
@@ -212,7 +205,6 @@ export default function Configuracion() {
     setGuardandoClinica(true);
     try {
       await catalogoApi.actualizarConfiguracionClinica(config_clinica);
-      // Actualizar el contexto global para que el menú lateral se actualice inmediatamente
       actualizarConfigClinica({
         logo: config_clinica.logo,
         nombre_clinica: config_clinica.nombre_clinica,
@@ -482,26 +474,18 @@ export default function Configuracion() {
     };
     return nombres[tema_efectivo] || tema_efectivo;
   };
-
-  // Cargar tema personalizado desde backend al iniciar
   useEffect(() => {
     if (tema_personalizado) {
       setColoresPersonalizados(tema_personalizado);
     }
   }, [tema_personalizado]);
-
-  // Manejar cambio de color en tiempo real
   const manejarCambioColor = (campo: keyof TemaPersonalizado, valor: string) => {
     const nuevos_colores = { ...colores_personalizados, [campo]: valor };
     setColoresPersonalizados(nuevos_colores);
-
-    // Si estamos en tema personalizado, aplicar en tiempo real
     if (tema === 'personalizado') {
       aplicarColoresPersonalizados(nuevos_colores);
     }
   };
-
-  // Guardar tema personalizado en backend
   const guardarTemaPersonalizado = async (colores?: TemaPersonalizado) => {
     const coloresAGuardar = colores || colores_temporales || colores_personalizados;
     setGuardandoTema(true);
@@ -1053,8 +1037,6 @@ export default function Configuracion() {
                       </div>
                     </div>
                   ))}
-
-                  {/* Botón para abrir editor de tema personalizado */}
                   {tema === 'personalizado' && (
                     <div className="p-4 rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10">
                       <div className="flex items-center justify-between">
@@ -1080,8 +1062,6 @@ export default function Configuracion() {
                           Personalizar Colores
                         </Button>
                       </div>
-
-                      {/* Mini preview de los colores actuales */}
                       <div className="flex gap-2 mt-4">
                         {[
                           { color: colores_personalizados.background, tooltip: 'Fondo' },
@@ -1101,8 +1081,6 @@ export default function Configuracion() {
                       </div>
                     </div>
                   )}
-
-                  {/* Dialog para editar tema personalizado */}
                   <Dialog
                     open={dialogo_personalizado_abierto}
                     onOpenChange={(open) => {
@@ -1123,8 +1101,6 @@ export default function Configuracion() {
                           Los colores se aplican en tiempo real a la interfaz. Si cancelas, se revertirán automáticamente.
                         </DialogDescription>
                       </DialogHeader>
-
-                      {/* Paletas predefinidas organizadas por categoría */}
                       <div className="mt-4">
                         <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-3">
                           💡 Paletas de Inspiración
@@ -1142,7 +1118,6 @@ export default function Configuracion() {
                           <TabsContent value="base" className="mt-0">
                             <div className="grid grid-cols-2 gap-2">
                               {[
-                                // :root (Claro) - tema por defecto
                                 {
                                   nombre: 'Claro', colores: {
                                     background: '#ffffff', foreground: '#0a0a0a', primary: '#3b82f6', secondary: '#f1f5f9',
@@ -1153,7 +1128,6 @@ export default function Configuracion() {
                                     input: '#e2e8f0', ring: '#3b82f6'
                                   }
                                 },
-                                // .dark (Oscuro) - bg 224 71% 4%, fg 213 31% 91%
                                 {
                                   nombre: 'Oscuro', colores: {
                                     background: '#020817', foreground: '#e1e7ef', primary: '#f8fafc', secondary: '#1e293b',
@@ -1164,7 +1138,6 @@ export default function Configuracion() {
                                     input: '#1e3a5f', ring: '#1e3a5f'
                                   }
                                 },
-                                // .blue (Azul Océano) - bg 210 100% 6%, primary 200 100% 50%
                                 {
                                   nombre: 'Azul Océano', colores: {
                                     background: '#001a33', foreground: '#f5f9fc', primary: '#00bfff', secondary: '#0d2b47',
@@ -1187,7 +1160,6 @@ export default function Configuracion() {
                           <TabsContent value="medico" className="mt-0">
                             <div className="grid grid-cols-2 gap-2">
                               {[
-                                // .clinical - Clínico Blanco
                                 {
                                   nombre: 'Clínico Blanco', colores: {
                                     background: '#f7f9fb', foreground: '#1f2d3d', primary: '#0d8ccf', secondary: '#edf2f7',
@@ -1198,7 +1170,6 @@ export default function Configuracion() {
                                     input: '#e6ecf2', ring: '#0d8ccf'
                                   }
                                 },
-                                // .mint - Menta Dental (oscuro)
                                 {
                                   nombre: 'Menta Dental', colores: {
                                     background: '#0a1f1a', foreground: '#f2f7f5', primary: '#22c9a6', secondary: '#19332b',
@@ -1209,7 +1180,6 @@ export default function Configuracion() {
                                     input: '#19332b', ring: '#22c9a6'
                                   }
                                 },
-                                // .mint-light - Menta Claro
                                 {
                                   nombre: 'Menta Claro', colores: {
                                     background: '#f5fbf9', foreground: '#133d31', primary: '#1b9e7d', secondary: '#e6f4f0',
@@ -1232,7 +1202,6 @@ export default function Configuracion() {
                           <TabsContent value="claros" className="mt-0">
                             <div className="grid grid-cols-2 gap-2">
                               {[
-                                // .blue-light
                                 {
                                   nombre: 'Azul Claro', colores: {
                                     background: '#f5faff', foreground: '#0a3a66', primary: '#0091e6', secondary: '#e6f4fc',
@@ -1243,7 +1212,6 @@ export default function Configuracion() {
                                     input: '#e0f0fa', ring: '#0091e6'
                                   }
                                 },
-                                // .green-light
                                 {
                                   nombre: 'Verde Claro', colores: {
                                     background: '#f5fcf7', foreground: '#133d1f', primary: '#22a352', secondary: '#e5f6eb',
@@ -1254,7 +1222,6 @@ export default function Configuracion() {
                                     input: '#daf2e3', ring: '#22a352'
                                   }
                                 },
-                                // .rose-light
                                 {
                                   nombre: 'Rosa Claro', colores: {
                                     background: '#fdf5f8', foreground: '#3d1328', primary: '#db2778', secondary: '#fae6ed',
@@ -1265,7 +1232,6 @@ export default function Configuracion() {
                                     input: '#f5d9e5', ring: '#db2778'
                                   }
                                 },
-                                // .beige-light
                                 {
                                   nombre: 'Beige Claro', colores: {
                                     background: '#faf8f5', foreground: '#3d2914', primary: '#a36b2b', secondary: '#f2ebe2',
@@ -1276,7 +1242,6 @@ export default function Configuracion() {
                                     input: '#ede4d9', ring: '#a36b2b'
                                   }
                                 },
-                                // .purple-light
                                 {
                                   nombre: 'Morado Claro', colores: {
                                     background: '#faf5ff', foreground: '#3d1366', primary: '#9333ea', secondary: '#f0e6fa',
@@ -1287,7 +1252,6 @@ export default function Configuracion() {
                                     input: '#e8d9f5', ring: '#9333ea'
                                   }
                                 },
-                                // .orange-light
                                 {
                                   nombre: 'Naranja Claro', colores: {
                                     background: '#fffbf5', foreground: '#662200', primary: '#ea580c', secondary: '#faeade',
@@ -1310,7 +1274,6 @@ export default function Configuracion() {
                           <TabsContent value="oscuros" className="mt-0">
                             <div className="grid grid-cols-2 gap-2">
                               {[
-                                // .green (Verde Bosque) - HSL: bg 140 30% 8%, fg 140 20% 96%, primary 142 76% 45%, etc.
                                 {
                                   nombre: 'Verde Bosque', colores: {
                                     background: '#0f1a14', foreground: '#f0f5f2', primary: '#22c55e', secondary: '#152618',
@@ -1321,7 +1284,6 @@ export default function Configuracion() {
                                     input: '#152618', ring: '#22c55e'
                                   }
                                 },
-                                // .rose (Rosa Elegante) - HSL: bg 340 50% 8%, fg 340 20% 96%, primary 346 77% 60%
                                 {
                                   nombre: 'Rosa Elegante', colores: {
                                     background: '#1f0a14', foreground: '#f6e4ed', primary: '#e5619e', secondary: '#2e1220',
@@ -1332,7 +1294,6 @@ export default function Configuracion() {
                                     input: '#2e1220', ring: '#e5619e'
                                   }
                                 },
-                                // .purple (Morado Real) - HSL: bg 270 50% 8%, fg 270 20% 96%, primary 272 70% 60%
                                 {
                                   nombre: 'Morado Real', colores: {
                                     background: '#170a1f', foreground: '#f0e4f6', primary: '#a855f7', secondary: '#221231',
@@ -1343,7 +1304,6 @@ export default function Configuracion() {
                                     input: '#221231', ring: '#a855f7'
                                   }
                                 },
-                                // .orange (Naranja Fuego) - HSL: bg 25 60% 8%, fg 25 20% 96%, primary 25 95% 55%
                                 {
                                   nombre: 'Naranja Fuego', colores: {
                                     background: '#211108', foreground: '#f7ede4', primary: '#f97316', secondary: '#332011',
@@ -1354,7 +1314,6 @@ export default function Configuracion() {
                                     input: '#332011', ring: '#f97316'
                                   }
                                 },
-                                // .gray (Gris Neutro) - HSL: bg 0 0% 10%, fg 0 0% 95%, primary 0 0% 75%
                                 {
                                   nombre: 'Gris Neutro', colores: {
                                     background: '#1a1a1a', foreground: '#f2f2f2', primary: '#bfbfbf', secondary: '#2e2e2e',
@@ -1377,7 +1336,6 @@ export default function Configuracion() {
                           <TabsContent value="especiales" className="mt-0">
                             <div className="grid grid-cols-2 gap-2">
                               {[
-                                // .sky-open (Cielo Abierto)
                                 {
                                   nombre: 'Cielo Abierto', colores: {
                                     background: '#f0fbff', foreground: '#0a3a52', primary: '#0099cc', secondary: '#d9f4fc',
@@ -1388,7 +1346,6 @@ export default function Configuracion() {
                                     input: '#d6f0fa', ring: '#0099cc'
                                   }
                                 },
-                                // .emerald (Esmeralda)
                                 {
                                   nombre: 'Esmeralda', colores: {
                                     background: '#ecfdf5', foreground: '#064e3b', primary: '#10b981', secondary: '#d1fae5',
@@ -1399,7 +1356,6 @@ export default function Configuracion() {
                                     input: '#ccf5e7', ring: '#10b981'
                                   }
                                 },
-                                // .sunset (Atardecer)
                                 {
                                   nombre: 'Atardecer', colores: {
                                     background: '#1a1a2e', foreground: '#ebebeb', primary: '#e94560', secondary: '#16213e',
@@ -1410,7 +1366,6 @@ export default function Configuracion() {
                                     input: '#0f3460', ring: '#e94560'
                                   }
                                 },
-                                // .coffee-cream (Café con Leche)
                                 {
                                   nombre: 'Café con Leche', colores: {
                                     background: '#faf6f1', foreground: '#3d2914', primary: '#8b5a2b', secondary: '#f5ebe0',
@@ -1421,7 +1376,6 @@ export default function Configuracion() {
                                     input: '#ede4d9', ring: '#8b5a2b'
                                   }
                                 },
-                                // .arctic (Ártico)
                                 {
                                   nombre: 'Ártico', colores: {
                                     background: '#f8fafc', foreground: '#1e293b', primary: '#0f172a', secondary: '#e2e8f0',
@@ -1432,7 +1386,6 @@ export default function Configuracion() {
                                     input: '#cbd5e1', ring: '#0f172a'
                                   }
                                 },
-                                // .neon-cyber (Neón Cyber)
                                 {
                                   nombre: 'Neón Cyber', colores: {
                                     background: '#0d0d0d', foreground: '#00ff88', primary: '#00ff88', secondary: '#1a1a1a',
@@ -1443,7 +1396,6 @@ export default function Configuracion() {
                                     input: '#262626', ring: '#00ff88'
                                   }
                                 },
-                                // .vintage-sepia (Vintage Sepia)
                                 {
                                   nombre: 'Vintage Sepia', colores: {
                                     background: '#f5f0e8', foreground: '#4a3728', primary: '#8b4513', secondary: '#ebe5db',
@@ -1454,7 +1406,6 @@ export default function Configuracion() {
                                     input: '#e0d8cc', ring: '#8b4513'
                                   }
                                 },
-                                // .ice-blue (Azul Hielo)
                                 {
                                   nombre: 'Azul Hielo', colores: {
                                     background: '#f0f8ff', foreground: '#1a365d', primary: '#1e90ff', secondary: '#e6f3ff',
@@ -1477,7 +1428,6 @@ export default function Configuracion() {
                           <TabsContent value="mono" className="mt-0">
                             <div className="grid grid-cols-2 gap-2">
                               {[
-                                // Monocromático Claro - Todo blanco, texto negro
                                 {
                                   nombre: 'Monocromático Claro', colores: {
                                     background: '#ffffff', foreground: '#141414', primary: '#262626', secondary: '#f5f5f5',
@@ -1488,7 +1438,6 @@ export default function Configuracion() {
                                     input: '#ebebeb', ring: '#404040'
                                   }
                                 },
-                                // Monocromático Oscuro - Todo negro, texto blanco
                                 {
                                   nombre: 'Monocromático Oscuro', colores: {
                                     background: '#0a0a0a', foreground: '#f5f5f5', primary: '#e6e6e6', secondary: '#1f1f1f',
@@ -1511,7 +1460,6 @@ export default function Configuracion() {
                       </div>
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-                        {/* Panel de controles */}
                         <div className="space-y-4">
                           <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Ajustar Colores</h4>
                           {colores_temporales && [
@@ -1564,15 +1512,12 @@ export default function Configuracion() {
                             </div>
                           ))}
                         </div>
-
-                        {/* Panel de vista previa mejorada */}
                         <div className="space-y-4">
                           <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
                             Vista Previa (También mira la interfaz real)
                           </h4>
                           {colores_temporales && (
                             <div className="space-y-3">
-                              {/* Leyenda de colores */}
                               <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: colores_temporales.background, border: `1px solid ${colores_temporales.border}` }}>
                                   <div className="w-3 h-3 rounded" style={{ backgroundColor: colores_temporales.background, border: '1px solid #888' }} />
@@ -1591,8 +1536,6 @@ export default function Configuracion() {
                                   <span style={{ color: colores_temporales.foreground || '#000' }}>Acento</span>
                                 </div>
                               </div>
-
-                              {/* Simulación de interfaz */}
                               <div
                                 className="rounded-xl border-2 overflow-hidden shadow-lg"
                                 style={{
@@ -1600,7 +1543,6 @@ export default function Configuracion() {
                                   borderColor: colores_temporales.border
                                 }}
                               >
-                                {/* Sidebar simulado */}
                                 <div className="flex">
                                   <div
                                     className="w-12 p-2 flex flex-col gap-2 border-r"
@@ -1610,10 +1552,7 @@ export default function Configuracion() {
                                     <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: colores_temporales.muted }} />
                                     <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: colores_temporales.accent }} />
                                   </div>
-
-                                  {/* Content area */}
                                   <div className="flex-1 p-3">
-                                    {/* Header */}
                                     <div className="flex items-center justify-between mb-3">
                                       <span className="font-semibold text-sm" style={{ color: colores_temporales.foreground || (colores_temporales.background === '#ffffff' ? '#0a0a0a' : '#fafafa') }}>
                                         Panel Principal
@@ -1625,8 +1564,6 @@ export default function Configuracion() {
                                         Acción
                                       </button>
                                     </div>
-
-                                    {/* Cards */}
                                     <div className="grid grid-cols-2 gap-2 mb-3">
                                       <div
                                         className="p-2 rounded-lg border"
@@ -1643,8 +1580,6 @@ export default function Configuracion() {
                                         <div className="text-[10px]" style={{ color: colores_temporales.foreground ? `${colores_temporales.foreground}99` : '#666' }}>Seleccionado</div>
                                       </div>
                                     </div>
-
-                                    {/* Input simulado */}
                                     <div
                                       className="p-2 rounded border text-xs"
                                       style={{
@@ -1705,8 +1640,6 @@ export default function Configuracion() {
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
-
-                  {/* Dialog de confirmación para salir sin guardar */}
                   <Dialog open={dialogo_confirmar_salir} onOpenChange={setDialogoConfirmarSalir}>
                     <DialogContent className="max-w-md">
                       <DialogHeader>
@@ -1725,7 +1658,6 @@ export default function Configuracion() {
                         <Button
                           variant="destructive"
                           onClick={() => {
-                            // Revertir los colores a los guardados
                             aplicarColoresPersonalizados(colores_personalizados);
                             setDialogoConfirmarSalir(false);
                             setDialogoPersonalizadoAbierto(false);

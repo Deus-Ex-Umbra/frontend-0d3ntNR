@@ -42,7 +42,6 @@ function guardarCacheLocal(config: ConfiguracionClinica): void {
 }
 
 export function ProveedorClinica({ children }: { children: ReactNode }) {
-    // Inicializar con el caché local para evitar el "flash" del logo por defecto
     const [config_clinica, setConfigClinica] = useState<ConfiguracionClinica>(() => {
         const cached = obtenerCacheLocal();
         return cached || {

@@ -9,17 +9,14 @@ type Tema = 'claro' | 'oscuro' | 'clinico' |
   'morado' | 'morado-claro' |
   'naranja' | 'naranja-claro' |
   'menta' | 'menta-claro' |
-  // Especiales
   'cielo-abierto' | 'esmeralda' | 'atardecer' | 'cafe-leche' |
   'artico' | 'neon-cyber' | 'vintage-sepia' | 'azul-hielo' |
-  // Monocromáticos (escala de grises pura)
   'mono-claro' | 'mono-oscuro' |
   'personalizado';
 
 type TemaEfectivo = Exclude<Tema, 'personalizado'> | 'personalizado';
 
 export interface TemaPersonalizado {
-  // Colores principales (obligatorios)
   background: string;
   foreground: string;
   primary: string;
@@ -27,8 +24,6 @@ export interface TemaPersonalizado {
   accent: string;
   muted: string;
   border: string;
-
-  // Colores derivados (opcionales - si no se especifican, se calculan automáticamente)
   card?: string;
   cardForeground?: string;
   popover?: string;
@@ -64,9 +59,7 @@ const TEMA_PERSONALIZADO_DEFAULT: TemaPersonalizado = {
 
 const ContextoTema = createContext<ContextoTema | undefined>(undefined);
 
-// Convertir hex a HSL string para CSS
 function hexToHSL(hex: string): string {
-  // Quitar el # si existe
   hex = hex.replace('#', '');
 
   const r = parseInt(hex.substring(0, 2), 16) / 255;
@@ -99,12 +92,11 @@ function hexToHSL(hex: string): string {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
-// Generar colores derivados (foregrounds) automáticamente
 function generarForeground(_hex: string, esClaro: boolean): string {
   if (esClaro) {
-    return hexToHSL('#0a0a0a'); // Texto oscuro para fondo claro
+    return hexToHSL('#0a0a0a');
   }
-  return hexToHSL('#fafafa'); // Texto claro para fondo oscuro
+  return hexToHSL('#fafafa');
 }
 
 function esColorClaro(hex: string): boolean {
@@ -119,7 +111,6 @@ function esColorClaro(hex: string): boolean {
 export function ProveedorTema({ children }: { children: React.ReactNode }) {
   const [tema, setTema] = useState<Tema>(() => {
     const tema_guardado = localStorage.getItem('tema');
-    // Migrar de tema 'sistema' al nuevo default 'claro'
     if (tema_guardado === 'sistema') {
       return 'claro';
     }
@@ -142,45 +133,27 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
 
   const aplicarColoresPersonalizados = (colores: TemaPersonalizado) => {
     const root = window.document.documentElement;
-
-    // Helper: usar valor personalizado o generar automáticamente
     const obtenerForeground = (colorPersonalizado: string | undefined, colorBase: string) => {
       if (colorPersonalizado) return hexToHSL(colorPersonalizado);
       return generarForeground(colorBase, esColorClaro(colorBase));
     };
-
-    // Colores principales
     root.style.setProperty('--custom-background', hexToHSL(colores.background));
     root.style.setProperty('--custom-foreground', colores.foreground ? hexToHSL(colores.foreground) : generarForeground(colores.background, esColorClaro(colores.background)));
-
-    // Card y Popover (usan background o valor personalizado)
     root.style.setProperty('--custom-card', colores.card ? hexToHSL(colores.card) : hexToHSL(colores.background));
     root.style.setProperty('--custom-card-foreground', obtenerForeground(colores.cardForeground, colores.card || colores.background));
     root.style.setProperty('--custom-popover', colores.popover ? hexToHSL(colores.popover) : hexToHSL(colores.background));
     root.style.setProperty('--custom-popover-foreground', obtenerForeground(colores.popoverForeground, colores.popover || colores.background));
-
-    // Primary
     root.style.setProperty('--custom-primary', hexToHSL(colores.primary));
     root.style.setProperty('--custom-primary-foreground', obtenerForeground(colores.primaryForeground, colores.primary));
-
-    // Secondary
     root.style.setProperty('--custom-secondary', hexToHSL(colores.secondary));
     root.style.setProperty('--custom-secondary-foreground', obtenerForeground(colores.secondaryForeground, colores.secondary));
-
-    // Muted
     root.style.setProperty('--custom-muted', hexToHSL(colores.muted));
     root.style.setProperty('--custom-muted-foreground', obtenerForeground(colores.mutedForeground, colores.muted));
-
-    // Accent
     root.style.setProperty('--custom-accent', hexToHSL(colores.accent));
     root.style.setProperty('--custom-accent-foreground', obtenerForeground(colores.accentForeground, colores.accent));
-
-    // Border, Input, Ring
     root.style.setProperty('--custom-border', hexToHSL(colores.border));
     root.style.setProperty('--custom-input', colores.input ? hexToHSL(colores.input) : hexToHSL(colores.border));
     root.style.setProperty('--custom-ring', colores.ring ? hexToHSL(colores.ring) : hexToHSL(colores.primary));
-
-    // Destructive (error/danger colors)
     root.style.setProperty('--custom-destructive', colores.destructive ? hexToHSL(colores.destructive) : '0 84.2% 60.2%');
     root.style.setProperty('--custom-destructive-foreground', colores.destructiveForeground ? hexToHSL(colores.destructiveForeground) : '210 40% 98%');
   };
@@ -188,8 +161,6 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
   const actualizarTemaPersonalizado = (colores: TemaPersonalizado) => {
     setTemaPersonalizado(colores);
     localStorage.setItem('tema_personalizado', JSON.stringify(colores));
-
-    // Si estamos en tema personalizado, aplicar inmediatamente
     if (tema === 'personalizado') {
       aplicarColoresPersonalizados(colores);
     }
@@ -197,23 +168,16 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const root = window.document.documentElement;
-
-    // Remover todas las clases de tema
     root.classList.remove(
       'dark', 'blue', 'green', 'rose', 'beige', 'gray', 'purple', 'orange', 'clinical', 'mint',
       'blue-light', 'green-light', 'rose-light', 'beige-light', 'gray-light', 'purple-light', 'orange-light', 'mint-light',
-      // Especiales
       'sky-open', 'emerald', 'sunset', 'coffee-cream', 'arctic', 'neon-cyber', 'vintage-sepia', 'ice-blue',
-      // Monocromáticos
       'mono-light', 'mono-dark',
       'custom'
     );
-
     setTemaEfectivo(tema);
-
-    // Mapa de tema a clase CSS
     const temaClaseMap: Record<Tema, string | null> = {
-      'claro': null, // :root es el tema claro por defecto
+      'claro': null,
       'oscuro': 'dark',
       'clinico': 'clinical',
       'azul': 'blue',
@@ -232,7 +196,6 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
       'naranja-claro': 'orange-light',
       'menta': 'mint',
       'menta-claro': 'mint-light',
-      // Especiales
       'cielo-abierto': 'sky-open',
       'esmeralda': 'emerald',
       'atardecer': 'sunset',
@@ -241,7 +204,6 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
       'neon-cyber': 'neon-cyber',
       'vintage-sepia': 'vintage-sepia',
       'azul-hielo': 'ice-blue',
-      // Monocromáticos
       'mono-claro': 'mono-light',
       'mono-oscuro': 'mono-dark',
       'personalizado': 'custom',
@@ -251,8 +213,6 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
     if (clase) {
       root.classList.add(clase);
     }
-
-    // Si es tema personalizado, aplicar colores
     if (tema === 'personalizado' && tema_personalizado) {
       aplicarColoresPersonalizados(tema_personalizado);
     }

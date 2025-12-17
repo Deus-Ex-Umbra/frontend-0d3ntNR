@@ -120,7 +120,6 @@ export function GestionReportes() {
 
       setAbierto(false);
       setAreasSeleccionadas([]);
-      // Restablecer fechas al año actual
       setFechaInicio(new Date(new Date().getFullYear(), 0, 1));
       setFechaFin(new Date(new Date().getFullYear(), 11, 31));
       setIncluirSugerencias(true);
@@ -403,7 +402,6 @@ export function GestionReportes() {
                         <div>Áreas: {reporte.areas.join(', ')}</div>
                         {reporte.fecha_inicio && reporte.fecha_fin && (
                           <div>Período: {(() => {
-                            // Parsear fechas como locales para evitar desfases de zona horaria
                             const parseFechaLocal = (fechaStr: string | Date) => {
                               const fecha = new Date(fechaStr);
                               return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
