@@ -5,27 +5,19 @@ import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { User, Palette, Camera, Loader2, Save, Sun, Moon, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill, Building2, ImageIcon, X, Settings2 } from 'lucide-react';
+import { User, Palette, Camera, Loader2, Save, Sun, Moon, Droplet, Database, Lock, Eye, EyeOff, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill, Building2, ImageIcon, X, Settings2 } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { useTema, TemaPersonalizado } from '@/contextos/tema-contexto';
 import { useClinica } from '@/contextos/clinica-contexto';
-import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';
+import { usuariosApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { GestionCatalogo } from '@/componentes/catalogo/gestion-catalogo';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { ItemCatalogo } from '@/tipos';
 import { GestionTamanosPapel } from '@/componentes/catalogo/gestion-tamanos-papel';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/componentes/ui/dialog';
 import { HexColorPicker } from 'react-colorful';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
-
-interface Nota {
-  id: number;
-  contenido: string;
-  fecha_creacion: string;
-}
 
 export default function Configuracion() {
   const { usuario, actualizarUsuario } = useAutenticacion();
@@ -46,11 +38,6 @@ export default function Configuracion() {
   const [colores_temporales, setColoresTemporales] = useState<TemaPersonalizado | null>(null);
   const [tema_modificado, setTemaModificado] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  const [cargando_frase, setCargandoFrase] = useState(false);
-  const [frase_motivacional, setFraseMotivacional] = useState('');
-  const [notas_anteriores, setNotasAnteriores] = useState<Nota[]>([]);
-  const [cargando_notas, setCargandoNotas] = useState(true);
-  const [dias_mostrar, setDiasMostrar] = useState(30);
 
   const [formulario_perfil, setFormularioPerfil] = useState({
     nombre: usuario?.nombre || '',
@@ -69,8 +56,6 @@ export default function Configuracion() {
   });
 
   const [cambiando_contrasena, setCambiandoContrasena] = useState(false);
-  const [nota_diaria, setNotaDiaria] = useState('');
-  const [guardando_nota, setGuardandoNota] = useState(false);
   const [alergias, setAlergias] = useState<ItemCatalogo[]>([]);
   const [enfermedades, setEnfermedades] = useState<ItemCatalogo[]>([]);
   const [medicamentos, setMedicamentos] = useState<ItemCatalogo[]>([]);
@@ -133,26 +118,7 @@ export default function Configuracion() {
     cargarConfiguracionClinica();
   }, []);
 
-  useEffect(() => {
-    cargarNotasAnteriores();
-  }, [dias_mostrar]);
 
-  const cargarNotasAnteriores = async () => {
-    setCargandoNotas(true);
-    try {
-      const notas = await notasApi.obtenerUltimas(dias_mostrar);
-      setNotasAnteriores(notas);
-    } catch (error) {
-      console.error('Error al cargar notas:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar las notas anteriores',
-        variant: 'destructive',
-      });
-    } finally {
-      setCargandoNotas(false);
-    }
-  };
 
   const cargarCatalogos = async () => {
     setCargandoCatalogos(true);
@@ -415,7 +381,7 @@ export default function Configuracion() {
       setColoresPersonalizados(tema_personalizado);
     }
   }, [tema_personalizado]);
-  
+
   const guardarTemaPersonalizado = async (colores?: TemaPersonalizado) => {
     const coloresAGuardar = colores || colores_temporales || colores_personalizados;
     setGuardandoTema(true);

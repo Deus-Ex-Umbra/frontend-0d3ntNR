@@ -5,7 +5,7 @@ import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
-import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign, Filter, X, AlertTriangle, CalendarClock, Package, CheckCircle2, Package2, Wrench, Eye } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign, Filter, X, AlertTriangle, CalendarClock, CheckCircle2, Eye } from 'lucide-react';
 import { agendaApi, pacientesApi, inventarioApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
@@ -23,10 +23,7 @@ import {
   Paciente,
   Inventario,
   Producto,
-  Material,
-  Activo,
   MaterialCita,
-  MaterialCitaConfirmacion,
   TipoProducto,
 } from '@/tipos';
 
@@ -50,8 +47,6 @@ export default function Agenda() {
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
   const [productos_por_inventario, setProductosPorInventario] = useState<Record<number, Producto[]>>({});
   const [materiales_cita, setMaterialesCita] = useState<MaterialCita[]>([]);
-  const [materiales_confirmacion, setMaterialesConfirmacion] = useState<MaterialCitaConfirmacion[]>([]);
-  const [mostrar_agregar_materiales_confirmacion, setMostrarAgregarMaterialesConfirmacion] = useState(false);
   const [estado_pago_confirmacion, setEstadoPagoConfirmacion] = useState<string>('pendiente');
   const [monto_confirmacion, setMontoConfirmacion] = useState<string>('');
   const [cargando_materiales, setCargandoMateriales] = useState(false);
@@ -591,11 +586,8 @@ export default function Agenda() {
         datos.monto_esperado = formulario.monto_esperado ? parseFloat(formulario.monto_esperado) : 0;
       }
 
-      let cita_id: number;
-
       if (modo_edicion && cita_seleccionada) {
         await agendaApi.actualizar(cita_seleccionada.id, datos);
-        cita_id = cita_seleccionada.id;
 
         const estado_cambio = cita_seleccionada.estado_pago !== formulario.estado_pago;
         const cambio_a_pagado = cita_seleccionada.estado_pago !== 'pagado' && formulario.estado_pago === 'pagado';
@@ -625,8 +617,7 @@ export default function Agenda() {
           });
         }
       } else {
-        const cita_creada = await agendaApi.crear(datos);
-        cita_id = cita_creada.id;
+        await agendaApi.crear(datos);
         toast({
           title: 'Éxito',
           description: 'Cita creada correctamente',
@@ -746,8 +737,6 @@ export default function Agenda() {
     setMontoConfirmacion(cita.monto_esperado?.toString() || '');
     setConsumiblesConfirmacion([]);
     setActivosConfirmacion([]);
-    setMaterialesConfirmacion([]);
-    setMostrarAgregarMaterialesConfirmacion(false);
     try {
       await cargarInventarios();
       const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);

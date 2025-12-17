@@ -24,11 +24,9 @@ export function useSafeClose({
     isLoading = false,
 }: UseSafeCloseProps): UseSafeCloseReturn {
     const [showConfirmation, setShowConfirmation] = useState(false);
-    const [pendingClose, setPendingClose] = useState(false);
     useEffect(() => {
         if (isOpen) {
             setShowConfirmation(false);
-            setPendingClose(false);
         }
     }, [isOpen]);
 
@@ -44,7 +42,6 @@ export function useSafeClose({
 
             if (isDirty) {
                 setShowConfirmation(true);
-                setPendingClose(true);
             } else {
                 onOpenChange(false);
             }
@@ -54,13 +51,11 @@ export function useSafeClose({
 
     const confirmClose = useCallback(() => {
         setShowConfirmation(false);
-        setPendingClose(false);
         onOpenChange(false);
     }, [onOpenChange]);
 
     const cancelClose = useCallback(() => {
         setShowConfirmation(false);
-        setPendingClose(false);
     }, []);
 
     return {

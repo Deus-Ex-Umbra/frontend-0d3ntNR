@@ -1,5 +1,5 @@
 import { MenuLateralMovil } from './MenuLateral_movil';
-import { Monitor, Smartphone, Laptop } from 'lucide-react';
+import { Monitor, Smartphone } from 'lucide-react';
 
 export function VistaMovil() {
     return (

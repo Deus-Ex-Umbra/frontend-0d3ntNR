@@ -380,7 +380,7 @@ export function GestionPlantillasRecetas() {
     });
   };
 
-  const renderDialogContent = (titulo: string, onGuardar: () => void) => (
+  const renderDialogContent = () => (
     <div className="flex-1 pr-4 overflow-y-auto overflow-x-auto">
       <div className="space-y-6 py-4">
         <div className="space-y-2">
@@ -636,7 +636,7 @@ export function GestionPlantillasRecetas() {
             <DialogTitle>Nueva Plantilla</DialogTitle>
             <DialogDescription>Crea una plantilla de receta.</DialogDescription>
           </DialogHeader>
-          {renderDialogContent('Crear', () => guardarPlantilla(false))}
+          {renderDialogContent()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogoCrear(false)}>Cancelar</Button>
             <Button onClick={() => guardarPlantilla(false)} disabled={guardando}>
@@ -651,7 +651,7 @@ export function GestionPlantillasRecetas() {
             <DialogTitle>Editar Plantilla</DialogTitle>
             <DialogDescription>Modifica la plantilla existente.</DialogDescription>
           </DialogHeader>
-          {renderDialogContent('Editar', () => guardarPlantilla(true))}
+          {renderDialogContent()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogoEditar(false)}>Cancelar</Button>
             <Button onClick={() => guardarPlantilla(true)} disabled={guardando}>
