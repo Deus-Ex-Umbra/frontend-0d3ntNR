@@ -10,7 +10,6 @@ import {
 import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
-import { Textarea } from "@/componentes/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -33,8 +32,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/componentes/ui/tabs";
-
-import { Switch } from "@/componentes/ui/switch";
 import { Checkbox } from "@/componentes/ui/checkbox";
 import { ScrollArea } from "@/componentes/ui/scroll-area";
 import {

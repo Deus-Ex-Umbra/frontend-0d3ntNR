@@ -1,17 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
-import { SelectConAgregar } from '@/componentes/ui/select-with-add';
 import { RenderizadorHtml } from '@/componentes/ui/renderizador-html';
 import { EditorDocumento, DocumentoConfig } from '@/componentes/ui/editor-documento';
 import { plantillasRecetasApi, archivosApi, catalogoApi } from '@/lib/api';
 import { PlantillaReceta, ItemCatalogo } from '@/tipos';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, Loader2, Pill, Settings, Sparkles, X, ArrowLeft, Search, Eye, EyeOff } from 'lucide-react';
-import { generarPdfDesdeHtml, ConfiguracionPdf, TAMANOS_PAPEL, MARGENES_DEFECTO } from '@/lib/pdf-utils';
+import { FileText, Loader2, Pill, Settings, ArrowLeft, Search, Eye, EyeOff } from 'lucide-react';
+import { generarPdfDesdeHtml, ConfiguracionPdf, TAMANOS_PAPEL} from '@/lib/pdf-utils';
 
 interface EditorRecetasProps {
   paciente_id: number;
@@ -59,7 +58,6 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
   const [filtro, setFiltro] = useState('');
   const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<PlantillaReceta | null>(null);
   const [valoresMedicamentos, setValoresMedicamentos] = useState<ValorMedicamento[]>([]);
-  const [medicamentoParaAgregar, setMedicamentoParaAgregar] = useState<string>('');
   const [vistaPrevia, setVistaPrevia] = useState(false);
   const [contenidoEditado, setContenidoEditado] = useState('');
   const [configuracionDocumento, setConfiguracionDocumento] = useState<DocumentoConfig>(() => aplicarLimiteMargenes({
@@ -135,11 +133,6 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
 
   const contenidoProcesado = useMemo(() => procesarContenido(), [procesarContenido]);
 
-  const opcionesMedicamentos = useMemo(
-    () => medicamentos.map((m) => ({ value: `MED_${m.id}`, label: m.nombre })),
-    [medicamentos]
-  );
-
   const extraerEtiquetasDelContenido = (contenido: string): string[] => {
     const regex = /data-etiqueta="([^\"]+)"/g;
     const etiquetas: string[] = [];
@@ -162,34 +155,6 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     setPlantillaSeleccionada(plantilla);
     prepararMedicamentos(plantilla.contenido);
     setFase('creacion');
-  };
-
-  const actualizarIndicacion = (codigo: string, valor: string) => {
-    setValoresMedicamentos((prev) => prev.map((m) => (m.codigo === codigo ? { ...m, indicaciones: valor } : m)));
-  };
-
-  const agregarMedicamentoManual = () => {
-    if (!medicamentoParaAgregar) return;
-    const existe = valoresMedicamentos.some((m) => m.codigo === medicamentoParaAgregar);
-    if (existe) return;
-    const med = medicamentos.find((m) => `MED_${m.id}` === medicamentoParaAgregar);
-    setValoresMedicamentos((prev) => ([...prev, { codigo: medicamentoParaAgregar, nombre: med?.nombre || medicamentoParaAgregar, indicaciones: '' }]));
-    setMedicamentoParaAgregar('');
-  };
-
-  const crearMedicamento = async (nombre: string) => {
-    const limpio = nombre.trim();
-    if (!limpio) return;
-    try {
-      const creado = await catalogoApi.crearMedicamento({ nombre: limpio });
-      await cargarMedicamentos();
-      const codigo = `MED_${creado.id}`;
-      setMedicamentoParaAgregar(codigo);
-      toast({ title: 'Medicamento creado', description: `${limpio} añadido al catálogo.` });
-    } catch (error) {
-      console.error('Error creando medicamento:', error);
-      toast({ title: 'Error', description: 'No se pudo crear el medicamento', variant: 'destructive' });
-    }
   };
 
   const generarNombreArchivo = () => {

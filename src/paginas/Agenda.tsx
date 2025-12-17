@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
-import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
 import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign, Filter, X, AlertTriangle, CalendarClock, Package, CheckCircle2, Package2, Wrench, Eye } from 'lucide-react';
 import { agendaApi, pacientesApi, inventarioApi } from '@/lib/api';
@@ -15,10 +14,6 @@ import { Badge } from '@/componentes/ui/badge';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { Switch } from '@/componentes/ui/switch';
 import { ajustarFechaParaBackend } from '@/lib/utilidades';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import WizardConsumibles from '@/componentes/materiales/wizard-consumibles';
-import WizardActivosFijos from '@/componentes/materiales/wizard-activos-fijos';
-import SelectorMateriales from '@/componentes/materiales/selector-materiales';
 import DialogoGestionCita from '@/componentes/citas/dialogo-gestion-cita';
 import DialogoConfirmacionCita from '@/componentes/citas/dialogo-confirmacion-cita';
 import {
@@ -55,9 +50,7 @@ export default function Agenda() {
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
   const [productos_por_inventario, setProductosPorInventario] = useState<Record<number, Producto[]>>({});
   const [materiales_cita, setMaterialesCita] = useState<MaterialCita[]>([]);
-  const [materiales_cita_iniciales, setMaterialesCitaIniciales] = useState<MaterialCita[]>([]);
   const [materiales_confirmacion, setMaterialesConfirmacion] = useState<MaterialCitaConfirmacion[]>([]);
-  const [materiales_adicionales_confirmacion, setMaterialesAdicionalesConfirmacion] = useState<MaterialCita[]>([]);
   const [mostrar_agregar_materiales_confirmacion, setMostrarAgregarMaterialesConfirmacion] = useState(false);
   const [estado_pago_confirmacion, setEstadoPagoConfirmacion] = useState<string>('pendiente');
   const [monto_confirmacion, setMontoConfirmacion] = useState<string>('');
@@ -256,228 +249,6 @@ export default function Agenda() {
     } finally {
       setCargandoMateriales(false);
     }
-  };
-
-  const cargarMaterialesCita = async (cita_id: number) => {
-    setCargandoMateriales(true);
-    try {
-      const respuesta = await inventarioApi.obtenerMaterialesCita(cita_id);
-      const materiales = respuesta.materiales || [];
-
-      const materiales_agrupados: Record<string, MaterialCita> = {};
-
-      for (const material of materiales) {
-        const key = `${material.inventario_id}-${material.producto_id}`;
-
-        if (!materiales_agrupados[key]) {
-          materiales_agrupados[key] = {
-            producto_id: material.producto_id,
-            inventario_id: material.inventario_id,
-            inventario_nombre: material.inventario_nombre,
-            producto_nombre: material.producto_nombre,
-            tipo_gestion: material.tipo_gestion,
-            unidad_medida: material.unidad_medida,
-            items: []
-          };
-        }
-
-        if (material.items && material.items.length > 0) {
-          materiales_agrupados[key].items = material.items.map((item: any) => ({
-            lote_id: item.lote_id,
-            activo_id: item.activo_id,
-            cantidad_planeada: item.cantidad_planeada,
-            nro_lote: item.nro_lote,
-            nro_serie: item.nro_serie,
-            nombre_asignado: item.nombre_asignado,
-          }));
-        } else {
-          materiales_agrupados[key].items.push({
-            cantidad_planeada: material.cantidad_planeada,
-          });
-        }
-      }
-
-      const materiales_array = Object.values(materiales_agrupados);
-      setMaterialesCita(materiales_array);
-      setMaterialesCitaIniciales(JSON.parse(JSON.stringify(materiales_array)));
-    } catch (error) {
-      console.error('Error al cargar materiales de la cita:', error);
-    } finally {
-      setCargandoMateriales(false);
-    }
-  };
-
-  const agregarMaterialCita = () => {
-    setMaterialesCita([...materiales_cita, {
-      producto_id: 0,
-      inventario_id: 0,
-      items: [{ cantidad_planeada: 1 }],
-    }]);
-  };
-
-  const actualizarMaterialCita = (index: number, campo: string, valor: any) => {
-    const nuevos_materiales = [...materiales_cita];
-    nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor };
-
-    if (campo === 'inventario_id') {
-      const inventario_id = parseInt(valor);
-      const inventario = inventarios.find(inv => inv.id === inventario_id);
-      if (inventario) {
-        nuevos_materiales[index].inventario_nombre = inventario.nombre;
-        nuevos_materiales[index].producto_id = 0;
-        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
-        if (inventario_id > 0) {
-          cargarProductosInventario(inventario_id);
-        }
-      }
-    }
-
-    if (campo === 'producto_id') {
-      const producto_id = parseInt(valor);
-      const inventario_id = nuevos_materiales[index].inventario_id;
-      const productos = productos_por_inventario[inventario_id] || [];
-      const producto = productos.find(p => p.id === producto_id);
-      if (producto) {
-        nuevos_materiales[index].producto_nombre = producto.nombre;
-        nuevos_materiales[index].tipo_gestion = producto.tipo;
-        nuevos_materiales[index].unidad_medida = producto.unidad_medida;
-        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
-      }
-    }
-
-    setMaterialesCita(nuevos_materiales);
-  };
-
-  const agregarItemMaterial = (material_index: number) => {
-    const nuevos_materiales = [...materiales_cita];
-    nuevos_materiales[material_index].items.push({ cantidad_planeada: 1 });
-    setMaterialesCita(nuevos_materiales);
-  };
-
-  const actualizarItemMaterial = (material_index: number, item_index: number, campo: string, valor: any) => {
-    const nuevos_materiales = [...materiales_cita];
-    nuevos_materiales[material_index] = {
-      ...nuevos_materiales[material_index],
-      items: [...nuevos_materiales[material_index].items]
-    };
-    nuevos_materiales[material_index].items[item_index] = {
-      ...nuevos_materiales[material_index].items[item_index],
-      [campo]: valor
-    };
-    if (campo === 'lote_id' && valor) {
-      const inventario_id = nuevos_materiales[material_index].inventario_id;
-      const productos = productos_por_inventario[inventario_id] || [];
-      const producto = productos.find(p => p.id === nuevos_materiales[material_index].producto_id);
-      if (producto) {
-        const material = producto.materiales?.find((m: Material) => m.id === parseInt(valor));
-        if (material) {
-          nuevos_materiales[material_index].items[item_index].nro_lote = material.nro_lote;
-        }
-      }
-    }
-    if (campo === 'activo_id' && valor) {
-      const inventario_id = nuevos_materiales[material_index].inventario_id;
-      const productos = productos_por_inventario[inventario_id] || [];
-      const producto = productos.find(p => p.id === nuevos_materiales[material_index].producto_id);
-      if (producto) {
-        const activo = producto.activos?.find((a: Activo) => a.id === parseInt(valor));
-        if (activo) {
-          if (producto.subtipo_activo_fijo) {
-            nuevos_materiales[material_index].items[item_index].nro_serie = activo.nro_serie;
-            nuevos_materiales[material_index].items[item_index].nombre_asignado = activo.nombre_asignado;
-          }
-        }
-      }
-    }
-
-    setMaterialesCita(nuevos_materiales);
-  };
-
-  const eliminarItemMaterial = (material_index: number, item_index: number) => {
-    const nuevos_materiales = [...materiales_cita];
-    nuevos_materiales[material_index].items = nuevos_materiales[material_index].items.filter((_, i) => i !== item_index);
-    if (nuevos_materiales[material_index].items.length === 0) {
-      nuevos_materiales.splice(material_index, 1);
-    }
-    setMaterialesCita(nuevos_materiales);
-  };
-
-  const eliminarMaterialCita = (index: number) => {
-    const nuevos_materiales = materiales_cita.filter((_, i) => i !== index);
-    setMaterialesCita(nuevos_materiales);
-  };
-  const agregarMaterialAdicionalConfirmacion = () => {
-    setMaterialesAdicionalesConfirmacion([...materiales_adicionales_confirmacion, {
-      producto_id: 0,
-      inventario_id: 0,
-      items: [{ cantidad_planeada: 1 }],
-    }]);
-  };
-
-  const actualizarMaterialAdicionalConfirmacion = (index: number, campo: string, valor: any) => {
-    const nuevos_materiales = [...materiales_adicionales_confirmacion];
-    nuevos_materiales[index] = { ...nuevos_materiales[index], [campo]: valor };
-
-    if (campo === 'inventario_id') {
-      const inventario_id = parseInt(valor);
-      const inventario = inventarios.find(inv => inv.id === inventario_id);
-      if (inventario) {
-        nuevos_materiales[index].inventario_nombre = inventario.nombre;
-        nuevos_materiales[index].producto_id = 0;
-        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
-        if (inventario_id > 0) {
-          cargarProductosInventario(inventario_id);
-        }
-      }
-    }
-
-    if (campo === 'producto_id') {
-      const producto_id = parseInt(valor);
-      const inventario_id = nuevos_materiales[index].inventario_id;
-      const productos = productos_por_inventario[inventario_id] || [];
-      const producto = productos.find(p => p.id === producto_id);
-      if (producto) {
-        nuevos_materiales[index].producto_nombre = producto.nombre;
-        nuevos_materiales[index].tipo_gestion = producto.tipo;
-        nuevos_materiales[index].unidad_medida = producto.unidad_medida;
-        nuevos_materiales[index].items = [{ cantidad_planeada: 1 }];
-      }
-    }
-
-    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
-  };
-
-  const agregarItemMaterialAdicionalConfirmacion = (material_index: number) => {
-    const nuevos_materiales = [...materiales_adicionales_confirmacion];
-    nuevos_materiales[material_index].items.push({ cantidad_planeada: 1 });
-    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
-  };
-
-  const actualizarItemMaterialAdicionalConfirmacion = (material_index: number, item_index: number, campo: string, valor: any) => {
-    const nuevos_materiales = [...materiales_adicionales_confirmacion];
-    nuevos_materiales[material_index] = {
-      ...nuevos_materiales[material_index],
-      items: [...nuevos_materiales[material_index].items]
-    };
-    nuevos_materiales[material_index].items[item_index] = {
-      ...nuevos_materiales[material_index].items[item_index],
-      [campo]: valor
-    };
-    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
-  };
-
-  const eliminarItemMaterialAdicionalConfirmacion = (material_index: number, item_index: number) => {
-    const nuevos_materiales = [...materiales_adicionales_confirmacion];
-    nuevos_materiales[material_index].items = nuevos_materiales[material_index].items.filter((_, i) => i !== item_index);
-    if (nuevos_materiales[material_index].items.length === 0) {
-      nuevos_materiales.splice(material_index, 1);
-    }
-    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
-  };
-
-  const eliminarMaterialAdicionalConfirmacion = (index: number) => {
-    const nuevos_materiales = materiales_adicionales_confirmacion.filter((_, i) => i !== index);
-    setMaterialesAdicionalesConfirmacion(nuevos_materiales);
   };
 
   const validarDisponibilidadMateriales = (): { valido: boolean; advertencias: string[] } => {
@@ -1140,14 +911,6 @@ export default function Agenda() {
 
   const elementos_agrupados = agruparElementosPorDia();
 
-  const opciones_pacientes: OpcionCombobox[] = [
-    { valor: '', etiqueta: 'Evento general (sin paciente)' },
-    ...pacientes.map(p => ({
-      valor: p.id.toString(),
-      etiqueta: `${p.nombre} ${p.apellidos}`
-    }))
-  ];
-
   const opciones_pacientes_filtro: OpcionCombobox[] = [
     { valor: '', etiqueta: 'Todos los pacientes' },
     ...pacientes.map(p => ({
@@ -1155,11 +918,6 @@ export default function Agenda() {
       etiqueta: `${p.nombre} ${p.apellidos}`
     }))
   ];
-
-  const opciones_estados: OpcionCombobox[] = estados_pago.map(e => ({
-    valor: e.valor,
-    etiqueta: e.etiqueta
-  }));
 
   const opciones_estados_filtro: OpcionCombobox[] = [
     { valor: '', etiqueta: 'Todos los estados' },
@@ -1169,7 +927,6 @@ export default function Agenda() {
     }))
   ];
 
-  const tiene_paciente = formulario.paciente_id !== '';
   const filtros_fecha_activos = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
   const es_cita_pasada_edicion = !!(modo_edicion && cita_seleccionada && (esCitaPasada(cita_seleccionada.fecha) || cita_seleccionada.materiales_confirmados));
   const hay_cambios = !!(modo_edicion && (materialesCambiaron() ||

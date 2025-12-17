@@ -407,14 +407,6 @@ export function FinanzasMovimientos() {
     }).format(monto);
   };
 
-  const formatearFecha = (fecha: Date): string => {
-    return new Date(fecha).toLocaleDateString('es-BO', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-
   const formatearHora = (fecha: Date): string => {
     return new Date(fecha).toLocaleTimeString('es-BO', {
       hour: '2-digit',

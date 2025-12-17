@@ -15,6 +15,7 @@ import {
   Package
 } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
+import { useClinica } from '@/contextos/clinica-contexto';
 import { cn } from '@/lib/utilidades';
 import { Button } from '@/componentes/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/componentes/ui/avatar';
@@ -40,6 +41,7 @@ export function MenuLateralMovil() {
   const navegar = useNavigate();
   const ubicacion = useLocation();
   const { cerrarSesion, usuario } = useAutenticacion();
+  const { config_clinica } = useClinica();
   const [colapsado, setColapsado] = useState(true);
   const github_url = 'https://github.com/deus-ex-umbra';
 
@@ -70,12 +72,19 @@ export function MenuLateralMovil() {
               onClick={abrirGithub}
               className="group relative h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-primary/70 shadow-lg flex items-center justify-center flex-shrink-0 hover:scale-110 transition-transform overflow-hidden"
               title="Visitar GitHub"
-            >
-              <img 
-                src="/app_0d3nt_logo.svg" 
-                alt="GitHub"
-                className="h-6 w-6 transition-all duration-300 group-hover:scale-110 relative z-10"
-              />
+            >{config_clinica.logo ? (
+                <img
+                  src={config_clinica.logo}
+                  alt="Logo"
+                  className="h-full w-full object-contain transition-all duration-300 group-hover:scale-110 relative z-10"
+                />
+              ) : (
+                <img 
+                  src="/app_0d3nt_logo.svg" 
+                  alt="GitHub"
+                  className="h-6 w-6 transition-all duration-300 group-hover:scale-110 relative z-10"
+                />
+              )}
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[0_0_15px_rgba(59,130,246,0.5)] group-hover:shadow-[0_0_25px_rgba(59,130,246,0.8)]" />
               <ExternalLink className="absolute top-0.5 right-0.5 h-2.5 w-2.5 text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity z-20" />
             </button>

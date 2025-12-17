@@ -4,10 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
-import { Textarea } from '@/componentes/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { ScrollArea } from '@/componentes/ui/scroll-area';
-import { User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill, Building2, ImageIcon, X, Settings2 } from 'lucide-react';
+import { User, Palette, Camera, Loader2, Save, Sun, Moon, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill, Building2, ImageIcon, X, Settings2 } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { useTema, TemaPersonalizado } from '@/contextos/tema-contexto';
 import { useClinica } from '@/contextos/clinica-contexto';
@@ -15,7 +13,6 @@ import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { GestionCatalogo } from '@/componentes/catalogo/gestion-catalogo';
-import { MarkdownRenderer } from '@/componentes/ui/markdown-rendered';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ItemCatalogo } from '@/tipos';
@@ -388,67 +385,6 @@ export default function Configuracion() {
     lector.readAsDataURL(archivo);
   };
 
-  const manejarGuardarNota = async () => {
-    if (!nota_diaria.trim()) {
-      toast({
-        title: 'Error',
-        description: 'La nota no puede estar vacía',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setGuardandoNota(true);
-    try {
-      await notasApi.crear(nota_diaria);
-      toast({
-        title: 'Éxito',
-        description: 'Nota guardada correctamente',
-      });
-      setNotaDiaria('');
-      await cargarNotasAnteriores();
-    } catch (error: any) {
-      console.error('Error al guardar nota:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'No se pudo guardar la nota',
-        variant: 'destructive',
-      });
-    } finally {
-      setGuardandoNota(false);
-    }
-  };
-
-  const obtenerFraseMotivacional = async () => {
-    setCargandoFrase(true);
-    try {
-      const respuesta = await asistenteApi.obtenerFraseMotivacional(7);
-      setFraseMotivacional(respuesta);
-      toast({
-        title: 'Frase generada',
-        description: 'Tu mensaje motivacional está listo',
-      });
-    } catch (error: any) {
-      console.error('Error al obtener frase:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'No se pudo generar la frase',
-        variant: 'destructive',
-      });
-    } finally {
-      setCargandoFrase(false);
-    }
-  };
-
-  const formatearFecha = (fecha_string: string): string => {
-    try {
-      const fecha = new Date(fecha_string);
-      return format(fecha, "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es });
-    } catch (error) {
-      return fecha_string;
-    }
-  };
-
   const obtenerNombreTemaEfectivo = (): string => {
     const nombres: Record<string, string> = {
       'claro': 'Claro',
@@ -479,13 +415,7 @@ export default function Configuracion() {
       setColoresPersonalizados(tema_personalizado);
     }
   }, [tema_personalizado]);
-  const manejarCambioColor = (campo: keyof TemaPersonalizado, valor: string) => {
-    const nuevos_colores = { ...colores_personalizados, [campo]: valor };
-    setColoresPersonalizados(nuevos_colores);
-    if (tema === 'personalizado') {
-      aplicarColoresPersonalizados(nuevos_colores);
-    }
-  };
+  
   const guardarTemaPersonalizado = async (colores?: TemaPersonalizado) => {
     const coloresAGuardar = colores || colores_temporales || colores_personalizados;
     setGuardandoTema(true);

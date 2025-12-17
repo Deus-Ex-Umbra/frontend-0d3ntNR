@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs'
 import { Badge } from '@/componentes/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
-import { Users, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, UserCircle, MessageCircle, Palette, Calendar, FileText, Download } from 'lucide-react';
+import { Users, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, UserCircle, MessageCircle, Palette, Calendar, FileText } from 'lucide-react';
 import { generarPdfDesdeHtml, TAMANOS_PAPEL, MARGENES_DEFECTO } from '@/lib/pdf-utils';
 import { pacientesApi, catalogoApi, historiasClinicasApi, archivosApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';

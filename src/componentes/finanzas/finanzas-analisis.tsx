@@ -37,7 +37,6 @@ export function FinanzasAnalisis() {
   const [todos_movimientos, setTodosMovimientos] = useState<Movimiento[]>([]);
   const [busqueda_local, setBusquedaLocal] = useState('');
   const [cargando, setCargando] = useState(false);
-  const [cargando_grafico, setCargandoGrafico] = useState(false);
   const [pagina_actual, setPaginaActual] = useState(1);
   const [items_por_pagina, setItemsPorPagina] = useState(12);
   const [tipo_visualizacion, setTipoVisualizacion] = useState<'barras' | 'lineas' | 'area'>('barras');

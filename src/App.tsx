@@ -7,21 +7,14 @@ import { ProveedorEdicionImagenes } from './contextos/edicion-imagenes-contexto'
 import InicioSesion from './paginas/InicioSesion';
 import Registro from './paginas/Registro';
 import Inicio from './paginas/Inicio';
-import InicioMobile from './paginas/Inicio_movil';
 import Pacientes from './paginas/Pacientes';
-import PacientesMobile from './paginas/Pacientes_movil';
 import Agenda from './paginas/Agenda';
-import AgendaMobile from './paginas/Agenda_movil';
 import EdicionImagenes from './paginas/EdicionImagenes';
-import EdicionImagenesMobile from './paginas/EdicionImagenes_movil';
 import Tratamientos from './paginas/Tratamientos';
-import TratamientosMobile from './paginas/Tratamientos_movil';
 import Finanzas from './paginas/Finanzas';
-import FinanzasMobile from './paginas/Finanzas_movil';
 import Inventarios from './paginas/Inventarios';
-import InventariosMobile from './paginas/Inventarios_movil';
 import Configuracion from './paginas/Configuracion';
-import ConfiguracionMobile from './paginas/Configuracion_movil';
+import { VistaMovil } from './componentes/VistaMovil';
 import { Loader2 } from 'lucide-react';
 import { useResponsive } from './hooks/use-responsive';
 
@@ -69,42 +62,42 @@ function RutaPublica({ children }: { children: React.ReactNode }) {
 
 function InicioResponsive() {
   const { es_movil } = useResponsive();
-  return es_movil ? <InicioMobile /> : <Inicio />;
+  return es_movil ? <VistaMovil /> : <Inicio />;
 }
 
 function PacientesResponsive() {
   const { es_movil } = useResponsive();
-  return es_movil ? <PacientesMobile /> : <Pacientes />;
+  return es_movil ? <VistaMovil /> : <Pacientes />;
 }
 
 function AgendaResponsive() {
   const { es_movil } = useResponsive();
-  return es_movil ? <AgendaMobile /> : <Agenda />;
+  return es_movil ? <VistaMovil /> : <Agenda />;
 }
 
 function EdicionImagenesResponsive() {
   const { es_movil } = useResponsive();
-  return es_movil ? <EdicionImagenesMobile /> : <EdicionImagenes />;
+  return es_movil ? <VistaMovil /> : <EdicionImagenes />;
 }
 
 function TratamientosResponsive() {
   const { es_movil } = useResponsive();
-  return es_movil ? <TratamientosMobile /> : <Tratamientos />;
+  return es_movil ? <VistaMovil /> : <Tratamientos />;
 }
 
 function FinanzasResponsive() {
   const { es_movil } = useResponsive();
-  return es_movil ? <FinanzasMobile /> : <Finanzas />;
+  return es_movil ? <VistaMovil /> : <Finanzas />;
 }
 
 function InventariosResponsive() {
   const { es_movil } = useResponsive();
-  return es_movil ? <InventariosMobile /> : <Inventarios />;
+  return es_movil ? <VistaMovil /> : <Inventarios />;
 }
 
 function ConfiguracionResponsive() {
   const { es_movil } = useResponsive();
-  return es_movil ? <ConfiguracionMobile /> : <Configuracion />;
+  return es_movil ? <VistaMovil /> : <Configuracion />;
 }
 
 function App() {
