@@ -229,6 +229,7 @@ export default function DialogoGestionCita({
                       min="0"
                       value={formulario.monto_esperado}
                       onChange={(e) => setFormulario({ ...formulario, monto_esperado: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
                       placeholder="0.00"
                       className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                     />

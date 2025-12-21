@@ -2060,6 +2060,7 @@ export default function Tratamientos() {
                           costo_total: e.target.value,
                         })
                       }
+                      onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
                       placeholder="Ej: 5000.00"
                       className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                     />
@@ -2866,6 +2867,7 @@ export default function Tratamientos() {
                     min="0"
                     value={formulario_editar_costo.costo_total}
                     onChange={(e) => setFormularioEditarCosto({ costo_total: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
                     placeholder="0.00"
                   />
                 </div>
@@ -3036,6 +3038,7 @@ export default function Tratamientos() {
                             min="0"
                             value={monto_pago_tratamiento}
                             onChange={(e) => setMontoPagoTratamiento(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
                             placeholder="0.00"
                             className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                           />

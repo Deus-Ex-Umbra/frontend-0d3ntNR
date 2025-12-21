@@ -33,7 +33,7 @@ interface CitaFinanzas {
 
 export function FinanzasMovimientos() {
   const [reporte, setReporte] = useState<ReporteFinanzas | null>(null);
-  const [todos_movimientos_hoy, setTodosMovimientosHoy] = useState<Movimiento[]>([]);
+  const [todos_movimientos, setTodosMovimientos] = useState<Movimiento[]>([]);
   const [datos_grafico, setDatosGrafico] = useState<DatosGrafico[]>([]);
   const [cargando, setCargando] = useState(true);
   const [cargando_grafico, setCargandoGrafico] = useState(false);
@@ -77,7 +77,7 @@ export function FinanzasMovimientos() {
 
   useEffect(() => {
     filtrarMovimientosLocalmente();
-  }, [busqueda, todos_movimientos_hoy]);
+  }, [busqueda, todos_movimientos]);
 
   useEffect(() => {
     cargarDatosGrafico();
@@ -89,12 +89,12 @@ export function FinanzasMovimientos() {
 
   const filtrarMovimientosLocalmente = () => {
     if (!busqueda.trim()) {
-      setReporte(prev => prev ? { ...prev, movimientos: todos_movimientos_hoy } : null);
+      setReporte(prev => prev ? { ...prev, movimientos: todos_movimientos } : null);
       return;
     }
 
     const termino = busqueda.toLowerCase();
-    const filtrados = todos_movimientos_hoy.filter(mov =>
+    const filtrados = todos_movimientos.filter(mov =>
       mov.concepto?.toLowerCase().includes(termino)
     );
 
@@ -105,17 +105,39 @@ export function FinanzasMovimientos() {
     setCargando(true);
     try {
       const hoy = new Date();
-      const inicio = new Date(hoy);
-      inicio.setHours(0, 0, 0, 0);
-      const fin = new Date(hoy);
-      fin.setHours(23, 59, 59, 999);
 
-      const inicio_str = formatearFechaISO(inicio);
-      const fin_str = formatearFechaISO(fin);
+      // Obtener totales del año completo
+      const inicio_ano = new Date(hoy.getFullYear(), 0, 1);
+      inicio_ano.setHours(0, 0, 0, 0);
+      const fin_ano = new Date(hoy.getFullYear(), 11, 31);
+      fin_ano.setHours(23, 59, 59, 999);
 
-      const datos = await finanzasApi.obtenerReporte(inicio_str, fin_str);
-      setReporte(datos);
-      setTodosMovimientosHoy(datos.movimientos || []);
+      const inicio_ano_str = formatearFechaISO(inicio_ano);
+      const fin_ano_str = formatearFechaISO(fin_ano);
+
+      // Obtener movimientos de hoy
+      const inicio_hoy = new Date(hoy);
+      inicio_hoy.setHours(0, 0, 0, 0);
+      const fin_hoy = new Date(hoy);
+      fin_hoy.setHours(23, 59, 59, 999);
+
+      const inicio_hoy_str = formatearFechaISO(inicio_hoy);
+      const fin_hoy_str = formatearFechaISO(fin_hoy);
+
+      // Obtener totales del año
+      const datos_ano = await finanzasApi.obtenerReporte(inicio_ano_str, fin_ano_str);
+
+      // Obtener movimientos de hoy
+      const datos_hoy = await finanzasApi.obtenerReporte(inicio_hoy_str, fin_hoy_str);
+
+      // Usar totales del año pero movimientos de hoy
+      setReporte({
+        total_ingresos: datos_ano.total_ingresos,
+        total_egresos: datos_ano.total_egresos,
+        balance: datos_ano.balance,
+        movimientos: datos_hoy.movimientos || [],
+      });
+      setTodosMovimientos(datos_hoy.movimientos || []);
     } catch (error) {
       console.error('Error al cargar movimientos:', error);
       toast({
@@ -458,10 +480,10 @@ export function FinanzasMovimientos() {
       <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-foreground tracking-tight">
-            {busqueda ? 'Resultados de Búsqueda' : 'Movimientos de Hoy'}
+            {busqueda ? 'Resultados de Búsqueda' : 'Movimientos'}
           </h2>
           <p className="text-muted-foreground">
-            {busqueda ? `Mostrando resultados para "${busqueda}"` : 'Resumen financiero del día actual'}
+            {busqueda ? `Mostrando resultados para "${busqueda}"` : 'Resumen financiero'}
           </p>
         </div>
 
@@ -490,7 +512,7 @@ export function FinanzasMovimientos() {
         <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.2)] hover:scale-105 transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Ingresos (Hoy)
+              Total Ingresos (Este Año)
             </CardTitle>
             <div className="bg-green-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
               <TrendingUp className="h-5 w-5 text-green-500" />
@@ -506,7 +528,7 @@ export function FinanzasMovimientos() {
         <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:scale-105 transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Egresos (Hoy)
+              Total Egresos (Este Año)
             </CardTitle>
             <div className="bg-red-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
               <TrendingDown className="h-5 w-5 text-red-500" />
@@ -522,7 +544,7 @@ export function FinanzasMovimientos() {
         <Card className="border-2 border-primary/30 shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 transition-all duration-300 bg-gradient-to-br from-primary/5 to-transparent">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Balance Total (Hoy)
+              Balance Total (Este Año)
             </CardTitle>
             <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
               <DollarSign className="h-5 w-5 text-primary" />
@@ -660,136 +682,136 @@ export function FinanzasMovimientos() {
             ) : (
               <div style={{ width: '100%', height: '450px', minHeight: '450px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                {modo_grafico === 'ingresos-egresos' ? (
-                  tipo_visualizacion === 'barras' ? (
-                    <BarChart data={datos_grafico}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="periodo" />
-                      <YAxis />
-                      <Tooltip
-                        formatter={(value: number) => formatearMoneda(value)}
-                        contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                      />
-                      <Legend />
-                      <Bar dataKey="ingresos" fill="#22c55e" name="Ingresos" />
-                      <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
-                    </BarChart>
+                  {modo_grafico === 'ingresos-egresos' ? (
+                    tipo_visualizacion === 'barras' ? (
+                      <BarChart data={datos_grafico}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="periodo" />
+                        <YAxis />
+                        <Tooltip
+                          formatter={(value: number) => formatearMoneda(value)}
+                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                        />
+                        <Legend />
+                        <Bar dataKey="ingresos" fill="#22c55e" name="Ingresos" />
+                        <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
+                      </BarChart>
+                    ) : (
+                      <LineChart data={datos_grafico}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="periodo"
+                          interval={tipo_grafico === 'dia' ? 0 : 'preserveStartEnd'}
+                          angle={tipo_grafico === 'dia' ? -45 : 0}
+                          textAnchor={tipo_grafico === 'dia' ? 'end' : 'middle'}
+                          height={tipo_grafico === 'dia' ? 80 : 60}
+                        />
+                        <YAxis />
+                        <Tooltip
+                          formatter={(value: number) => formatearMoneda(value)}
+                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                        />
+                        <Legend />
+                        <Line type="monotone" dataKey="ingresos" stroke="#22c55e" strokeWidth={2} name="Ingresos" />
+                        <Line type="monotone" dataKey="egresos" stroke="#ef4444" strokeWidth={2} name="Egresos" />
+                      </LineChart>
+                    )
                   ) : (
-                    <LineChart data={datos_grafico}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="periodo"
-                        interval={tipo_grafico === 'dia' ? 0 : 'preserveStartEnd'}
-                        angle={tipo_grafico === 'dia' ? -45 : 0}
-                        textAnchor={tipo_grafico === 'dia' ? 'end' : 'middle'}
-                        height={tipo_grafico === 'dia' ? 80 : 60}
-                      />
-                      <YAxis />
-                      <Tooltip
-                        formatter={(value: number) => formatearMoneda(value)}
-                        contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                      />
-                      <Legend />
-                      <Line type="monotone" dataKey="ingresos" stroke="#22c55e" strokeWidth={2} name="Ingresos" />
-                      <Line type="monotone" dataKey="egresos" stroke="#ef4444" strokeWidth={2} name="Egresos" />
-                    </LineChart>
-                  )
-                ) : (
-                  tipo_balance === 'area' ? (
-                    <AreaChart data={datos_grafico.map(d => {
-                      const balance = d.ingresos - d.egresos;
-                      return {
-                        periodo: d.periodo,
-                        balance: balance,
-                        balance_pos: balance >= 0 ? balance : 0,
-                        balance_neg: balance < 0 ? balance : 0
-                      };
-                    })}>
-                      <defs>
-                        <linearGradient id="colorBalancePositivo" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8} />
-                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0.1} />
-                        </linearGradient>
-                        <linearGradient id="colorBalanceNegativo" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="periodo"
-                        interval={tipo_grafico === 'dia' ? 0 : 'preserveStartEnd'}
-                        angle={tipo_grafico === 'dia' ? -45 : 0}
-                        textAnchor={tipo_grafico === 'dia' ? 'end' : 'middle'}
-                        height={tipo_grafico === 'dia' ? 80 : 60}
-                      />
-                      <YAxis />
-                      <Tooltip
-                        formatter={(value: number, name: string) => {
-                          if (value === 0) return null;
-                          return [formatearMoneda(value), name];
-                        }}
-                        contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                        labelFormatter={(label) => `Periodo: ${label}`}
-                      />
-                      <Legend />
-                      <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={2} />
-                      <Area
-                        type="monotone"
-                        dataKey="balance_pos"
-                        stroke="#22c55e"
-                        strokeWidth={2}
-                        fillOpacity={1}
-                        fill="url(#colorBalancePositivo)"
-                        name="Balance +"
-                        isAnimationActive={true}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="balance_neg"
-                        stroke="#ef4444"
-                        strokeWidth={2}
-                        fillOpacity={1}
-                        fill="url(#colorBalanceNegativo)"
-                        name="Balance -"
-                        isAnimationActive={true}
-                      />
-                    </AreaChart>
-                  ) : (
-                    <BarChart data={datos_grafico.map(d => {
-                      const balance = d.ingresos - d.egresos;
-                      return {
-                        periodo: d.periodo,
-                        balance_positivo: balance >= 0 ? balance : 0,
-                        balance_negativo: balance < 0 ? balance : 0
-                      };
-                    })}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="periodo" />
-                      <YAxis />
-                      <Tooltip
-                        formatter={(value: number) => value === 0 ? null : formatearMoneda(value)}
-                        contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                        labelFormatter={(label) => `Periodo: ${label}`}
-                      />
-                      <Legend />
-                      <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={2} />
-                      <Bar
-                        dataKey="balance_positivo"
-                        fill="#22c55e"
-                        name="Balance +"
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="balance_negativo"
-                        fill="#ef4444"
-                        name="Balance -"
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  )
-                )}
-              </ResponsiveContainer>
+                    tipo_balance === 'area' ? (
+                      <AreaChart data={datos_grafico.map(d => {
+                        const balance = d.ingresos - d.egresos;
+                        return {
+                          periodo: d.periodo,
+                          balance: balance,
+                          balance_pos: balance >= 0 ? balance : 0,
+                          balance_neg: balance < 0 ? balance : 0
+                        };
+                      })}>
+                        <defs>
+                          <linearGradient id="colorBalancePositivo" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#22c55e" stopOpacity={0.1} />
+                          </linearGradient>
+                          <linearGradient id="colorBalanceNegativo" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="periodo"
+                          interval={tipo_grafico === 'dia' ? 0 : 'preserveStartEnd'}
+                          angle={tipo_grafico === 'dia' ? -45 : 0}
+                          textAnchor={tipo_grafico === 'dia' ? 'end' : 'middle'}
+                          height={tipo_grafico === 'dia' ? 80 : 60}
+                        />
+                        <YAxis />
+                        <Tooltip
+                          formatter={(value: number, name: string) => {
+                            if (value === 0) return null;
+                            return [formatearMoneda(value), name];
+                          }}
+                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                          labelFormatter={(label) => `Periodo: ${label}`}
+                        />
+                        <Legend />
+                        <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={2} />
+                        <Area
+                          type="monotone"
+                          dataKey="balance_pos"
+                          stroke="#22c55e"
+                          strokeWidth={2}
+                          fillOpacity={1}
+                          fill="url(#colorBalancePositivo)"
+                          name="Balance +"
+                          isAnimationActive={true}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="balance_neg"
+                          stroke="#ef4444"
+                          strokeWidth={2}
+                          fillOpacity={1}
+                          fill="url(#colorBalanceNegativo)"
+                          name="Balance -"
+                          isAnimationActive={true}
+                        />
+                      </AreaChart>
+                    ) : (
+                      <BarChart data={datos_grafico.map(d => {
+                        const balance = d.ingresos - d.egresos;
+                        return {
+                          periodo: d.periodo,
+                          balance_positivo: balance >= 0 ? balance : 0,
+                          balance_negativo: balance < 0 ? balance : 0
+                        };
+                      })}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="periodo" />
+                        <YAxis />
+                        <Tooltip
+                          formatter={(value: number) => value === 0 ? null : formatearMoneda(value)}
+                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                          labelFormatter={(label) => `Periodo: ${label}`}
+                        />
+                        <Legend />
+                        <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={2} />
+                        <Bar
+                          dataKey="balance_positivo"
+                          fill="#22c55e"
+                          name="Balance +"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="balance_negativo"
+                          fill="#ef4444"
+                          name="Balance -"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    )
+                  )}
+                </ResponsiveContainer>
               </div>
             )}
           </div>
@@ -980,9 +1002,11 @@ export function FinanzasMovimientos() {
                 id="monto_ingreso"
                 type="number"
                 step="0.01"
+                min="0"
                 placeholder="0.00"
                 value={formulario_ingreso.monto}
                 onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, monto: e.target.value })}
+                onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
               />
             </div>
@@ -1059,9 +1083,11 @@ export function FinanzasMovimientos() {
                 id="monto_egreso"
                 type="number"
                 step="0.01"
+                min="0"
                 placeholder="0.00"
                 value={formulario_egreso.monto}
                 onChange={(e) => setFormularioEgreso({ ...formulario_egreso, monto: e.target.value })}
+                onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
               />
             </div>

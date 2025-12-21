@@ -105,6 +105,7 @@ export default function DialogoConfirmacionCita({
                     min="0"
                     value={monto}
                     onChange={(e) => setMonto(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
                     placeholder="0.00"
                   />
                 </div>

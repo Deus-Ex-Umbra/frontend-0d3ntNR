@@ -2974,8 +2974,10 @@ export default function Inventarios() {
                 id="costo_total"
                 type="number"
                 step="0.01"
+                min="0"
                 value={formulario_material.costo_total}
                 onChange={(e) => setFormularioMaterial({ ...formulario_material, costo_total: e.target.value })}
+                onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
               />
             </div>
 
@@ -3137,11 +3139,13 @@ export default function Inventarios() {
                 id="monto_ajuste"
                 type="number"
                 step="0.01"
+                min="0"
                 value={formulario_ajuste_stock.monto}
                 onChange={(e) => {
                   const valor = parseFloat(e.target.value || '0').toFixed(2);
                   setFormularioAjusteStock({ ...formulario_ajuste_stock, monto: valor });
                 }}
+                onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
               />
             </div>
 
@@ -3253,8 +3257,10 @@ export default function Inventarios() {
                     id="costo_compra"
                     type="number"
                     step="0.01"
+                    min="0"
                     value={formulario_activo.costo_compra}
                     onChange={(e) => setFormularioActivo({ ...formulario_activo, costo_compra: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
                   />
                 </div>
 
@@ -3368,6 +3374,7 @@ export default function Inventarios() {
                 id="monto_venta"
                 type="number"
                 step="0.01"
+                min="0"
                 value={formulario_venta_activo.monto_venta}
                 onChange={(e) => {
                   const valor = parseFloat(e.target.value || '0').toFixed(2);
@@ -3377,6 +3384,7 @@ export default function Inventarios() {
                   const valor = parseFloat(e.target.value || '0').toFixed(2);
                   setFormularioVentaActivo({ ...formulario_venta_activo, monto_venta: valor });
                 }}
+                onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
               />
               {activo_seleccionado && (
                 <p className="text-sm text-muted-foreground">
