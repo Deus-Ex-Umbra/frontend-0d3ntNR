@@ -693,12 +693,12 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
             <Card key={archivo.id} className="hover:shadow-md transition-all duration-200">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="flex items-start gap-3 flex-1 min-w-0 overflow-hidden">
                     <div className="text-3xl flex-shrink-0">{obtenerIconoTipo(archivo.tipo_mime)}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium break-words">{archivo.nombre_archivo}</p>
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <p className="font-medium break-all overflow-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{archivo.nombre_archivo}</p>
                       {archivo.descripcion && (
-                        <p className="text-sm text-muted-foreground break-words mt-1">
+                        <p className="text-sm text-muted-foreground mt-1 break-all overflow-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                           {archivo.descripcion}
                         </p>
                       )}

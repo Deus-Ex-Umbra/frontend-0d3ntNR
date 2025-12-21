@@ -54,6 +54,8 @@ export default function Pacientes() {
   const [ultima_cita, setUltimaCita] = useState<any>(null);
   const [ultimo_tratamiento, setUltimoTratamiento] = useState<any>(null);
   const [cargando_info_adicional, setCargandoInfoAdicional] = useState(false);
+  const [cargando_detalle_paciente, setCargandoDetallePaciente] = useState(false);
+  const [cargando_edicion_paciente, setCargandoEdicionPaciente] = useState(false);
   const [notas_generales_config, setNotasGeneralesConfig] = useState<DocumentoConfig>({ ...CONFIG_DOC_DEF });
   const [notas_medicas_config, setNotasMedicasConfig] = useState<DocumentoConfig>({ ...CONFIG_DOC_DEF });
 
@@ -186,6 +188,27 @@ export default function Pacientes() {
   };
 
   const abrirDialogoEditar = async (paciente: Paciente) => {
+    // Open dialog immediately to show loading state
+    setPacienteSeleccionado(null);
+    setFormulario({
+      nombre: '',
+      apellidos: '',
+      codigo_pais: '+591',
+      numero_telefono: '',
+      correo: '',
+      direccion: '',
+      notas_generales: '',
+      alergias_ids: [],
+      enfermedades_ids: [],
+      medicamentos_ids: [],
+      notas_medicas: '',
+      color_categoria: '',
+    });
+    limpiarEstadoHistoria();
+    setModoEdicion(true);
+    setDialogoAbierto(true);
+    setCargandoEdicionPaciente(true);
+
     try {
       const datos_completos = await pacientesApi.obtenerPorId(paciente.id);
 
@@ -231,14 +254,15 @@ export default function Pacientes() {
         setNotasMedicasConfig({ tamano_hoja_id: null, nombre_tamano: 'Carta', widthMm: 216, heightMm: 279, margenes: { top: 20, right: 20, bottom: 20, left: 20 } });
       }
       await cargarHistoriasClinicas(paciente.id, false);
-      setModoEdicion(true);
-      setDialogoAbierto(true);
     } catch (error) {
       toast({
         title: 'Error',
         description: 'No se pudo cargar la información del paciente',
         variant: 'destructive',
       });
+      setDialogoAbierto(false);
+    } finally {
+      setCargandoEdicionPaciente(false);
     }
   };
 
@@ -335,10 +359,17 @@ export default function Pacientes() {
   };
 
   const verDetallePaciente = async (id: number) => {
+    // Open dialog immediately to show loading state
+    setPacienteSeleccionado(null);
+    setUltimaCita(null);
+    setUltimoTratamiento(null);
+    limpiarEstadoHistoria();
+    setDialogoVerAbierto(true);
+    setCargandoDetallePaciente(true);
+
     try {
       const datos = await pacientesApi.obtenerPorId(id);
       setPacienteSeleccionado(datos);
-      setDialogoVerAbierto(true);
       await cargarHistoriasClinicas(id, true);
       cargarInfoAdicionalPaciente(id);
     } catch (error) {
@@ -347,6 +378,9 @@ export default function Pacientes() {
         description: 'No se pudo cargar el paciente',
         variant: 'destructive',
       });
+      setDialogoVerAbierto(false);
+    } finally {
+      setCargandoDetallePaciente(false);
     }
   };
 
@@ -973,351 +1007,358 @@ export default function Pacientes() {
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto pr-2">
-            <Tabs defaultValue="datos-generales" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="datos-generales">Datos Generales</TabsTrigger>
-                <TabsTrigger value="anamnesis">Información Médica</TabsTrigger>
-              </TabsList>
+            {modo_edicion && cargando_edicion_paciente ? (
+              <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-muted-foreground">Cargando información del paciente...</p>
+              </div>
+            ) : (
+              <Tabs defaultValue="datos-generales" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="datos-generales">Datos Generales</TabsTrigger>
+                  <TabsTrigger value="anamnesis">Información Médica</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="datos-generales" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
+                <TabsContent value="datos-generales" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="nombre">Nombre *</Label>
+                      <Input
+                        id="nombre"
+                        value={formulario.nombre}
+                        onChange={(e) => setFormulario({ ...formulario, nombre: e.target.value })}
+                        placeholder="Juan"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="apellidos">Apellidos *</Label>
+                      <Input
+                        id="apellidos"
+                        value={formulario.apellidos}
+                        onChange={(e) => setFormulario({ ...formulario, apellidos: e.target.value })}
+                        placeholder="Pérez López"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <PhoneInput
+                      codigo_pais={formulario.codigo_pais}
+                      numero={formulario.numero_telefono}
+                      onCodigoPaisChange={(codigo) => setFormulario({ ...formulario, codigo_pais: codigo })}
+                      onNumeroChange={(numero) => setFormulario({ ...formulario, numero_telefono: numero })}
+                      label="Teléfono"
+                      placeholder="70123456"
+                    />
+
+                    <div className="space-y-2">
+                      <Label htmlFor="correo">Correo Electrónico</Label>
+                      <Input
+                        id="correo"
+                        type="email"
+                        value={formulario.correo}
+                        onChange={(e) => setFormulario({ ...formulario, correo: e.target.value })}
+                        placeholder="paciente@email.com"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="nombre">Nombre *</Label>
+                    <Label htmlFor="direccion">Dirección</Label>
                     <Input
-                      id="nombre"
-                      value={formulario.nombre}
-                      onChange={(e) => setFormulario({ ...formulario, nombre: e.target.value })}
-                      placeholder="Juan"
+                      id="direccion"
+                      value={formulario.direccion}
+                      onChange={(e) => setFormulario({ ...formulario, direccion: e.target.value })}
+                      placeholder="Calle Principal #123"
                       className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="apellidos">Apellidos *</Label>
-                    <Input
-                      id="apellidos"
-                      value={formulario.apellidos}
-                      onChange={(e) => setFormulario({ ...formulario, apellidos: e.target.value })}
-                      placeholder="Pérez López"
-                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    <Label htmlFor="notas_generales">Notas Generales</Label>
+                    <EditorHtmlRico
+                      contenido={formulario.notas_generales}
+                      onChange={(contenido) => setFormulario({ ...formulario, notas_generales: contenido })}
+                      minHeight="180px"
+                      placeholder="Notas generales del paciente..."
+                      className="border rounded-md"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <PhoneInput
-                    codigo_pais={formulario.codigo_pais}
-                    numero={formulario.numero_telefono}
-                    onCodigoPaisChange={(codigo) => setFormulario({ ...formulario, codigo_pais: codigo })}
-                    onNumeroChange={(numero) => setFormulario({ ...formulario, numero_telefono: numero })}
-                    label="Teléfono"
-                    placeholder="70123456"
-                  />
 
                   <div className="space-y-2">
-                    <Label htmlFor="correo">Correo Electrónico</Label>
-                    <Input
-                      id="correo"
-                      type="email"
-                      value={formulario.correo}
-                      onChange={(e) => setFormulario({ ...formulario, correo: e.target.value })}
-                      placeholder="paciente@email.com"
-                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="direccion">Dirección</Label>
-                  <Input
-                    id="direccion"
-                    value={formulario.direccion}
-                    onChange={(e) => setFormulario({ ...formulario, direccion: e.target.value })}
-                    placeholder="Calle Principal #123"
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notas_generales">Notas Generales</Label>
-                  <EditorHtmlRico
-                    contenido={formulario.notas_generales}
-                    onChange={(contenido) => setFormulario({ ...formulario, notas_generales: contenido })}
-                    minHeight="180px"
-                    placeholder="Notas generales del paciente..."
-                    className="border rounded-md"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Color de Categoría</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={abrirDialogoNuevoColor}
-                      className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nuevo Color
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Selecciona un color del catálogo para identificar al paciente
-                  </p>
-                  <ScrollArea className={`rounded-md border border-border p-3 ${catalogos.colores.filter(c => c.color).length > 8 ? 'h-[200px]' : 'h-auto max-h-[200px]'
-                    }`}>
-                    <div className="flex gap-2 flex-wrap">
-                      {catalogos.colores.filter(c => c.color).map((color) => (
-                        <button
-                          key={color.id}
-                          type="button"
-                          className={`group relative w-12 h-12 rounded-lg border-2 transition-all hover:scale-110 ${formulario.color_categoria === color.color
-                            ? 'border-foreground scale-110 shadow-lg'
-                            : 'border-transparent hover:border-border'
-                            }`}
-                          style={{ backgroundColor: color.color! }}
-                          onClick={() => setFormulario({ ...formulario, color_categoria: color.color! })}
-                          title={color.nombre}
-                        >
-                          <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg border border-border">
-                            {color.nombre}
-                          </span>
-                        </button>
-                      ))}
-                      {formulario.color_categoria && (
-                        <button
-                          type="button"
-                          className="w-12 h-12 rounded-lg border-2 border-border bg-secondary hover:bg-secondary/80 flex items-center justify-center hover:scale-110 transition-all duration-200"
-                          onClick={() => setFormulario({ ...formulario, color_categoria: '' })}
-                          title="Limpiar color"
-                        >
-                          ×
-                        </button>
-                      )}
+                    <div className="flex items-center justify-between">
+                      <Label>Color de Categoría</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={abrirDialogoNuevoColor}
+                        className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nuevo Color
+                      </Button>
                     </div>
-                  </ScrollArea>
-                  {formulario.color_categoria && (
-                    <div className="p-3 mt-2 rounded-lg bg-secondary/30 border border-border">
-                      <p className="text-sm text-foreground">
-                        <span className="font-semibold">
-                          {obtenerColorPorId(formulario.color_categoria)?.nombre || 'Color seleccionado'}
-                        </span>
-                      </p>
-                      {obtenerColorPorId(formulario.color_categoria)?.descripcion && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {obtenerColorPorId(formulario.color_categoria)?.descripcion}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="anamnesis" className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label>Alergias</Label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {formulario.alergias_ids.map((id) => {
-                      const alergia = catalogos.alergias.find(a => a.id === id);
-                      return alergia ? (
-                        <Badge
-                          key={id}
-                          variant="destructive"
-                          className="cursor-pointer hover:bg-destructive/80 transition-all duration-200"
-                          onClick={() => toggleAlergia(id)}
-                        >
-                          {alergia.nombre} ×
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                  <SelectConAgregar
-                    opciones={catalogos.alergias.map(a => ({ valor: a.id.toString(), etiqueta: a.nombre }))}
-                    valor=""
-                    onChange={(valor) => {
-                      if (valor) toggleAlergia(parseInt(valor));
-                    }}
-                    onAgregarNuevo={agregarAlergia}
-                    estiloAgregar="destacado"
-                    placeholder="Seleccionar alergia"
-                    textoAgregar="Agregar nueva alergia"
-                    tituloModal="Agregar Nueva Alergia"
-                    descripcionModal="Ingresa el nombre de la alergia"
-                    placeholderInput="Ej: Penicilina"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Enfermedades Preexistentes</Label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {formulario.enfermedades_ids.map((id) => {
-                      const enfermedad = catalogos.enfermedades.find(e => e.id === id);
-                      return enfermedad ? (
-                        <Badge
-                          key={id}
-                          variant="secondary"
-                          className="cursor-pointer hover:bg-secondary/80 hover:text-destructive transition-all duration-200"
-                          onClick={() => toggleEnfermedad(id)}
-                        >
-                          {enfermedad.nombre} ×
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                  <SelectConAgregar
-                    opciones={catalogos.enfermedades.map(e => ({ valor: e.id.toString(), etiqueta: e.nombre }))}
-                    valor=""
-                    onChange={(valor) => {
-                      if (valor) toggleEnfermedad(parseInt(valor));
-                    }}
-                    onAgregarNuevo={agregarEnfermedad}
-                    estiloAgregar="destacado"
-                    placeholder="Seleccionar enfermedad"
-                    textoAgregar="Agregar nueva enfermedad"
-                    tituloModal="Agregar Nueva Enfermedad"
-                    descripcionModal="Ingresa el nombre de la enfermedad"
-                    placeholderInput="Ej: Diabetes"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Medicamentos Actuales</Label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {formulario.medicamentos_ids.map((id) => {
-                      const medicamento = catalogos.medicamentos.find(m => m.id === id);
-                      return medicamento ? (
-                        <Badge
-                          key={id}
-                          className="cursor-pointer hover:bg-primary/80 transition-all duration-200"
-                          onClick={() => toggleMedicamento(id)}
-                        >
-                          {medicamento.nombre} ×
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                  <SelectConAgregar
-                    opciones={catalogos.medicamentos.map(m => ({ valor: m.id.toString(), etiqueta: m.nombre }))}
-                    valor=""
-                    onChange={(valor) => {
-                      if (valor) toggleMedicamento(parseInt(valor));
-                    }}
-                    onAgregarNuevo={agregarMedicamento}
-                    estiloAgregar="destacado"
-                    placeholder="Seleccionar medicamento"
-                    textoAgregar="Agregar nuevo medicamento"
-                    tituloModal="Agregar Nuevo Medicamento"
-                    descripcionModal="Ingresa el nombre del medicamento"
-                    placeholderInput="Ej: Aspirina"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Historia Clínica</Label>
-                  {!modo_edicion && (
-                    <div className="p-4 rounded-lg border border-border bg-secondary/30 text-sm text-muted-foreground">
-                      Primero debe crear el paciente para iniciar una historia clínica.
-                    </div>
-                  )}
-
-                  {modo_edicion && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">
-                            Solo la última versión es editable; las anteriores se pueden visualizar.
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Cada versión conserva su tamaño de hoja y márgenes.
-                          </p>
-                        </div>
-                        {versiones_historia.length > 0 && (
-                          <Button
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Selecciona un color del catálogo para identificar al paciente
+                    </p>
+                    <ScrollArea className={`rounded-md border border-border p-3 ${catalogos.colores.filter(c => c.color).length > 8 ? 'h-[200px]' : 'h-auto max-h-[200px]'
+                      }`}>
+                      <div className="flex gap-2 flex-wrap">
+                        {catalogos.colores.filter(c => c.color).map((color) => (
+                          <button
+                            key={color.id}
                             type="button"
-                            variant="secondary"
-                            onClick={crearNuevaVersionDesdeActual}
-                            disabled={creando_historia || guardando_historia || versiones_historia.length === 0 || !esUltimaSeleccionada}
+                            className={`group relative w-12 h-12 rounded-lg border-2 transition-all hover:scale-110 ${formulario.color_categoria === color.color
+                              ? 'border-foreground scale-110 shadow-lg'
+                              : 'border-transparent hover:border-border'
+                              }`}
+                            style={{ backgroundColor: color.color! }}
+                            onClick={() => setFormulario({ ...formulario, color_categoria: color.color! })}
+                            title={color.nombre}
                           >
-                            {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Guardar y crear nueva versión
-                          </Button>
+                            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg border border-border">
+                              {color.nombre}
+                            </span>
+                          </button>
+                        ))}
+                        {formulario.color_categoria && (
+                          <button
+                            type="button"
+                            className="w-12 h-12 rounded-lg border-2 border-border bg-secondary hover:bg-secondary/80 flex items-center justify-center hover:scale-110 transition-all duration-200"
+                            onClick={() => setFormulario({ ...formulario, color_categoria: '' })}
+                            title="Limpiar color"
+                          >
+                            ×
+                          </button>
                         )}
                       </div>
+                    </ScrollArea>
+                    {formulario.color_categoria && (
+                      <div className="p-3 mt-2 rounded-lg bg-secondary/30 border border-border">
+                        <p className="text-sm text-foreground">
+                          <span className="font-semibold">
+                            {obtenerColorPorId(formulario.color_categoria)?.nombre || 'Color seleccionado'}
+                          </span>
+                        </p>
+                        {obtenerColorPorId(formulario.color_categoria)?.descripcion && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {obtenerColorPorId(formulario.color_categoria)?.descripcion}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
 
-                      {cargando_historias ? (
-                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                          <Loader2 className="h-4 w-4 animate-spin" /> Cargando versiones...
-                        </div>
-                      ) : versiones_historia.length === 0 ? (
-                        <div className="p-4 rounded-lg border border-dashed text-sm text-muted-foreground flex items-center justify-between gap-3">
-                          <span>Aún no hay versiones. Crea la primera para comenzar a documentar.</span>
-                          {paciente_seleccionado && (
-                            <Button onClick={() => crearPrimeraHistoria(paciente_seleccionado.id, false)} disabled={creando_historia}>
+                <TabsContent value="anamnesis" className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label>Alergias</Label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {formulario.alergias_ids.map((id) => {
+                        const alergia = catalogos.alergias.find(a => a.id === id);
+                        return alergia ? (
+                          <Badge
+                            key={id}
+                            variant="destructive"
+                            className="cursor-pointer hover:bg-destructive/80 transition-all duration-200"
+                            onClick={() => toggleAlergia(id)}
+                          >
+                            {alergia.nombre} ×
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                    <SelectConAgregar
+                      opciones={catalogos.alergias.map(a => ({ valor: a.id.toString(), etiqueta: a.nombre }))}
+                      valor=""
+                      onChange={(valor) => {
+                        if (valor) toggleAlergia(parseInt(valor));
+                      }}
+                      onAgregarNuevo={agregarAlergia}
+                      estiloAgregar="destacado"
+                      placeholder="Seleccionar alergia"
+                      textoAgregar="Agregar nueva alergia"
+                      tituloModal="Agregar Nueva Alergia"
+                      descripcionModal="Ingresa el nombre de la alergia"
+                      placeholderInput="Ej: Penicilina"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Enfermedades Preexistentes</Label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {formulario.enfermedades_ids.map((id) => {
+                        const enfermedad = catalogos.enfermedades.find(e => e.id === id);
+                        return enfermedad ? (
+                          <Badge
+                            key={id}
+                            variant="secondary"
+                            className="cursor-pointer hover:bg-secondary/80 hover:text-destructive transition-all duration-200"
+                            onClick={() => toggleEnfermedad(id)}
+                          >
+                            {enfermedad.nombre} ×
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                    <SelectConAgregar
+                      opciones={catalogos.enfermedades.map(e => ({ valor: e.id.toString(), etiqueta: e.nombre }))}
+                      valor=""
+                      onChange={(valor) => {
+                        if (valor) toggleEnfermedad(parseInt(valor));
+                      }}
+                      onAgregarNuevo={agregarEnfermedad}
+                      estiloAgregar="destacado"
+                      placeholder="Seleccionar enfermedad"
+                      textoAgregar="Agregar nueva enfermedad"
+                      tituloModal="Agregar Nueva Enfermedad"
+                      descripcionModal="Ingresa el nombre de la enfermedad"
+                      placeholderInput="Ej: Diabetes"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Medicamentos Actuales</Label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {formulario.medicamentos_ids.map((id) => {
+                        const medicamento = catalogos.medicamentos.find(m => m.id === id);
+                        return medicamento ? (
+                          <Badge
+                            key={id}
+                            className="cursor-pointer hover:bg-primary/80 transition-all duration-200"
+                            onClick={() => toggleMedicamento(id)}
+                          >
+                            {medicamento.nombre} ×
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                    <SelectConAgregar
+                      opciones={catalogos.medicamentos.map(m => ({ valor: m.id.toString(), etiqueta: m.nombre }))}
+                      valor=""
+                      onChange={(valor) => {
+                        if (valor) toggleMedicamento(parseInt(valor));
+                      }}
+                      onAgregarNuevo={agregarMedicamento}
+                      estiloAgregar="destacado"
+                      placeholder="Seleccionar medicamento"
+                      textoAgregar="Agregar nuevo medicamento"
+                      tituloModal="Agregar Nuevo Medicamento"
+                      descripcionModal="Ingresa el nombre del medicamento"
+                      placeholderInput="Ej: Aspirina"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Historia Clínica</Label>
+                    {!modo_edicion && (
+                      <div className="p-4 rounded-lg border border-border bg-secondary/30 text-sm text-muted-foreground">
+                        Primero debe crear el paciente para iniciar una historia clínica.
+                      </div>
+                    )}
+
+                    {modo_edicion && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div className="space-y-1">
+                            <p className="text-sm text-muted-foreground">
+                              Solo la última versión es editable; las anteriores se pueden visualizar.
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Cada versión conserva su tamaño de hoja y márgenes.
+                            </p>
+                          </div>
+                          {versiones_historia.length > 0 && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={crearNuevaVersionDesdeActual}
+                              disabled={creando_historia || guardando_historia || versiones_historia.length === 0 || !esUltimaSeleccionada}
+                            >
                               {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                              Crear primera versión
+                              Guardar y crear nueva versión
                             </Button>
                           )}
                         </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="grid md:grid-cols-3 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-sm">Seleccionar versión</Label>
-                              <Combobox
-                                opciones={versiones_historia.map((v) => ({
-                                  valor: v.id.toString(),
-                                  etiqueta: `Versión ${v.numero_version}: ${v.nombre || 'Sin nombre'}${v.id === version_activa?.id ? ' (actual)' : ''}`
-                                }))}
-                                valor={version_visualizada?.id?.toString() ?? ''}
-                                onChange={(valor) => seleccionarVersionHistoria(Number(valor))}
-                                placeholder="Seleccionar versión"
-                                textoVacio="No hay versiones disponibles"
-                              />
-                              {version_visualizada && (
-                                <p className="text-xs text-muted-foreground">
-                                  {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
-                                </p>
-                              )}
-                            </div>
-                            <div className="space-y-1 md:col-span-2">
-                              <Label className="text-sm">Nombre de la versión</Label>
-                              <Input
-                                value={versionSeleccionadaEditable ? (historia_en_edicion?.nombre || '') : (version_visualizada?.nombre || '')}
-                                onChange={(e) => {
-                                  if (!version_visualizada) return;
-                                  const nuevoNombre = e.target.value;
-                                  if (versionSeleccionadaEditable) {
-                                    setHistoriaEnEdicion((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
-                                    setVersionActiva((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
-                                  }
-                                  setVersionVisualizada({ ...version_visualizada, nombre: nuevoNombre });
-                                  setVersionesHistoria((prev) => prev.map((v) => (v.id === version_visualizada.id ? { ...v, nombre: nuevoNombre } : v)));
-                                }}
-                                disabled={!versionSeleccionadaEditable}
-                              />
-                              {!versionSeleccionadaEditable && (
-                                <p className="text-xs text-muted-foreground">Esta versión está bloqueada. Solo la última versión sin finalizar se puede editar.</p>
-                              )}
-                            </div>
-                          </div>
 
-                          <EditorDocumento
-                            valorHtml={versionSeleccionadaEditable ? historia_contenido : (version_visualizada?.contenido_html || '')}
-                            onChangeHtml={versionSeleccionadaEditable ? setHistoriaContenido : () => { }}
-                            config={versionSeleccionadaEditable ? historia_config : ((version_visualizada as any)?.config ?? historia_config)}
-                            onChangeConfig={versionSeleccionadaEditable ? setHistoriaConfig : () => { }}
-                            minHeight="320px"
-                            soloLectura={!versionSeleccionadaEditable}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
+                        {cargando_historias ? (
+                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Cargando versiones...
+                          </div>
+                        ) : versiones_historia.length === 0 ? (
+                          <div className="p-4 rounded-lg border border-dashed text-sm text-muted-foreground flex items-center justify-between gap-3">
+                            <span>Aún no hay versiones. Crea la primera para comenzar a documentar.</span>
+                            {paciente_seleccionado && (
+                              <Button onClick={() => crearPrimeraHistoria(paciente_seleccionado.id, false)} disabled={creando_historia}>
+                                {creando_historia && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Crear primera versión
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="grid md:grid-cols-3 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-sm">Seleccionar versión</Label>
+                                <Combobox
+                                  opciones={versiones_historia.map((v) => ({
+                                    valor: v.id.toString(),
+                                    etiqueta: `Versión ${v.numero_version}: ${v.nombre || 'Sin nombre'}${v.id === version_activa?.id ? ' (actual)' : ''}`
+                                  }))}
+                                  valor={version_visualizada?.id?.toString() ?? ''}
+                                  onChange={(valor) => seleccionarVersionHistoria(Number(valor))}
+                                  placeholder="Seleccionar versión"
+                                  textoVacio="No hay versiones disponibles"
+                                />
+                                {version_visualizada && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="space-y-1 md:col-span-2">
+                                <Label className="text-sm">Nombre de la versión</Label>
+                                <Input
+                                  value={versionSeleccionadaEditable ? (historia_en_edicion?.nombre || '') : (version_visualizada?.nombre || '')}
+                                  onChange={(e) => {
+                                    if (!version_visualizada) return;
+                                    const nuevoNombre = e.target.value;
+                                    if (versionSeleccionadaEditable) {
+                                      setHistoriaEnEdicion((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
+                                      setVersionActiva((prev) => (prev && prev.id === version_visualizada.id ? { ...prev, nombre: nuevoNombre } : prev));
+                                    }
+                                    setVersionVisualizada({ ...version_visualizada, nombre: nuevoNombre });
+                                    setVersionesHistoria((prev) => prev.map((v) => (v.id === version_visualizada.id ? { ...v, nombre: nuevoNombre } : v)));
+                                  }}
+                                  disabled={!versionSeleccionadaEditable}
+                                />
+                                {!versionSeleccionadaEditable && (
+                                  <p className="text-xs text-muted-foreground">Esta versión está bloqueada. Solo la última versión sin finalizar se puede editar.</p>
+                                )}
+                              </div>
+                            </div>
+
+                            <EditorDocumento
+                              valorHtml={versionSeleccionadaEditable ? historia_contenido : (version_visualizada?.contenido_html || '')}
+                              onChangeHtml={versionSeleccionadaEditable ? setHistoriaContenido : () => { }}
+                              config={versionSeleccionadaEditable ? historia_config : ((version_visualizada as any)?.config ?? historia_config)}
+                              onChangeConfig={versionSeleccionadaEditable ? setHistoriaConfig : () => { }}
+                              minHeight="320px"
+                              soloLectura={!versionSeleccionadaEditable}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
           </div>
 
           <DialogFooter>
@@ -1577,7 +1618,12 @@ export default function Pacientes() {
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto pr-2">
-            {paciente_seleccionado && (
+            {cargando_detalle_paciente ? (
+              <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-muted-foreground">Cargando información del paciente...</p>
+              </div>
+            ) : paciente_seleccionado ? (
               <div className="space-y-6">
                 <div className="flex items-center gap-4 p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors duration-200">
                   <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
@@ -1992,7 +2038,7 @@ export default function Pacientes() {
                   </TabsContent>
                 </Tabs>
               </div>
-            )}
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>
