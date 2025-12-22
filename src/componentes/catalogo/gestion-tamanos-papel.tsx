@@ -8,7 +8,7 @@ import { Edit, Plus, Trash2, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { catalogoApi } from '@/lib/api'
 
-interface TamanoPapelItem { id:number; nombre:string; ancho:number; alto:number; descripcion?:string; protegido:boolean }
+interface TamanoPapelItem { id: number; nombre: string; ancho: number; alto: number; descripcion?: string; protegido: boolean }
 
 export function GestionTamanosPapel() {
   const [items, setItems] = useState<TamanoPapelItem[]>([])
@@ -18,8 +18,8 @@ export function GestionTamanosPapel() {
     try {
       const lista = await (catalogoApi as any).obtenerTamanosHoja?.()
       if (Array.isArray(lista)) setItems(lista)
-    } catch (e:any) {
-      toast({ title:'Error', description: e.response?.data?.message || 'No se pudieron cargar los tamaños', variant:'destructive' })
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.response?.data?.message || 'No se pudieron cargar los tamaños', variant: 'destructive' })
     } finally {
       setCargando(false)
     }
@@ -32,68 +32,78 @@ export function GestionTamanosPapel() {
   const [guardando, setGuardando] = useState(false)
   const [editItem, setEditItem] = useState<TamanoPapelItem | null>(null)
 
-  const [form, setForm] = useState({ nombre:'', ancho:'', alto:'', descripcion:'' })
+  const [form, setForm] = useState({ nombre: '', ancho: '', alto: '' })
 
-  const abrirCrear = () => { setForm({ nombre:'', ancho:'', alto:'', descripcion:'' }); setCrearAbierto(true) }
+  const abrirCrear = () => { setForm({ nombre: '', ancho: '', alto: '' }); setCrearAbierto(true) }
   const abrirEditar = (it: TamanoPapelItem) => {
-    if (it.protegido) { toast({ title:'Protegido', description:'Este tamaño no se puede editar', variant:'destructive' }); return }
+    if (it.protegido) { toast({ title: 'Protegido', description: 'Este tamaño no se puede editar', variant: 'destructive' }); return }
     setEditItem(it)
-    setForm({ nombre: it.nombre, ancho: String(it.ancho), alto: String(it.alto), descripcion: it.descripcion || '' })
+    setForm({ nombre: it.nombre, ancho: String(it.ancho), alto: String(it.alto) })
     setEditarAbierto(true)
   }
 
-  const convertirANum = (v:string) => Number((v || '').toString().replace(',', '.'))
+  const convertirANum = (v: string) => Number((v || '').toString().replace(',', '.'))
+
+  const generarDescripcion = (ancho: string, alto: string) => {
+    const nAncho = Math.round(convertirANum(ancho))
+    const nAlto = Math.round(convertirANum(alto))
+    if (!nAncho || !nAlto) return ''
+    const anchoPulgadas = (nAncho / 25.4).toFixed(2)
+    const altoPulgadas = (nAlto / 25.4).toFixed(2)
+    return `${nAncho} × ${nAlto} mm (${anchoPulgadas}" × ${altoPulgadas}")`
+  }
+
 
   const crear = async () => {
-    if (!form.nombre.trim()) { toast({ title:'Error', description:'El nombre es obligatorio', variant:'destructive' }); return }
+    if (!form.nombre.trim()) { toast({ title: 'Error', description: 'El nombre es obligatorio', variant: 'destructive' }); return }
     const nAncho = convertirANum(form.ancho)
     const nAlto = convertirANum(form.alto)
     if (!Number.isFinite(nAncho) || !Number.isFinite(nAlto) || nAncho <= 0 || nAlto <= 0) {
-      toast({ title:'Error', description:'Ancho y alto deben ser números positivos', variant:'destructive' }); return
+      toast({ title: 'Error', description: 'Ancho y alto deben ser números positivos', variant: 'destructive' }); return
     }
     setGuardando(true)
     try {
-      const payload = { nombre: form.nombre.trim(), ancho: Math.round(nAncho), alto: Math.round(nAlto), descripcion: form.descripcion.trim() || `${Math.round(nAncho)} × ${Math.round(nAlto)} mm` }
+      const payload = { nombre: form.nombre.trim(), ancho: Math.round(nAncho), alto: Math.round(nAlto) }
       await (catalogoApi as any).crearTamanoHoja?.(payload)
-      toast({ title:'Éxito', description:'Tamaño creado' })
+      toast({ title: 'Éxito', description: 'Tamaño creado' })
       setCrearAbierto(false)
       await cargar()
-    } catch (e:any) {
-      toast({ title:'Error', description: e.response?.data?.message || 'No se pudo crear', variant:'destructive' })
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.response?.data?.message || 'No se pudo crear', variant: 'destructive' })
     } finally { setGuardando(false) }
   }
 
   const actualizar = async () => {
     if (!editItem) return
     const item = editItem
-    if (item.protegido) { toast({ title:'Protegido', description:'Este tamaño no se puede editar', variant:'destructive' }); return }
-    if (!form.nombre.trim()) { toast({ title:'Error', description:'El nombre es obligatorio', variant:'destructive' }); return }
+    if (item.protegido) { toast({ title: 'Protegido', description: 'Este tamaño no se puede editar', variant: 'destructive' }); return }
+    if (!form.nombre.trim()) { toast({ title: 'Error', description: 'El nombre es obligatorio', variant: 'destructive' }); return }
     const nAncho = convertirANum(form.ancho)
     const nAlto = convertirANum(form.alto)
     if (!Number.isFinite(nAncho) || !Number.isFinite(nAlto) || nAncho <= 0 || nAlto <= 0) {
-      toast({ title:'Error', description:'Ancho y alto deben ser números positivos', variant:'destructive' }); return
+      toast({ title: 'Error', description: 'Ancho y alto deben ser números positivos', variant: 'destructive' }); return
     }
     setGuardando(true)
     try {
-      const payload:any = { nombre: form.nombre.trim(), ancho: Math.round(nAncho), alto: Math.round(nAlto), descripcion: form.descripcion.trim() }
+      const payload: any = { nombre: form.nombre.trim(), ancho: Math.round(nAncho), alto: Math.round(nAlto) }
       await (catalogoApi as any).actualizarTamanoHoja?.(item.id, payload)
-      toast({ title:'Éxito', description:'Tamaño actualizado' })
+      toast({ title: 'Éxito', description: 'Tamaño actualizado' })
       setEditarAbierto(false)
       setEditItem(null)
       await cargar()
-    } catch (e:any) {
-      toast({ title:'Error', description: e.response?.data?.message || 'No se pudo actualizar', variant:'destructive' })
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.response?.data?.message || 'No se pudo actualizar', variant: 'destructive' })
     } finally { setGuardando(false) }
   }
 
   const eliminar = async (it: TamanoPapelItem) => {
-    if (it.protegido) { toast({ title:'Protegido', description:'Este tamaño no se puede eliminar', variant:'destructive' }); return }
+    if (it.protegido) { toast({ title: 'Protegido', description: 'Este tamaño no se puede eliminar', variant: 'destructive' }); return }
     try {
       await (catalogoApi as any).eliminarTamanoHoja?.(it.id)
-      toast({ title:'Éxito', description:'Tamaño eliminado' })
+      toast({ title: 'Éxito', description: 'Tamaño eliminado' })
       await cargar()
-    } catch (e:any) {
-      toast({ title:'Error', description: e.response?.data?.message || 'No se pudo eliminar', variant:'destructive' })
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.response?.data?.message || 'No se pudo eliminar', variant: 'destructive' })
     }
   }
 
@@ -107,12 +117,12 @@ export function GestionTamanosPapel() {
           <p className="text-sm text-muted-foreground">Gestiona tamaños exclusivamente en milímetros (mm)</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={abrirCrear} size="sm" className="ml-2"><Plus className="h-4 w-4 mr-2"/>Agregar</Button>
+          <Button onClick={abrirCrear} size="sm" className="ml-2"><Plus className="h-4 w-4 mr-2" />Agregar</Button>
         </div>
       </div>
 
       {cargando ? (
-        <div className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin"/>Cargando…</div>
+        <div className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />Cargando…</div>
       ) : (
         <Accordion type="single" collapsible className="w-full">
           {items.map(it => (
@@ -125,8 +135,8 @@ export function GestionTamanosPapel() {
               </AccordionTrigger>
               <AccordionContent>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => abrirEditar(it)} disabled={it.protegido}><Edit className="h-4 w-4 mr-2"/>Editar</Button>
-                  <Button variant="outline" size="sm" onClick={() => eliminar(it)} disabled={it.protegido}><Trash2 className="h-4 w-4 mr-2"/>Eliminar</Button>
+                  <Button variant="outline" size="sm" onClick={() => abrirEditar(it)} disabled={it.protegido}><Edit className="h-4 w-4 mr-2" />Editar</Button>
+                  <Button variant="outline" size="sm" onClick={() => eliminar(it)} disabled={it.protegido}><Trash2 className="h-4 w-4 mr-2" />Eliminar</Button>
                   {it.protegido && <span className="text-xs text-muted-foreground">Protegido</span>}
                 </div>
               </AccordionContent>
@@ -144,26 +154,60 @@ export function GestionTamanosPapel() {
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Nombre</Label>
-              <Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Oficio personal"/>
+              <Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Oficio personal" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Ancho ({tituloUnidad})</Label>
-                <Input value={form.ancho} onChange={(e) => setForm({ ...form, ancho: e.target.value })} placeholder={'210'}/>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.ancho}
+                  onChange={(e) => {
+                    const valor = e.target.value.replace(/[^0-9]/g, '');
+                    setForm({ ...form, ancho: valor });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '.' || e.key === ',' || e.key === '+') {
+                      e.preventDefault();
+                    }
+                  }}
+                  placeholder={'210'}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Alto ({tituloUnidad})</Label>
-                <Input value={form.alto} onChange={(e) => setForm({ ...form, alto: e.target.value })} placeholder={'297'}/>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.alto}
+                  onChange={(e) => {
+                    const valor = e.target.value.replace(/[^0-9]/g, '');
+                    setForm({ ...form, alto: valor });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '.' || e.key === ',' || e.key === '+') {
+                      e.preventDefault();
+                    }
+                  }}
+                  placeholder={'297'}
+                />
               </div>
             </div>
-            <div className="space-y-1">
-              <Label>Descripción (opcional)</Label>
-              <Input value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} placeholder="Se autogenera si se deja vacío"/>
-            </div>
+            {form.ancho && form.alto && (
+              <div className="space-y-1">
+                <Label>Descripción (auto-generada)</Label>
+                <div className="px-3 py-2 bg-secondary/50 rounded-md text-sm text-muted-foreground">
+                  {generarDescripcion(form.ancho, form.alto)}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCrearAbierto(false)} disabled={guardando}>Cancelar</Button>
-            <Button onClick={crear} disabled={guardando}>{guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Crear</Button>
+            <Button onClick={crear} disabled={guardando}>{guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Crear</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -177,26 +221,58 @@ export function GestionTamanosPapel() {
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Nombre</Label>
-              <Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}/>
+              <Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Ancho ({tituloUnidad})</Label>
-                <Input value={form.ancho} onChange={(e) => setForm({ ...form, ancho: e.target.value })}/>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.ancho}
+                  onChange={(e) => {
+                    const valor = e.target.value.replace(/[^0-9]/g, '');
+                    setForm({ ...form, ancho: valor });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '.' || e.key === ',' || e.key === '+') {
+                      e.preventDefault();
+                    }
+                  }}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Alto ({tituloUnidad})</Label>
-                <Input value={form.alto} onChange={(e) => setForm({ ...form, alto: e.target.value })}/>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.alto}
+                  onChange={(e) => {
+                    const valor = e.target.value.replace(/[^0-9]/g, '');
+                    setForm({ ...form, alto: valor });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '.' || e.key === ',' || e.key === '+') {
+                      e.preventDefault();
+                    }
+                  }}
+                />
               </div>
             </div>
-            <div className="space-y-1">
-              <Label>Descripción (opcional)</Label>
-              <Input value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })}/>
-            </div>
+            {form.ancho && form.alto && editItem && (
+              <div className="space-y-1">
+                <Label>Descripción (auto-generada)</Label>
+                <div className="px-3 py-2 bg-secondary/50 rounded-md text-sm text-muted-foreground">
+                  {generarDescripcion(form.ancho, form.alto)}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditarAbierto(false)} disabled={guardando}>Cancelar</Button>
-            <Button onClick={actualizar} disabled={guardando}>{guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Actualizar</Button>
+            <Button onClick={actualizar} disabled={guardando}>{guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Actualizar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

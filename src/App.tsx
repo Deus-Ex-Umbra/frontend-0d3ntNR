@@ -102,8 +102,8 @@ function ConfiguracionResponsive() {
 
 function App() {
   return (
-    <ProveedorTema>
-      <ProveedorAutenticacion>
+    <ProveedorAutenticacion>
+      <ProveedorTema>
         <ProveedorClinica>
           <ProveedorMenu>
             <ProveedorEdicionImagenes>
@@ -195,8 +195,8 @@ function App() {
             </ProveedorEdicionImagenes>
           </ProveedorMenu>
         </ProveedorClinica>
-      </ProveedorAutenticacion>
-    </ProveedorTema>
+      </ProveedorTema>
+    </ProveedorAutenticacion>
   );
 }
 
