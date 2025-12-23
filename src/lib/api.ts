@@ -653,7 +653,7 @@ export const plantillasRecetasApi = {
 };
 
 export const inventarioApi = {
-  crearInventario: async (datos: { nombre: string; visibilidad?: string }) => {
+  crearInventario: async (datos: { nombre: string; modo_estricto?: boolean }) => {
     const respuesta = await api.post('/inventario', datos);
     return respuesta.data;
   },
@@ -665,24 +665,12 @@ export const inventarioApi = {
     const respuesta = await api.get(`/inventario/${inventario_id}`);
     return respuesta.data;
   },
-  actualizarInventario: async (inventario_id: number, datos: { nombre?: string; visibilidad?: string }) => {
+  actualizarInventario: async (inventario_id: number, datos: { nombre?: string; modo_estricto?: boolean }) => {
     const respuesta = await api.put(`/inventario/${inventario_id}`, datos);
     return respuesta.data;
   },
   eliminarInventario: async (inventario_id: number) => {
     const respuesta = await api.delete(`/inventario/${inventario_id}`);
-    return respuesta.data;
-  },
-  invitarUsuario: async (inventario_id: number, datos: { usuario_id: number; rol: string }) => {
-    const respuesta = await api.post(`/inventario/${inventario_id}/invitar`, datos);
-    return respuesta.data;
-  },
-  eliminarPermiso: async (inventario_id: number, permiso_id: number) => {
-    const respuesta = await api.delete(`/inventario/${inventario_id}/permisos/${permiso_id}`);
-    return respuesta.data;
-  },
-  actualizarPermiso: async (inventario_id: number, permiso_id: number, datos: { rol: string }) => {
-    const respuesta = await api.put(`/inventario/${inventario_id}/permisos/${permiso_id}`, datos);
     return respuesta.data;
   },
   crearProducto: async (datos: {

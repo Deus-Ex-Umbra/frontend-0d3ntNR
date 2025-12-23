@@ -40,26 +40,9 @@ export enum TipoMovimientoKardex {
 export interface Inventario {
   id: number;
   nombre: string;
-  visibilidad: 'privado' | 'publico';
   activo: boolean;
   modo_estricto?: boolean;
-  propietario?: {
-    id: number;
-    nombre: string;
-    correo: string;
-  };
-  permisos?: Array<{
-    id: number;
-    rol: string;
-    usuario_invitado: {
-      id: number;
-      nombre: string;
-      correo: string;
-    };
-  }>;
   productos?: Producto[];
-  rol_usuario?: string;
-  es_propietario?: boolean;
   resumen?: {
     valor_total: number;
     total_productos: number;

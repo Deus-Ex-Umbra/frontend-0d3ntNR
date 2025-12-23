@@ -18,14 +18,10 @@ import {
   Trash2,
   Loader2,
   AlertCircle,
-  Lock,
-  Globe,
-  Users,
   ArrowLeft,
   DollarSign,
   Box,
   AlertTriangle,
-  UserPlus,
   Shield,
   History,
   X,
@@ -38,19 +34,17 @@ import {
   Filter,
   RefreshCw,
   Check,
+  Lock,
 } from 'lucide-react';
-import { inventarioApi, usuariosApi } from '@/lib/api';
+import { inventarioApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Badge } from '@/componentes/ui/badge';
-import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { format } from 'date-fns';
 import { ajustarFechaParaBackend, formatearFechaSoloFecha } from '@/lib/utilidades';
-import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import {
-  UsuarioInventario as Usuario,
   Inventario,
   Producto,
   Material,
@@ -62,9 +56,7 @@ import {
 } from '@/tipos';
 
 export default function Inventarios() {
-  const { usuario: usuario_actual } = useAutenticacion();
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [inventario_seleccionado, setInventarioSeleccionado] = useState<Inventario | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [reporte_valor, setReporteValor] = useState<ReporteValor | null>(null);
@@ -83,7 +75,6 @@ export default function Inventarios() {
 
   const [dialogo_inventario_abierto, setDialogoInventarioAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
-  const [dialogo_invitar_abierto, setDialogoInvitarAbierto] = useState(false);
   const [dialogo_producto_abierto, setDialogoProductoAbierto] = useState(false);
   const [dialogo_material_abierto, setDialogoMaterialAbierto] = useState(false);
   const [dialogo_activo_abierto, setDialogoActivoAbierto] = useState(false);
@@ -91,8 +82,6 @@ export default function Inventarios() {
   const [dialogo_confirmar_eliminar_producto_abierto, setDialogoConfirmarEliminarProductoAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_material_abierto, setDialogoConfirmarEliminarMaterialAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_activo_abierto, setDialogoConfirmarEliminarActivoAbierto] = useState(false);
-  const [dialogo_remover_usuario_abierto, setDialogoRemoverUsuarioAbierto] = useState(false);
-  const [dialogo_editar_permiso_abierto, setDialogoEditarPermisoAbierto] = useState(false);
   const [dialogo_vender_activo_abierto, setDialogoVenderActivoAbierto] = useState(false);
   const [dialogo_filtros_historial_abierto, setDialogoFiltrosHistorialAbierto] = useState(false);
   const [dialogo_detalles_auditoria_abierto, setDialogoDetallesAuditoriaAbierto] = useState(false);
@@ -109,11 +98,10 @@ export default function Inventarios() {
   const [material_a_eliminar, setMaterialAEliminar] = useState<Material | null>(null);
   const [activo_seleccionado, setActivoSeleccionado] = useState<Activo | null>(null);
   const [activo_a_eliminar, setActivoAEliminar] = useState<Activo | null>(null);
-  const [usuario_a_remover, setUsuarioARemover] = useState<any>(null);
   const [busqueda_inventarios, setBusquedaInventarios] = useState('');
   const [busqueda_productos, setBusquedaProductos] = useState('');
   const [vista_actual, setVistaActual] = useState<'lista' | 'detalle'>('lista');
-  const [tab_activo, setTabActivo] = useState<'productos' | 'kardex' | 'bitacora' | 'auditoria' | 'usuarios'>('productos');
+  const [tab_activo, setTabActivo] = useState<'productos' | 'kardex' | 'bitacora' | 'auditoria'>('productos');
   const [filtro_tipo_producto, setFiltroTipoProducto] = useState<string>('todos');
   const [filtros_historial, setFiltrosHistorial] = useState({
     tipo_operacion: [] as string[],
@@ -123,25 +111,9 @@ export default function Inventarios() {
     limit: 100,
   });
 
-  const [filtro_usuarios, setFiltroUsuarios] = useState({
-    busqueda: '',
-    rol: 'todos' as 'todos' | 'editor' | 'lector',
-  });
-
   const [formulario_inventario, setFormularioInventario] = useState({
     nombre: '',
-    visibilidad: 'privado' as 'privado' | 'publico',
     modo_estricto: false,
-  });
-
-  const [formulario_invitar, setFormularioInvitar] = useState({
-    usuario_id: '',
-    rol: 'lector',
-  });
-
-  const [formulario_editar_permiso, setFormularioEditarPermiso] = useState({
-    permiso_id: 0,
-    rol: '',
   });
 
   const [formulario_producto, setFormularioProducto] = useState({
@@ -238,7 +210,6 @@ export default function Inventarios() {
   useEffect(() => {
     const cargarInicial = async () => {
       await cargarInventarios();
-      await cargarUsuarios();
       const inventario_id_guardado = localStorage.getItem('inventario_seleccionado_id');
       if (inventario_id_guardado) {
         try {
@@ -268,15 +239,6 @@ export default function Inventarios() {
       });
     } finally {
       setCargando(false);
-    }
-  };
-
-  const cargarUsuarios = async () => {
-    try {
-      const respuesta = await usuariosApi.obtenerTodos();
-      setUsuarios(respuesta);
-    } catch (error: any) {
-      console.error('Error al cargar usuarios:', error);
     }
   };
 
@@ -411,7 +373,6 @@ export default function Inventarios() {
   const abrirDialogoNuevoInventario = () => {
     setFormularioInventario({
       nombre: '',
-      visibilidad: 'privado',
       modo_estricto: false,
     });
     setModoEdicion(false);
@@ -422,7 +383,6 @@ export default function Inventarios() {
     setInventarioSeleccionado(inventario);
     setFormularioInventario({
       nombre: inventario.nombre,
-      visibilidad: inventario.visibilidad,
       modo_estricto: inventario.modo_estricto || false,
     });
     setModoEdicion(true);
@@ -442,16 +402,6 @@ export default function Inventarios() {
     setGuardando(true);
     try {
       if (modo_edicion && inventario_seleccionado) {
-        if (formulario_inventario.visibilidad === 'privado' && inventario_seleccionado.visibilidad === 'publico') {
-          if (inventario_seleccionado.permisos && inventario_seleccionado.permisos.length > 0) {
-            await Promise.all(
-              inventario_seleccionado.permisos.map(permiso =>
-                inventarioApi.eliminarPermiso(inventario_seleccionado.id, permiso.id)
-              )
-            );
-          }
-        }
-
         await inventarioApi.actualizarInventario(inventario_seleccionado.id, formulario_inventario);
         toast({
           title: 'Éxito',
@@ -516,118 +466,6 @@ export default function Inventarios() {
     setVistaActual('detalle');
     localStorage.setItem('inventario_seleccionado_id', inventario.id.toString());
     await cargarDetalleInventario(inventario);
-  };
-
-  const abrirDialogoInvitar = () => {
-    setFormularioInvitar({
-      usuario_id: '',
-      rol: 'lector',
-    });
-    setDialogoInvitarAbierto(true);
-  };
-
-  const manejarInvitarUsuario = async () => {
-    if (!inventario_seleccionado) return;
-
-    if (!formulario_invitar.usuario_id) {
-      toast({
-        title: 'Error',
-        description: 'Selecciona un usuario',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setGuardando(true);
-    try {
-      await inventarioApi.invitarUsuario(inventario_seleccionado.id, {
-        usuario_id: parseInt(formulario_invitar.usuario_id),
-        rol: formulario_invitar.rol,
-      });
-
-      toast({
-        title: 'Éxito',
-        description: 'Usuario invitado correctamente',
-      });
-
-      setDialogoInvitarAbierto(false);
-      await cargarInventarios();
-      const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
-      setInventarioSeleccionado(inventario_actualizado);
-    } catch (error: any) {
-      console.error('Error al invitar usuario:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.mensaje || 'Error al invitar usuario',
-        variant: 'destructive',
-      });
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const abrirDialogoRemoverUsuario = (permiso: any) => {
-    setUsuarioARemover(permiso);
-    setDialogoRemoverUsuarioAbierto(true);
-  };
-
-  const confirmarRemoverUsuario = async () => {
-    if (!inventario_seleccionado || !usuario_a_remover) return;
-
-    try {
-      await inventarioApi.eliminarPermiso(inventario_seleccionado.id, usuario_a_remover.id);
-      toast({
-        title: 'Éxito',
-        description: 'Usuario removido correctamente',
-      });
-      setDialogoRemoverUsuarioAbierto(false);
-      setUsuarioARemover(null);
-      await cargarInventarios();
-      const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
-      setInventarioSeleccionado(inventario_actualizado);
-    } catch (error: any) {
-      console.error('Error al remover usuario:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.mensaje || 'Error al remover el usuario',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const abrirDialogoEditarPermiso = (permiso: any) => {
-    setFormularioEditarPermiso({
-      permiso_id: permiso.id,
-      rol: permiso.rol,
-    });
-    setDialogoEditarPermisoAbierto(true);
-  };
-
-  const manejarEditarPermiso = async () => {
-    if (!inventario_seleccionado || !formulario_editar_permiso.permiso_id) return;
-
-    try {
-      await inventarioApi.actualizarPermiso(
-        inventario_seleccionado.id,
-        formulario_editar_permiso.permiso_id,
-        { rol: formulario_editar_permiso.rol }
-      );
-      toast({
-        title: 'Éxito',
-        description: 'Permiso actualizado correctamente',
-      });
-      setDialogoEditarPermisoAbierto(false);
-      await cargarInventarios();
-      const inventario_actualizado = await inventarioApi.obtenerInventarioPorId(inventario_seleccionado.id);
-      setInventarioSeleccionado(inventario_actualizado);
-    } catch (error: any) {
-      console.error('Error al editar permiso:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.mensaje || 'Error al actualizar el permiso',
-        variant: 'destructive',
-      });
-    }
   };
 
   const abrirDialogoNuevoProducto = () => {
@@ -1192,10 +1030,6 @@ export default function Inventarios() {
     localStorage.removeItem('inventario_seleccionado_id');
   };
 
-  const obtenerIconoVisibilidad = (visibilidad: string) => {
-    return visibilidad === 'privado' ? Lock : Globe;
-  };
-
   const obtenerColorTipoGestion = (tipo?: string): string => {
     const colores: { [key: string]: string } = {
       material: 'bg-purple-500',
@@ -1337,22 +1171,7 @@ export default function Inventarios() {
     const coincide_tipo = filtro_tipo_producto === 'todos' || filtro_tipo_producto === p.tipo;
     return coincide_busqueda && coincide_tipo && p.activo;
   });
-  const usuarios_disponibles_para_invitar = usuarios.filter(u => {
-    if (usuario_actual && u.id === usuario_actual.id) return false;
-    if (inventario_seleccionado?.permisos) {
-      const ya_invitado = inventario_seleccionado.permisos.some(
-        permiso => permiso.usuario_invitado.id === u.id
-      );
-      if (ya_invitado) return false;
-    }
 
-    return true;
-  });
-
-  const opciones_usuarios: OpcionCombobox[] = usuarios_disponibles_para_invitar.map(u => ({
-    valor: u.id.toString(),
-    etiqueta: `${u.nombre} (${u.correo})`
-  }));
 
   if (cargando) {
     return (
@@ -1427,8 +1246,6 @@ export default function Inventarios() {
             ) : (
               <div className="space-y-4">
                 {inventarios_filtrados.map((inventario) => {
-                  const IconoVisibilidad = obtenerIconoVisibilidad(inventario.visibilidad);
-
                   return (
                     <Card
                       key={inventario.id}
@@ -1442,45 +1259,33 @@ export default function Inventarios() {
                               <Package className="h-5 w-5 text-primary" />
                             </div>
                             <div className="flex-1">
-                              <CardTitle className="text-lg flex items-center gap-2">
+                              <CardTitle className="text-lg">
                                 {inventario.nombre}
-                                <Badge variant="outline" className="flex items-center gap-1">
-                                  <IconoVisibilidad className="h-3 w-3" />
-                                  {inventario.visibilidad === 'privado' ? 'Privado' : 'Público'}
-                                </Badge>
                               </CardTitle>
-                              {inventario.propietario && (
-                                <CardDescription className="flex items-center gap-1 mt-1">
-                                  <Users className="h-3 w-3" />
-                                  Propietario: {inventario.propietario?.nombre || 'Desconocido'}
-                                </CardDescription>
-                              )}
                             </div>
                           </div>
-                          {inventario.es_propietario && (
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  abrirDialogoEditarInventario(inventario);
-                                }}
-                                variant="outline"
-                                size="sm"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  abrirDialogoConfirmarEliminar(inventario);
-                                }}
-                                variant="destructive"
-                                size="sm"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirDialogoEditarInventario(inventario);
+                              }}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirDialogoConfirmarEliminar(inventario);
+                              }}
+                              variant="destructive"
+                              size="sm"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -1528,12 +1333,6 @@ export default function Inventarios() {
                               </div>
                             </div>
                           )}
-                          {inventario.permisos && inventario.permisos.length > 0 && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t">
-                              <Users className="h-4 w-4" />
-                              <span>{inventario.permisos.length} usuario{inventario.permisos.length !== 1 ? 's' : ''} con acceso</span>
-                            </div>
-                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -1559,33 +1358,16 @@ export default function Inventarios() {
                 </Button>
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">{inventario_seleccionado?.nombre}</h1>
-                  <p className="text-sm text-muted-foreground">
-                    {inventario_seleccionado?.propietario && `Propietario: ${inventario_seleccionado.propietario.nombre}`}
-                  </p>
                 </div>
               </div>
               <div className="flex gap-2">
-                {inventario_seleccionado?.es_propietario && (
-                  <>
-                    {(inventario_seleccionado?.visibilidad === 'publico' ||
-                      (inventario_seleccionado?.visibilidad === 'privado' && (inventario_seleccionado?.permisos?.length || 0) > 0)) && (
-                        <Button
-                          onClick={abrirDialogoInvitar}
-                          variant="outline"
-                        >
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Invitar Usuario
-                        </Button>
-                      )}
-                    <Button
-                      onClick={() => abrirDialogoEditarInventario(inventario_seleccionado)}
-                      variant="outline"
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar
-                    </Button>
-                  </>
-                )}
+                <Button
+                  onClick={() => abrirDialogoEditarInventario(inventario_seleccionado!)}
+                  variant="outline"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
               </div>
             </div>
 
@@ -1662,10 +1444,6 @@ export default function Inventarios() {
                 <TabsTrigger value="auditoria">
                   <Shield className="h-4 w-4 mr-2" />
                   Actividad
-                </TabsTrigger>
-                <TabsTrigger value="usuarios">
-                  <Users className="h-4 w-4 mr-2" />
-                  Usuarios
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -2253,158 +2031,6 @@ export default function Inventarios() {
                 </div>
               </ScrollArea>
             </TabsContent>
-
-            <TabsContent value="usuarios" className="flex-1 overflow-hidden m-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <ScrollArea className="flex-1 p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-4 border-b">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Usuarios
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        placeholder="Buscar por nombre..."
-                        value={filtro_usuarios.busqueda}
-                        onChange={(e) => setFiltroUsuarios({ ...filtro_usuarios, busqueda: e.target.value })}
-                        className="w-48"
-                        disabled={cargando_detalle}
-                      />
-                      <div className="flex border rounded-md">
-                        <Button
-                          variant={filtro_usuarios.rol === 'todos' ? 'default' : 'ghost'}
-                          size="sm"
-                          onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'todos' })}
-                          disabled={cargando_detalle}
-                        >
-                          Todos
-                        </Button>
-                        <Button
-                          variant={filtro_usuarios.rol === 'editor' ? 'default' : 'ghost'}
-                          size="sm"
-                          onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'editor' })}
-                          disabled={cargando_detalle}
-                        >
-                          Editores
-                        </Button>
-                        <Button
-                          variant={filtro_usuarios.rol === 'lector' ? 'default' : 'ghost'}
-                          size="sm"
-                          onClick={() => setFiltroUsuarios({ ...filtro_usuarios, rol: 'lector' })}
-                          disabled={cargando_detalle}
-                        >
-                          Lectores
-                        </Button>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => inventario_seleccionado && cargarDetalleInventario(inventario_seleccionado)}
-                        title="Recargar"
-                        disabled={!inventario_seleccionado || cargando_detalle}
-                      >
-                        <RefreshCw className={`h-4 w-4 ${cargando_detalle ? 'animate-spin' : ''}`} />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {cargando_detalle ? (
-                    <div className="flex items-center justify-center h-64">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <>
-
-                      {inventario_seleccionado?.propietario && (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-base flex items-center gap-2">
-                              <Shield className="h-4 w-4 text-primary" />
-                              Propietario
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium">{inventario_seleccionado.propietario?.nombre || 'Desconocido'}</p>
-                                <p className="text-sm text-muted-foreground">{inventario_seleccionado.propietario?.correo}</p>
-                              </div>
-                              <Badge>Propietario</Badge>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {inventario_seleccionado?.permisos && inventario_seleccionado.permisos.length > 0 && (
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-sm text-muted-foreground uppercase">Usuarios con Acceso</h3>
-                          {inventario_seleccionado.permisos
-                            .filter((permiso) => {
-                              const matchesSearch = !filtro_usuarios.busqueda ||
-                                permiso.usuario_invitado?.nombre?.toLowerCase().includes(filtro_usuarios.busqueda.toLowerCase()) ||
-                                permiso.usuario_invitado?.correo?.toLowerCase().includes(filtro_usuarios.busqueda.toLowerCase());
-                              const matchesRole = filtro_usuarios.rol === 'todos' || permiso.rol === filtro_usuarios.rol;
-                              return matchesSearch && matchesRole;
-                            })
-                            .map((permiso) => (
-                              <Card key={permiso.id}>
-                                <CardContent className="py-4">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <p className="font-medium">{permiso.usuario_invitado?.nombre || 'Desconocido'}</p>
-                                      <p className="text-sm text-muted-foreground">{permiso.usuario_invitado?.correo}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Badge>{permiso.rol.charAt(0).toUpperCase() + permiso.rol.slice(1)}</Badge>
-                                      {inventario_seleccionado.es_propietario && (
-                                        <>
-                                          <Button
-                                            onClick={() => abrirDialogoEditarPermiso(permiso)}
-                                            variant="outline"
-                                            size="sm"
-                                            disabled={cargando_detalle}
-                                          >
-                                            <Edit className="h-4 w-4" />
-                                          </Button>
-                                          <Button
-                                            onClick={() => abrirDialogoRemoverUsuario(permiso)}
-                                            variant="destructive"
-                                            size="sm"
-                                            disabled={cargando_detalle}
-                                          >
-                                            <X className="h-4 w-4" />
-                                          </Button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                        </div>
-                      )}
-
-                      {(!inventario_seleccionado?.permisos || inventario_seleccionado.permisos.length === 0) && (
-                        <div className="text-center py-12">
-                          <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                          <h3 className="text-lg font-semibold mb-2">No hay usuarios invitados</h3>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            Invita usuarios para que puedan acceder a este inventario
-                          </p>
-                          {inventario_seleccionado?.es_propietario &&
-                            inventario_seleccionado?.visibilidad === 'publico' && (
-                              <Button onClick={abrirDialogoInvitar} disabled={cargando_detalle}>
-                                <UserPlus className="h-4 w-4 mr-2" />
-                                Invitar Usuario
-                              </Button>
-                            )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </ScrollArea>
-            </TabsContent>
           </Tabs>
         </div>
       )}
@@ -2430,23 +2056,6 @@ export default function Inventarios() {
                 value={formulario_inventario.nombre}
                 onChange={(e) => setFormularioInventario({ ...formulario_inventario, nombre: e.target.value })}
                 placeholder="Inventario Principal"
-              />
-            </div>
-
-            <div className="flex items-center justify-between space-x-2">
-              <div className="space-y-0.5">
-                <Label htmlFor="visibilidad">Inventario Público</Label>
-                <p className="text-sm text-muted-foreground">
-                  Permite invitar usuarios para colaborar en este inventario
-                </p>
-              </div>
-              <Switch
-                id="visibilidad"
-                checked={formulario_inventario.visibilidad === 'publico'}
-                onCheckedChange={(checked) => setFormularioInventario({
-                  ...formulario_inventario,
-                  visibilidad: checked ? 'publico' : 'privado'
-                })}
               />
             </div>
 
@@ -2501,121 +2110,6 @@ export default function Inventarios() {
             </Button>
             <Button variant="destructive" onClick={confirmarEliminarInventario}>
               Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={dialogo_invitar_abierto} onOpenChange={setDialogoInvitarAbierto}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Invitar Usuario</DialogTitle>
-            <DialogDescription>
-              Selecciona un usuario y asigna un rol para este inventario
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="usuario">Usuario *</Label>
-              <Combobox
-                opciones={opciones_usuarios}
-                valor={formulario_invitar.usuario_id}
-                onChange={(valor) => setFormularioInvitar({ ...formulario_invitar, usuario_id: valor })}
-                placeholder="Selecciona un usuario"
-              />
-            </div>
-
-            <div className="flex items-center justify-between space-x-2">
-              <div className="space-y-0.5">
-                <Label htmlFor="rol">Permitir edición</Label>
-                <p className="text-sm text-muted-foreground">
-                  El usuario podrá {formulario_invitar.rol === 'editor' ? 'editar productos y registrar movimientos' : 'solo ver el inventario'}
-                </p>
-              </div>
-              <Switch
-                id="rol"
-                checked={formulario_invitar.rol === 'editor'}
-                onCheckedChange={(checked) => setFormularioInvitar({
-                  ...formulario_invitar,
-                  rol: checked ? 'editor' : 'lector'
-                })}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoInvitarAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={manejarInvitarUsuario} disabled={guardando}>
-              {guardando ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Invitando...
-                </>
-              ) : (
-                'Invitar'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={dialogo_remover_usuario_abierto} onOpenChange={setDialogoRemoverUsuarioAbierto}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Confirmar Eliminación</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que deseas remover a {usuario_a_remover?.usuario_invitado?.nombre} de este inventario?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoRemoverUsuarioAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={confirmarRemoverUsuario}>
-              Remover
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      { }
-      <Dialog open={dialogo_editar_permiso_abierto} onOpenChange={setDialogoEditarPermisoAbierto}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Editar Permiso de Usuario</DialogTitle>
-            <DialogDescription>
-              Modifica el rol del usuario en este inventario
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="rol_editar">Rol *</Label>
-              <Combobox
-                opciones={[
-                  { valor: 'lector', etiqueta: 'Lector (Solo lectura)' },
-                  { valor: 'editor', etiqueta: 'Editor (Puede editar)' },
-                  { valor: 'admin', etiqueta: 'Administrador (Control total)' },
-                ]}
-                valor={formulario_editar_permiso.rol}
-                onChange={(valor) => setFormularioEditarPermiso({ ...formulario_editar_permiso, rol: valor })}
-                placeholder="Selecciona un rol"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogoEditarPermisoAbierto(false)}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={manejarEditarPermiso}>
-              Guardar Cambios
             </Button>
           </DialogFooter>
         </DialogContent>
