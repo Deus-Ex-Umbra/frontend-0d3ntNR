@@ -63,22 +63,8 @@ export default function Agenda() {
     permite_decimales?: boolean;
     material_cita_id?: number;
   }>>([]);
-  const [activos_seleccionados, setActivosSeleccionados] = useState<Array<{
-    inventario_id: number;
-    inventario_nombre: string;
-    producto_id: number;
-    producto_nombre: string;
-    activo_id: number;
-    codigo_interno?: string;
-    nro_serie?: string;
-    nombre_asignado?: string;
-    estado: string;
-    material_cita_id?: number;
-  }>>([]);
   const [consumibles_iniciales, setConsumiblesIniciales] = useState<typeof consumibles_seleccionados>([]);
-  const [activos_iniciales, setActivosIniciales] = useState<typeof activos_seleccionados>([]);
   const [consumibles_confirmacion, setConsumiblesConfirmacion] = useState<typeof consumibles_seleccionados>([]);
-  const [activos_confirmacion, setActivosConfirmacion] = useState<typeof activos_seleccionados>([]);
 
   const abrirDialogoConfirmarEliminar = (id: number) => {
     setCitaAEliminar(id);
@@ -273,11 +259,6 @@ export default function Agenda() {
             advertencias.push(`${producto.nombre}: La cantidad debe ser mayor a 0 en todos los materiales`);
             break;
           }
-        } else if (producto.tipo === TipoProducto.ACTIVO_FIJO) {
-          if (!item.activo_id) {
-            advertencias.push(`${producto.nombre}: Debe seleccionar un activo para todos los items`);
-            break;
-          }
         }
       }
     }
@@ -409,7 +390,6 @@ export default function Agenda() {
     setMaterialesCita([]);
     setProductosPorInventario({});
     setConsumiblesSeleccionados([]);
-    setActivosSeleccionados([]);
     setDialogoAbierto(true);
   };
 
@@ -427,7 +407,6 @@ export default function Agenda() {
     setMaterialesCita([]);
     setProductosPorInventario({});
     setConsumiblesSeleccionados([]);
-    setActivosSeleccionados([]);
     setDialogoAbierto(true);
   };
 
@@ -446,7 +425,6 @@ export default function Agenda() {
     setCitaSeleccionada(cita);
     setModoEdicion(true);
     setConsumiblesSeleccionados([]);
-    setActivosSeleccionados([]);
 
     if (!es_pasada && cita.id) {
       setMaterialesCita([]);
@@ -467,22 +445,8 @@ export default function Agenda() {
           permite_decimales: reserva.material.producto.permite_decimales,
         }));
 
-        const activos_transformados = (cita_completa.reservas_activos || []).map((reserva: any) => ({
-          inventario_id: reserva.activo.producto.inventario.id,
-          inventario_nombre: reserva.activo.producto.inventario.nombre,
-          producto_id: reserva.activo.producto.id,
-          producto_nombre: reserva.activo.producto.nombre,
-          activo_id: reserva.activo.id,
-          codigo_interno: reserva.activo.codigo_interno,
-          nro_serie: reserva.activo.nro_serie,
-          nombre_asignado: reserva.activo.nombre_asignado,
-          estado: reserva.activo.estado,
-        }));
-
         setConsumiblesSeleccionados(consumibles_transformados);
-        setActivosSeleccionados(activos_transformados);
         setConsumiblesIniciales(consumibles_transformados);
-        setActivosIniciales(activos_transformados);
       } catch (error) {
         console.error('Error al cargar materiales de la cita:', error);
       } finally {
@@ -496,14 +460,9 @@ export default function Agenda() {
 
   const materialesCambiaron = (): boolean => {
     if (consumibles_seleccionados.length !== consumibles_iniciales.length) return true;
-    if (activos_seleccionados.length !== activos_iniciales.length) return true;
     for (const c of consumibles_seleccionados) {
       const inicial = consumibles_iniciales.find(i => i.material_id === c.material_id);
       if (!inicial || inicial.cantidad !== c.cantidad) return true;
-    }
-    for (const a of activos_seleccionados) {
-      const inicial = activos_iniciales.find(i => i.activo_id === a.activo_id);
-      if (!inicial) return true;
     }
 
     return false;
@@ -566,17 +525,12 @@ export default function Agenda() {
         cantidad: c.cantidad
       }));
 
-      const activos_fijos = activos_seleccionados.map(a => ({
-        activo_id: a.activo_id
-      }));
-
       const datos: any = {
         fecha: ajustarFechaParaBackend(formulario.fecha),
         descripcion: formulario.descripcion,
         horas_aproximadas: horas,
         minutos_aproximados: minutos,
         consumibles,
-        activos_fijos,
         modo_estricto: false
       };
 
@@ -736,12 +690,10 @@ export default function Agenda() {
     setEstadoPagoConfirmacion(cita.estado_pago || 'pendiente');
     setMontoConfirmacion(cita.monto_esperado?.toString() || '');
     setConsumiblesConfirmacion([]);
-    setActivosConfirmacion([]);
     try {
       await cargarInventarios();
       const respuesta = await inventarioApi.obtenerMaterialesCita(cita.id);
       const consumibles_mapeados: any[] = [];
-      const activos_mapeados: any[] = [];
       if (respuesta.materiales) {
         for (const reserva of respuesta.materiales) {
           const cant_planeada = parseFloat(reserva.cantidad_reservada?.toString() || '0');
@@ -761,25 +713,7 @@ export default function Agenda() {
         }
       }
 
-      if (respuesta.activos) {
-        for (const reserva of respuesta.activos) {
-          activos_mapeados.push({
-            material_cita_id: reserva.id,
-            inventario_id: reserva.activo?.inventario?.id || 0,
-            inventario_nombre: reserva.activo?.inventario?.nombre || 'Desconocido',
-            producto_id: reserva.activo?.producto?.id || 0,
-            producto_nombre: reserva.activo?.producto?.nombre || 'Desconocido',
-            activo_id: reserva.activo?.id || 0,
-            codigo_interno: reserva.activo?.codigo_interno,
-            nro_serie: reserva.activo?.nro_serie,
-            nombre_asignado: reserva.activo?.nombre_asignado,
-            estado: reserva.activo?.estado || 'bueno'
-          });
-        }
-      }
-
       setConsumiblesConfirmacion(consumibles_mapeados);
-      setActivosConfirmacion(activos_mapeados);
       setDialogoConfirmarMaterialesAbierto(true);
     } catch (error) {
       console.error('Error al cargar materiales:', error);
@@ -809,8 +743,6 @@ export default function Agenda() {
       });
       const consumibles_nuevos = consumibles_confirmacion.filter(m => !m.material_cita_id);
       const consumibles_existentes = consumibles_confirmacion.filter(m => m.material_cita_id);
-      const activos_nuevos = activos_confirmacion.filter(a => !a.material_cita_id);
-      const activos_existentes = activos_confirmacion.filter(a => a.material_cita_id);
       const materiales_a_agregar = [];
       for (const m of consumibles_nuevos) {
         materiales_a_agregar.push({
@@ -818,15 +750,6 @@ export default function Agenda() {
           inventario_id: m.inventario_id,
           lote_id: m.material_id,
           cantidad_planeada: m.cantidad
-        });
-      }
-
-      for (const a of activos_nuevos) {
-        materiales_a_agregar.push({
-          producto_id: a.producto_id,
-          inventario_id: a.inventario_id,
-          activo_id: a.activo_id,
-          cantidad_planeada: 1
         });
       }
       if (materiales_a_agregar.length > 0) {
@@ -843,17 +766,6 @@ export default function Agenda() {
             cantidad_usada: m.cantidad,
             lote_id: m.material_id,
             inventario_id: m.inventario_id
-          });
-        }
-      }
-
-      for (const a of activos_existentes) {
-        if (a.material_cita_id) {
-          materiales_a_confirmar.push({
-            material_cita_id: a.material_cita_id,
-            cantidad_usada: 1,
-            activo_id: a.activo_id,
-            inventario_id: a.inventario_id
           });
         }
       }
@@ -1406,8 +1318,6 @@ export default function Agenda() {
         cargarProductosInventario={cargarProductosInventario}
         consumiblesSeleccionados={consumibles_seleccionados}
         setConsumiblesSeleccionados={setConsumiblesSeleccionados}
-        activosSeleccionados={activos_seleccionados}
-        setActivosSeleccionados={setActivosSeleccionados}
         guardando={guardando}
         hayCambios={hay_cambios}
         manejarGuardar={manejarGuardar}
@@ -1424,15 +1334,12 @@ export default function Agenda() {
         setMonto={setMontoConfirmacion}
         consumibles={consumibles_confirmacion}
         setConsumibles={setConsumiblesConfirmacion}
-        activos={activos_confirmacion}
-        setActivos={setActivosConfirmacion}
         inventarios={inventarios}
         productosPorInventario={productos_por_inventario}
         cargarProductosInventario={cargarProductosInventario}
         cargandoMateriales={cargando_materiales}
         guardando={guardando}
         manejarConfirmar={manejarConfirmarMateriales}
-        fechaCita={cita_seleccionada?.fecha ? new Date(cita_seleccionada.fecha) : new Date()}
         opcionesEstadosPago={estados_pago}
       />
 

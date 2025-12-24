@@ -13,12 +13,12 @@ import { Node, mergeAttributes, wrappingInputRule } from '@tiptap/core';
 import { useEffect, useState, forwardRef, useImperativeHandle, useRef } from 'react';
 import { Button } from '@/componentes/ui/button';
 import { Toggle } from '@/componentes/ui/toggle';
-import { 
-  Bold, 
-  Italic, 
-  Underline as UnderlineIcon, 
-  Strikethrough, 
-  List, 
+import {
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  Strikethrough,
+  List,
   ListOrdered,
   AlignLeft,
   AlignCenter,
@@ -87,7 +87,7 @@ const EtiquetaNode = Node.create({
       ? 'display: inline-flex; align-items: center; padding: 2px 8px; margin: 0 2px; border-radius: 0.375rem; background-color: #fee2e2; border: 1px solid #fca5a5;'
       : 'display: inline-flex; align-items: center; padding: 2px 8px; margin: 0 2px; border-radius: 0.375rem; background-color: #dbeafe; border: 1px solid #93c5fd;';
     const combinedStyle = existingStyle ? `${baseStyle} ${existingStyle}` : baseStyle;
-    
+
     return [
       'span',
       mergeAttributes(HTMLAttributes, {
@@ -95,8 +95,8 @@ const EtiquetaNode = Node.create({
         'data-codigo': codigo,
         'data-texto': texto,
         'data-eliminada': eliminada,
-        class: eliminada 
-          ? 'etiqueta-plantilla etiqueta-eliminada' 
+        class: eliminada
+          ? 'etiqueta-plantilla etiqueta-eliminada'
           : 'etiqueta-plantilla',
         style: combinedStyle,
       }),
@@ -134,7 +134,7 @@ export interface EditorHandle {
 }
 
 const colores_predefinidos = [
-  '#000000', '#FFFFFF', '#ef4444', '#22c55e', '#3b82f6', 
+  '#000000', '#FFFFFF', '#ef4444', '#22c55e', '#3b82f6',
   '#eab308', '#a855f7', '#ec4899', '#6b7280',
 ];
 
@@ -303,9 +303,9 @@ const CustomTable = TableExtension.extend({
   },
 });
 
-export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorConEtiquetasPersonalizadoProps>(({ 
-  contenido, 
-  onChange, 
+export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorConEtiquetasPersonalizadoProps>(({
+  contenido,
+  onChange,
   className,
   minHeight = '150px',
   tamanoPapel = 'carta',
@@ -374,7 +374,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   const [colorTemporal, setColorTemporal] = useState('#000000');
   const [popoverColorAbierto, setPopoverColorAbierto] = useState(false);
   const [tablePopoverAbierto, setTablePopoverAbierto] = useState(false);
-  const [tableRows, setTableRows] = useState(1);
+  const [tableRows, setTableRows] = useState(11);
   const [tableCols, setTableCols] = useState(1);
   const [tableMode, setTableMode] = useState<'auto' | 'full'>('auto');
   const [tableBorderWidth, setTableBorderWidth] = useState(1);
@@ -492,7 +492,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
       } else {
         setColorTemporal(color);
       }
-      
+
       const tamano = editor.getAttributes('textStyle').fontSize;
       setTamanoActual(tamano || '16px');
 
@@ -571,7 +571,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     if (editor && contenido !== editor.getHTML()) {
       const pos = editor.state.selection.anchor;
       editor.commands.setContent(contenido);
-      
+
       if (pos <= editor.state.doc.content.size) {
         editor.commands.setTextSelection(pos);
       }
@@ -589,7 +589,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   }, [editor]);
   useEffect(() => {
     if (!editor) return;
-    
+
     const updatePage = () => {
       const { selection } = editor.state;
       const { from } = selection;
@@ -606,7 +606,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
 
     editor.on('selectionUpdate', updatePage);
     editor.on('update', updatePage);
-    
+
     return () => {
       editor.off('selectionUpdate', updatePage);
       editor.off('update', updatePage);
@@ -635,7 +635,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     const top = pageIndex * effectivePageOffset;
     const bottom = top + effectivePageOffset;
     const totalContainerHeight = pageCount * effectivePageOffset;
-    const buffer = 20; 
+    const buffer = 20;
     const insetTop = Math.max(0, top - buffer);
     const insetBottom = Math.max(0, totalContainerHeight - bottom - buffer);
     setMaskClipPath(`inset(${insetTop}px 0px ${insetBottom}px 0px)`);
@@ -681,7 +681,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   if (!editor) {
     return null;
   }
-  const [selectionGuardada, setSelectionGuardada] = useState<{from:number;to:number}|null>(null);
+  const [selectionGuardada, setSelectionGuardada] = useState<{ from: number; to: number } | null>(null);
   useEffect(() => {
     if (popoverColorAbierto && editor) {
       const { from, to } = editor.state.selection;
@@ -811,12 +811,12 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     setDraftBorderWidth(newWidth);
     setDraftBorderStyle(newStyle);
     setDraftBorderColor(newColor);
-        (editor.chain() as any).focus()
-            .setCellAttribute('borderWidth', newWidth)
-            .setCellAttribute('borderStyle', newStyle)
-            .setCellAttribute('borderColor', newColor)
-            .setCellAttribute('colwidth', null)
-            .run();
+    (editor.chain() as any).focus()
+      .setCellAttribute('borderWidth', newWidth)
+      .setCellAttribute('borderStyle', newStyle)
+      .setCellAttribute('borderColor', newColor)
+      .setCellAttribute('colwidth', null)
+      .run();
   };
   const aplicarFondoCelda = (color?: string) => {
     if (soloLectura || !editor) return;
@@ -826,7 +826,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
     (editor.chain() as any)
       .focus()
       .setCellAttribute('backgroundColor', newBg || null)
-        .setCellAttribute('colwidth', null)
+      .setCellAttribute('colwidth', null)
       .run();
   };
   const aplicarCambiosTabla = () => {
@@ -1385,98 +1385,98 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
               </PopoverContent>
             </Popover>
           </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-muted/30">
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2"
-              onClick={disminuirZoom}
-              disabled={!canZoomOut}
-              title="Reducir zoom"
-            >
-              -
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2"
-              onClick={resetZoom}
-              title="Restablecer (100%)"
-            >
-              {Math.round(zoom * 100)}%
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2"
-              onClick={aumentarZoom}
-              disabled={!canZoomIn}
-              title="Aumentar zoom"
-            >
-              +
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2"
-              onClick={() => irAPagina(currentPage - 1)}
-              disabled={currentPage <= 1}
-              title="Pagina anterior"
-            >
-              {'<'}
-            </Button>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Input
-                type="number"
-                min={1}
-                max={pageCount}
-                value={pageInputValue}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, '');
-                  setPageInputValue(val === '' ? '' : String(Number(val)));
-                }}
-                onBlur={() => {
-                  const n = Number(pageInputValue);
-                  if (!Number.isFinite(n) || n < 1) {
-                    setPageInputValue(String(currentPage));
-                    return;
-                  }
-                  irAPagina(Math.min(Math.max(1, n), pageCount));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-muted/30">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2"
+                onClick={disminuirZoom}
+                disabled={!canZoomOut}
+                title="Reducir zoom"
+              >
+                -
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={resetZoom}
+                title="Restablecer (100%)"
+              >
+                {Math.round(zoom * 100)}%
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2"
+                onClick={aumentarZoom}
+                disabled={!canZoomIn}
+                title="Aumentar zoom"
+              >
+                +
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => irAPagina(currentPage - 1)}
+                disabled={currentPage <= 1}
+                title="Pagina anterior"
+              >
+                {'<'}
+              </Button>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Input
+                  type="number"
+                  min={1}
+                  max={pageCount}
+                  value={pageInputValue}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setPageInputValue(val === '' ? '' : String(Number(val)));
+                  }}
+                  onBlur={() => {
                     const n = Number(pageInputValue);
                     if (!Number.isFinite(n) || n < 1) {
                       setPageInputValue(String(currentPage));
                       return;
                     }
                     irAPagina(Math.min(Math.max(1, n), pageCount));
-                  }
-                }}
-                className="h-8 w-16 text-center"
-              />
-              <span>/ {pageCount}</span>
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const n = Number(pageInputValue);
+                      if (!Number.isFinite(n) || n < 1) {
+                        setPageInputValue(String(currentPage));
+                        return;
+                      }
+                      irAPagina(Math.min(Math.max(1, n), pageCount));
+                    }
+                  }}
+                  className="h-8 w-16 text-center"
+                />
+                <span>/ {pageCount}</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => irAPagina(currentPage + 1)}
+                disabled={currentPage >= pageCount}
+                title="Pagina siguiente"
+              >
+                {'>'}
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2"
-              onClick={() => irAPagina(currentPage + 1)}
-              disabled={currentPage >= pageCount}
-              title="Pagina siguiente"
-            >
-              {'>'}
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs">Guias de margen</Label>
-            <Switch checked={mostrarGuiasMargen} onCheckedChange={setMostrarGuiasMargen} />
+            <div className="flex items-center gap-2">
+              <Label className="text-xs">Guias de margen</Label>
+              <Switch checked={mostrarGuiasMargen} onCheckedChange={setMostrarGuiasMargen} />
+            </div>
           </div>
         </div>
-      </div>
         <div
           className="editor-doc-container flex-1"
           style={{
@@ -1491,34 +1491,34 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
           }}
           ref={containerRef}
         >
-            <div
-              className="editor-doc-zoom-sizer"
-              style={{
-                width: `${Math.max(1, pageWidthPx * zoom)}px`,
-                position: 'relative',
-                height: `${totalHeightPx * zoom}px`,
-                margin: '0 auto',
-                overflow: 'hidden',
-              }}
-            >
+          <div
+            className="editor-doc-zoom-sizer"
+            style={{
+              width: `${Math.max(1, pageWidthPx * zoom)}px`,
+              position: 'relative',
+              height: `${totalHeightPx * zoom}px`,
+              margin: '0 auto',
+              overflow: 'hidden',
+            }}
+          >
             <div className="absolute top-0 left-0" style={{ width: pageWidthPx, height: totalHeightPx, transform: `scale(${zoom})`, transformOrigin: 'top left', pointerEvents: 'none', zIndex: 0 }}>
               {Array.from({ length: pageCount }).map((_, i) => {
                 const isCurrentPage = (i + 1) === currentPage;
                 const topPos = i * effectivePageOffset + marginTopPx;
                 return (
-                  <div 
-                    key={i} 
-                    style={{ 
-                      position: 'absolute', 
-                      top: topPos, 
-                      left: 0, 
-                      width: pageWidthPx, 
+                  <div
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      top: topPos,
+                      left: 0,
+                      width: pageWidthPx,
                       height: effectivePageOffset,
                       background: '#fff',
                       zIndex: isCurrentPage ? 1 : 0,
                       boxShadow: isCurrentPage ? '0 4px 20px rgba(0,0,0,0.15)' : 'none',
                       pointerEvents: 'none',
-                    }} 
+                    }}
                   />
                 );
               })}
@@ -1539,13 +1539,13 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 })}
               </div>
             )}
-            <div 
-              className="absolute top-0 left-0" 
-              style={{ 
-                width: pageWidthPx, 
-                height: totalHeightPx, 
-                transform: `scale(${zoom})`, 
-                transformOrigin: 'top left', 
+            <div
+              className="absolute top-0 left-0"
+              style={{
+                width: pageWidthPx,
+                height: totalHeightPx,
+                transform: `scale(${zoom})`,
+                transformOrigin: 'top left',
                 zIndex: 30,
                 clipPath: maskClipPath,
                 transition: 'clip-path 0.2s ease-out'
@@ -1562,15 +1562,15 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 const isCurrentPage = (i + 1) === currentPage;
                 const topPos = i * effectivePageOffset + marginTopPx;
                 return (
-                  <div 
-                    key={`dim-${i}`} 
-                    style={{ 
-                      position: 'absolute', 
-                      top: topPos, 
-                      left: 0, 
-                      width: pageWidthPx, 
+                  <div
+                    key={`dim-${i}`}
+                    style={{
+                      position: 'absolute',
+                      top: topPos,
+                      left: 0,
+                      width: pageWidthPx,
                       height: effectivePageOffset,
-                      backgroundColor: isCurrentPage ? 'transparent' : '#e2e8f0', 
+                      backgroundColor: isCurrentPage ? 'transparent' : '#e2e8f0',
                       opacity: isCurrentPage ? 0 : 1,
                       borderBottom: i < pageCount - 1 ? '1px solid #94a3b8' : 'none',
                       transition: 'opacity 0.2s ease, background-color 0.2s ease',
@@ -1586,10 +1586,10 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                     }}
                   >
                     {!isCurrentPage && (
-                        <div className="w-full h-full flex flex-col items-center justify-center opacity-50">
-                            <span className="text-slate-500 font-bold text-lg select-none">Pagina {i + 1}</span>
-                            <span className="text-slate-400 text-xs select-none">(Clic para editar)</span>
-                        </div>
+                      <div className="w-full h-full flex flex-col items-center justify-center opacity-50">
+                        <span className="text-slate-500 font-bold text-lg select-none">Pagina {i + 1}</span>
+                        <span className="text-slate-400 text-xs select-none">(Clic para editar)</span>
+                      </div>
                     )}
                     {isCurrentPage && (
                       <div style={{ position: 'absolute', bottom: 4, right: 8, fontSize: '10px', color: '#94a3b8', pointerEvents: 'none' }}>
@@ -1606,7 +1606,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                 return (
                   <>
                     {marginTopPx > 0 && (
-                      <div 
+                      <div
                         className="margin-deploy-top"
                         style={{
                           position: 'absolute',
@@ -1627,7 +1627,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                       </div>
                     )}
                     {marginBottomPx > 0 && (
-                      <div 
+                      <div
                         className="margin-deploy-bottom"
                         style={{
                           position: 'absolute',

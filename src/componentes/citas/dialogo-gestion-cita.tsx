@@ -7,9 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
 import { Combobox } from '../ui/combobox';
 import { DateTimePicker } from '../ui/date-time-picker';
-import { Loader2, Calendar, Package2, Package, Wrench, AlertTriangle } from 'lucide-react';
+import { Loader2, Calendar, Package2, Package, AlertTriangle } from 'lucide-react';
 import WizardConsumibles from '../materiales/wizard-consumibles';
-import WizardActivosFijos from '../materiales/wizard-activos-fijos';
 import { Inventario, Producto, Paciente } from '@/tipos';
 
 interface DialogoGestionCitaProps {
@@ -34,8 +33,6 @@ interface DialogoGestionCitaProps {
   cargarProductosInventario: (id: number) => Promise<void>;
   consumiblesSeleccionados: any[];
   setConsumiblesSeleccionados: (consumibles: any[]) => void;
-  activosSeleccionados: any[];
-  setActivosSeleccionados: (activos: any[]) => void;
   guardando: boolean;
   hayCambios: boolean;
   manejarGuardar: () => void;
@@ -57,8 +54,6 @@ export default function DialogoGestionCita({
   cargarProductosInventario,
   consumiblesSeleccionados,
   setConsumiblesSeleccionados,
-  activosSeleccionados,
-  setActivosSeleccionados,
   guardando,
   hayCambios,
   manejarGuardar,
@@ -114,9 +109,9 @@ export default function DialogoGestionCita({
             >
               <Package2 className="h-4 w-4" />
               Recursos
-              {(consumiblesSeleccionados.length + activosSeleccionados.length) > 0 && (
+              {consumiblesSeleccionados.length > 0 && (
                 <Badge variant="secondary" className="ml-1">
-                  {consumiblesSeleccionados.length + activosSeleccionados.length}
+                  {consumiblesSeleccionados.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -263,58 +258,31 @@ export default function DialogoGestionCita({
                 </div>
               </div>
             ) : (
-              <Tabs defaultValue="consumibles" className="flex-1 flex flex-col">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="consumibles" className="flex items-center gap-2">
-                    <Package className="h-4 w-4" />
-                    Consumibles
-                    {consumiblesSeleccionados.length > 0 && (
-                      <Badge variant="secondary" className="ml-1">
-                        {consumiblesSeleccionados.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="activos" className="flex items-center gap-2">
-                    <Wrench className="h-4 w-4" />
-                    Activos Fijos
-                    {activosSeleccionados.length > 0 && (
-                      <Badge variant="secondary" className="ml-1">
-                        {activosSeleccionados.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="consumibles" className="flex-1 overflow-y-auto mt-4">
-                  <WizardConsumibles
-                    inventarios={inventarios}
-                    productos_por_inventario={productosPorInventario}
-                    cargarProductos={cargarProductosInventario}
-                    materialesSeleccionados={consumiblesSeleccionados}
-                    onAgregarMaterial={(material) => setConsumiblesSeleccionados([...consumiblesSeleccionados, material])}
-                    onEliminarMaterial={(idx) => setConsumiblesSeleccionados(consumiblesSeleccionados.filter((_, i) => i !== idx))}
-                    onActualizarCantidad={(idx, cantidad) => {
-                      const nuevos = [...consumiblesSeleccionados];
-                      nuevos[idx] = { ...nuevos[idx], cantidad };
-                      setConsumiblesSeleccionados(nuevos);
-                    }}
-                    readOnly={esCitaPasadaEdicion}
-                  />
-                </TabsContent>
-
-                <TabsContent value="activos" className="flex-1 overflow-y-auto mt-4">
-                  <WizardActivosFijos
-                    inventarios={inventarios}
-                    productos_por_inventario={productosPorInventario}
-                    cargarProductos={cargarProductosInventario}
-                    activosSeleccionados={activosSeleccionados}
-                    onAgregarActivo={(activo) => setActivosSeleccionados([...activosSeleccionados, activo])}
-                    onEliminarActivo={(idx) => setActivosSeleccionados(activosSeleccionados.filter((_, i) => i !== idx))}
-                    fecha_cita={formulario.fecha}
-                    readOnly={esCitaPasadaEdicion}
-                  />
-                </TabsContent>
-              </Tabs>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Package className="h-5 w-5 text-muted-foreground" />
+                  <h3 className="font-medium text-foreground">Consumibles</h3>
+                  {consumiblesSeleccionados.length > 0 && (
+                    <Badge variant="secondary">
+                      {consumiblesSeleccionados.length}
+                    </Badge>
+                  )}
+                </div>
+                <WizardConsumibles
+                  inventarios={inventarios}
+                  productos_por_inventario={productosPorInventario}
+                  cargarProductos={cargarProductosInventario}
+                  materialesSeleccionados={consumiblesSeleccionados}
+                  onAgregarMaterial={(material) => setConsumiblesSeleccionados([...consumiblesSeleccionados, material])}
+                  onEliminarMaterial={(idx) => setConsumiblesSeleccionados(consumiblesSeleccionados.filter((_, i) => i !== idx))}
+                  onActualizarCantidad={(idx, cantidad) => {
+                    const nuevos = [...consumiblesSeleccionados];
+                    nuevos[idx] = { ...nuevos[idx], cantidad };
+                    setConsumiblesSeleccionados(nuevos);
+                  }}
+                  readOnly={esCitaPasadaEdicion}
+                />
+              </div>
             )}
           </TabsContent>
         </Tabs>

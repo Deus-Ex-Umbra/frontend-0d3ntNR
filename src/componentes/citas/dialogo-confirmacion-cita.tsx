@@ -5,9 +5,8 @@ import { Label } from '../ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
 import { Combobox } from '../ui/combobox';
-import { Loader2, Package, Wrench, AlertTriangle, DollarSign, AlertCircle } from 'lucide-react';
+import { Loader2, Package, AlertTriangle, DollarSign } from 'lucide-react';
 import WizardConsumibles from '../materiales/wizard-consumibles';
-import WizardActivosFijos from '../materiales/wizard-activos-fijos';
 import { Inventario, Producto } from '@/tipos';
 
 interface DialogoConfirmacionCitaProps {
@@ -19,15 +18,12 @@ interface DialogoConfirmacionCitaProps {
   setMonto: (monto: string) => void;
   consumibles: any[];
   setConsumibles: (consumibles: any[]) => void;
-  activos: any[];
-  setActivos: (activos: any[]) => void;
   inventarios: Inventario[];
   productosPorInventario: Record<number, Producto[]>;
   cargarProductosInventario: (id: number) => Promise<void>;
   cargandoMateriales: boolean;
   guardando: boolean;
   manejarConfirmar: () => void;
-  fechaCita: Date;
   opcionesEstadosPago: { valor: string; etiqueta: string }[];
 }
 
@@ -40,15 +36,12 @@ export default function DialogoConfirmacionCita({
   setMonto,
   consumibles,
   setConsumibles,
-  activos,
-  setActivos,
   inventarios,
   productosPorInventario,
   cargarProductosInventario,
   cargandoMateriales,
   guardando,
   manejarConfirmar,
-  fechaCita,
   opcionesEstadosPago
 }: DialogoConfirmacionCitaProps) {
 
@@ -119,64 +112,31 @@ export default function DialogoConfirmacionCita({
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <Tabs defaultValue="consumibles" className="flex-1 flex flex-col">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="consumibles" className="flex items-center gap-2">
-                    <Package className="h-4 w-4" />
-                    Consumibles
-                    {consumibles.length > 0 && (
-                      <Badge variant="secondary" className="ml-1">
-                        {consumibles.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="activos" className="flex items-center gap-2">
-                    <Wrench className="h-4 w-4" />
-                    Activos Fijos
-                    {activos.length > 0 && (
-                      <Badge variant="secondary" className="ml-1">
-                        {activos.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="consumibles" className="space-y-4">
-                  <WizardConsumibles
-                    inventarios={inventarios}
-                    productos_por_inventario={productosPorInventario}
-                    cargarProductos={cargarProductosInventario}
-                    materialesSeleccionados={consumibles}
-                    onAgregarMaterial={(material) => setConsumibles([...consumibles, material])}
-                    onEliminarMaterial={(idx) => setConsumibles(consumibles.filter((_, i) => i !== idx))}
-                    onActualizarCantidad={(idx, cantidad) => {
-                      const nuevos = [...consumibles];
-                      nuevos[idx] = { ...nuevos[idx], cantidad };
-                      setConsumibles(nuevos);
-                    }}
-                    readOnly={false}
-                  />
-                </TabsContent>
-
-                <TabsContent value="activos" className="space-y-4">
-                  <WizardActivosFijos
-                    inventarios={inventarios}
-                    productos_por_inventario={productosPorInventario}
-                    cargarProductos={cargarProductosInventario}
-                    activosSeleccionados={activos}
-                    onAgregarActivo={(activo) => setActivos([...activos, activo])}
-                    onEliminarActivo={(idx) => setActivos(activos.filter((_, i) => i !== idx))}
-                    fecha_cita={fechaCita}
-                    readOnly={true}
-                  />
-                  <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                    <p className="text-xs text-blue-700 dark:text-blue-400 flex items-center gap-2">
-                      <AlertCircle className="h-3 w-3" />
-                      Los activos fijos se liberarán automáticamente al confirmar la cita.
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Package className="h-5 w-5 text-muted-foreground" />
+                  <h3 className="font-medium text-foreground">Consumibles Utilizados</h3>
+                  {consumibles.length > 0 && (
+                    <Badge variant="secondary">
+                      {consumibles.length}
+                    </Badge>
+                  )}
+                </div>
+                <WizardConsumibles
+                  inventarios={inventarios}
+                  productos_por_inventario={productosPorInventario}
+                  cargarProductos={cargarProductosInventario}
+                  materialesSeleccionados={consumibles}
+                  onAgregarMaterial={(material) => setConsumibles([...consumibles, material])}
+                  onEliminarMaterial={(idx) => setConsumibles(consumibles.filter((_, i) => i !== idx))}
+                  onActualizarCantidad={(idx, cantidad) => {
+                    const nuevos = [...consumibles];
+                    nuevos[idx] = { ...nuevos[idx], cantidad };
+                    setConsumibles(nuevos);
+                  }}
+                  readOnly={false}
+                />
+              </div>
             )}
           </TabsContent>
         </Tabs>

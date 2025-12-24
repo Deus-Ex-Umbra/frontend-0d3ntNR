@@ -174,20 +174,15 @@ export default function Inventarios() {
     { valor: 'mobiliario_equipo', etiqueta: 'Mobiliario/Equipo', descripcion: 'Ciclo de vida lento' },
   ];
 
-  const getEstadosParaSubtipo = (subtipo: string | undefined) => {
-    if (subtipo === 'instrumental') {
-      return [
-        { valor: 'disponible', etiqueta: 'Disponible' },
-        { valor: 'en_uso', etiqueta: 'En Uso' },
-        { valor: 'desechado', etiqueta: 'Desechado' },
-      ];
-    } else {
-      return [
-        { valor: 'disponible', etiqueta: 'Disponible' },
-        { valor: 'en_mantenimiento', etiqueta: 'En Mantenimiento' },
-        { valor: 'desechado', etiqueta: 'Desechado' },
-      ];
-    }
+  const getEstadosParaSubtipo = (_subtipo: string | undefined) => {
+    // Ciclo de vida unificado para todos los activos fijos:
+    // Disponible -> En Mantenimiento <-> Desechado/Vendido
+    return [
+      { valor: 'disponible', etiqueta: 'Disponible' },
+      { valor: 'en_mantenimiento', etiqueta: 'En Mantenimiento' },
+      { valor: 'desechado', etiqueta: 'Desechado' },
+      { valor: 'vendido', etiqueta: 'Vendido' },
+    ];
   };
 
 
@@ -1428,7 +1423,7 @@ export default function Inventarios() {
 
           <Tabs value={tab_activo} onValueChange={(value) => setTabActivo(value as any)} className="flex-1 flex flex-col overflow-hidden">
             <div className="px-6 pt-4 border-b">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="w-full grid grid-cols-4">
                 <TabsTrigger value="productos">
                   <Box className="h-4 w-4 mr-2" />
                   Productos
@@ -1437,13 +1432,13 @@ export default function Inventarios() {
                   <History className="h-4 w-4 mr-2" />
                   Kardex
                 </TabsTrigger>
-                <TabsTrigger value="bitacora">
-                  <History className="h-4 w-4 mr-2" />
-                  Bitácora
-                </TabsTrigger>
                 <TabsTrigger value="auditoria">
                   <Shield className="h-4 w-4 mr-2" />
                   Actividad
+                </TabsTrigger>
+                <TabsTrigger value="bitacora">
+                  <History className="h-4 w-4 mr-2" />
+                  Bitácora
                 </TabsTrigger>
               </TabsList>
             </div>

@@ -10,6 +10,44 @@ export const api = axios.create({
   },
 });
 
+// Función recursiva para transformar todas las fechas en un objeto a hora local
+function transformarFechasALocal(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (obj instanceof Date) {
+    return formatearFechaISO(obj);
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(transformarFechasALocal);
+  }
+
+  if (typeof obj === 'object') {
+    const resultado: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        resultado[key] = transformarFechasALocal(obj[key]);
+      }
+    }
+    return resultado;
+  }
+
+  return obj;
+}
+
+// Interceptor para transformar fechas a hora local antes de enviar al backend
+api.interceptors.request.use(
+  (config) => {
+    if (config.data) {
+      config.data = transformarFechasALocal(config.data);
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token_acceso');
@@ -29,10 +67,16 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token_acceso');
+      // No hacer logout automático si el error proviene del cambio de contraseña
+      const url = error.config?.url || '';
+      const esCambioContrasena = url.includes('/cambiar-contrasena');
 
-      if (window.location.pathname !== '/inicio-sesion' && window.location.pathname !== '/registro') {
-        window.location.href = '/inicio-sesion';
+      if (!esCambioContrasena) {
+        localStorage.removeItem('token_acceso');
+
+        if (window.location.pathname !== '/inicio-sesion' && window.location.pathname !== '/registro') {
+          window.location.href = '/inicio-sesion';
+        }
       }
     }
     return Promise.reject(error);
@@ -838,11 +882,11 @@ export const inventarioApi = {
     }
 
     if (filtros?.fecha_inicio) {
-      params.append('fecha_inicio', filtros.fecha_inicio.toISOString());
+      params.append('fecha_inicio', formatearFechaISO(filtros.fecha_inicio));
     }
 
     if (filtros?.fecha_fin) {
-      params.append('fecha_fin', filtros.fecha_fin.toISOString());
+      params.append('fecha_fin', formatearFechaISO(filtros.fecha_fin));
     }
 
     if (filtros?.usuario_id) {

@@ -47,6 +47,7 @@ import {
   Clock,
   User,
   CheckCircle,
+  CheckCircle2,
   AlertTriangle,
   Package,
   Check,
@@ -70,8 +71,6 @@ import {
 
 
 import WizardConsumibles from '@/componentes/materiales/wizard-consumibles';
-import WizardActivosFijos from '@/componentes/materiales/wizard-activos-fijos';
-import { Wrench } from 'lucide-react';
 import DialogoGestionCita from '@/componentes/citas/dialogo-gestion-cita';
 import DialogoConfirmacionCita from '@/componentes/citas/dialogo-confirmacion-cita';
 
@@ -2002,10 +2001,10 @@ export default function Tratamientos() {
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="recursos" className="flex items-center gap-1 text-sm" onClick={() => cargarInventarios()}>
-                  <Wrench className="h-4 w-4" />
+                  <Package className="h-4 w-4" />
                   Recursos por Cita
-                  {(consumibles_plantilla.length + activos_plantilla.length) > 0 && (
-                    <Badge variant="secondary" className="ml-1">{consumibles_plantilla.length + activos_plantilla.length}</Badge>
+                  {consumibles_plantilla.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{consumibles_plantilla.length}</Badge>
                   )}
                 </TabsTrigger>
               </TabsList>
@@ -2229,47 +2228,15 @@ export default function Tratamientos() {
                   </p>
                 </div>
 
-                <Tabs defaultValue="consumibles-plantilla" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="consumibles-plantilla" className="flex items-center gap-1 text-sm">
-                      <Package className="h-4 w-4" />
-                      Consumibles
-                      {consumibles_plantilla.length > 0 && (
-                        <Badge variant="secondary" className="ml-1">{consumibles_plantilla.length}</Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="activos-plantilla" className="flex items-center gap-1 text-sm">
-                      <Wrench className="h-4 w-4" />
-                      Activos Fijos
-                      {activos_plantilla.length > 0 && (
-                        <Badge variant="secondary" className="ml-1">{activos_plantilla.length}</Badge>
-                      )}
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="consumibles-plantilla" className="space-y-4">
-                    <WizardConsumibles
-                      inventarios={inventarios}
-                      productos_por_inventario={productos_por_inventario}
-                      cargarProductos={cargarProductosInventario}
-                      materialesSeleccionados={consumibles_plantilla}
-                      onAgregarMaterial={(material) => setConsumiblesPlantilla(prev => [...prev, material])}
-                      onEliminarMaterial={(index) => setConsumiblesPlantilla(prev => prev.filter((_, i) => i !== index))}
-                      onActualizarCantidad={(index, cantidad) => setConsumiblesPlantilla(prev => prev.map((m, i) => i === index ? { ...m, cantidad } : m))}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="activos-plantilla" className="space-y-4">
-                    <WizardActivosFijos
-                      inventarios={inventarios}
-                      productos_por_inventario={productos_por_inventario}
-                      cargarProductos={cargarProductosInventario}
-                      activosSeleccionados={activos_plantilla}
-                      onAgregarActivo={(activo) => setActivosPlantilla(prev => [...prev, activo])}
-                      onEliminarActivo={(index) => setActivosPlantilla(prev => prev.filter((_, i) => i !== index))}
-                    />
-                  </TabsContent>
-                </Tabs>
+                <WizardConsumibles
+                  inventarios={inventarios}
+                  productos_por_inventario={productos_por_inventario}
+                  cargarProductos={cargarProductosInventario}
+                  materialesSeleccionados={consumibles_plantilla}
+                  onAgregarMaterial={(material) => setConsumiblesPlantilla(prev => [...prev, material])}
+                  onEliminarMaterial={(index) => setConsumiblesPlantilla(prev => prev.filter((_, i) => i !== index))}
+                  onActualizarCantidad={(index, cantidad) => setConsumiblesPlantilla(prev => prev.map((m, i) => i === index ? { ...m, cantidad } : m))}
+                />
               </TabsContent>
             </Tabs>
           </ScrollArea>
@@ -2551,7 +2518,8 @@ export default function Tratamientos() {
                         return (
                           <div
                             key={cita.id}
-                            className="p-4 rounded-lg bg-secondary/30 border border-border hover:bg-secondary/50 transition-all duration-200"
+                            className={`p-4 rounded-lg bg-secondary/30 border border-border hover:bg-secondary/50 transition-all duration-200 ${cita.materiales_confirmados ? 'opacity-60 grayscale-[0.3]' : ''
+                              }`}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
@@ -2585,37 +2553,52 @@ export default function Tratamientos() {
                                 </div>
                               </div>
                               <div className="flex gap-2">
-                                {!cita.materiales_confirmados && citaHaFinalizado(cita) && (
+                                {cita.materiales_confirmados ? (
+                                  /* Modo solo visualización para citas confirmadas */
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => abrirDialogoConfirmarMaterialesCita(cita)}
-                                    className="hover:bg-green-500/20 hover:text-green-600 hover:scale-110 transition-all duration-200 ring-2 ring-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
-                                    title="Confirmar Materiales"
+                                    onClick={() => abrirDialogoEditarCita(cita)}
+                                    className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                    title="Ver detalles"
                                   >
-                                    <Package className="h-4 w-4" />
+                                    <Eye className="h-4 w-4" />
                                   </Button>
-                                )}
-                                {!esta_finalizado && (
+                                ) : (
                                   <>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => abrirDialogoEditarCita(cita)}
-                                      className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
-                                      title="Editar"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => abrirDialogoConfirmarEliminarCita(cita)}
-                                      className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
-                                      title="Eliminar"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    {citaHaFinalizado(cita) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => abrirDialogoConfirmarMaterialesCita(cita)}
+                                        className="hover:bg-green-500/20 hover:text-green-600 hover:scale-110 transition-all duration-200 ring-2 ring-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
+                                        title="Confirmar Materiales"
+                                      >
+                                        <CheckCircle2 className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                    {!esta_finalizado && (
+                                      <>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => abrirDialogoEditarCita(cita)}
+                                          className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                          title="Editar"
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => abrirDialogoConfirmarEliminarCita(cita)}
+                                          className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                                          title="Eliminar"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </>
+                                    )}
                                   </>
                                 )}
                               </div>
@@ -2684,8 +2667,6 @@ export default function Tratamientos() {
         cargarProductosInventario={cargarProductosInventario}
         consumiblesSeleccionados={consumibles_seleccionados_cita}
         setConsumiblesSeleccionados={setConsumiblesSeleccionadosCita}
-        activosSeleccionados={activos_seleccionados_cita}
-        setActivosSeleccionados={setActivosSeleccionadosCita}
         guardando={guardando}
         hayCambios={hay_cambios_cita}
         manejarGuardar={manejarGuardarCita}
@@ -2950,8 +2931,6 @@ export default function Tratamientos() {
         cargandoMateriales={cargando_materiales}
         consumibles={consumibles_confirmacion}
         setConsumibles={setConsumiblesConfirmacion}
-        activos={activos_confirmacion}
-        setActivos={setActivosConfirmacion}
         estadoPago={estado_pago_confirmacion}
         setEstadoPago={setEstadoPagoConfirmacion}
         monto={monto_confirmacion}
@@ -2962,7 +2941,6 @@ export default function Tratamientos() {
         productosPorInventario={productos_por_inventario}
         cargarProductosInventario={cargarProductosInventario}
         opcionesEstadosPago={estados_pago}
-        fechaCita={cita_seleccionada?.fecha ? new Date(cita_seleccionada.fecha) : new Date()}
       />
 
       <Dialog open={dialogo_confirmar_materiales_tratamiento_abierto} onOpenChange={setDialogoConfirmarMaterialesTratamientoAbierto}>

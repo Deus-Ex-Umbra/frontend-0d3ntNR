@@ -18,7 +18,6 @@ export enum SubtipoActivoFijo {
 
 export enum EstadoActivo {
   DISPONIBLE = 'disponible',
-  EN_USO = 'en_uso',
   EN_MANTENIMIENTO = 'en_mantenimiento',
   DESECHADO = 'desechado',
   VENDIDO = 'vendido',
