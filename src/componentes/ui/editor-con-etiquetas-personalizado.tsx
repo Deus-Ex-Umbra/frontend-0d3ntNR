@@ -646,9 +646,6 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
   useEffect(() => {
     setPageInputValue(String(currentPage));
   }, [currentPage]);
-
-  /* Scroll listener removed to keep focus on caret position */
-
   useEffect(() => {
     forceAllTablesFull();
   }, [contentWidthPx]);

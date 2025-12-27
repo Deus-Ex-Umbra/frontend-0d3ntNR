@@ -188,7 +188,6 @@ export default function Pacientes() {
   };
 
   const abrirDialogoEditar = async (paciente: Paciente) => {
-    // Open dialog immediately to show loading state
     setPacienteSeleccionado(null);
     setFormulario({
       nombre: '',
@@ -359,7 +358,6 @@ export default function Pacientes() {
   };
 
   const verDetallePaciente = async (id: number) => {
-    // Open dialog immediately to show loading state
     setPacienteSeleccionado(null);
     setUltimaCita(null);
     setUltimoTratamiento(null);

@@ -105,32 +105,20 @@ export function FinanzasMovimientos() {
     setCargando(true);
     try {
       const hoy = new Date();
-
-      // Obtener totales del año completo
       const inicio_ano = new Date(hoy.getFullYear(), 0, 1);
       inicio_ano.setHours(0, 0, 0, 0);
       const fin_ano = new Date(hoy.getFullYear(), 11, 31);
       fin_ano.setHours(23, 59, 59, 999);
-
       const inicio_ano_str = formatearFechaISO(inicio_ano);
       const fin_ano_str = formatearFechaISO(fin_ano);
-
-      // Obtener movimientos de hoy
       const inicio_hoy = new Date(hoy);
       inicio_hoy.setHours(0, 0, 0, 0);
       const fin_hoy = new Date(hoy);
       fin_hoy.setHours(23, 59, 59, 999);
-
       const inicio_hoy_str = formatearFechaISO(inicio_hoy);
       const fin_hoy_str = formatearFechaISO(fin_hoy);
-
-      // Obtener totales del año
       const datos_ano = await finanzasApi.obtenerReporte(inicio_ano_str, fin_ano_str);
-
-      // Obtener movimientos de hoy
       const datos_hoy = await finanzasApi.obtenerReporte(inicio_hoy_str, fin_hoy_str);
-
-      // Usar totales del año pero movimientos de hoy
       setReporte({
         total_ingresos: datos_ano.total_ingresos,
         total_egresos: datos_ano.total_egresos,

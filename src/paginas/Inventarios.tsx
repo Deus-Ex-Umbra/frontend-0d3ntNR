@@ -43,7 +43,7 @@ import { Badge } from '@/componentes/ui/badge';
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { format } from 'date-fns';
-import { ajustarFechaParaBackend, formatearFechaSoloFecha } from '@/lib/utilidades';
+import { formatearFechaSoloFecha } from '@/lib/utilidades';
 import {
   Inventario,
   Producto,
@@ -86,6 +86,8 @@ export default function Inventarios() {
   const [dialogo_filtros_historial_abierto, setDialogoFiltrosHistorialAbierto] = useState(false);
   const [dialogo_detalles_auditoria_abierto, setDialogoDetallesAuditoriaAbierto] = useState(false);
   const [detalles_auditoria_seleccionada, setDetallesAuditoriaSeleccionada] = useState<RegistroAuditoria | null>(null);
+  const [dialogo_confirmar_cambio_desechado_abierto, setDialogoConfirmarCambioDesechadoAbierto] = useState(false);
+  const [activo_a_desechar, setActivoADesechar] = useState<{ producto: Producto, activo: Activo } | null>(null);
 
   const [modo_edicion, setModoEdicion] = useState(false);
   const [modo_edicion_producto, setModoEdicionProducto] = useState(false);
@@ -175,8 +177,6 @@ export default function Inventarios() {
   ];
 
   const getEstadosParaSubtipo = (_subtipo: string | undefined) => {
-    // Ciclo de vida unificado para todos los activos fijos:
-    // Disponible -> En Mantenimiento <-> Desechado/Vendido
     return [
       { valor: 'disponible', etiqueta: 'Disponible' },
       { valor: 'en_mantenimiento', etiqueta: 'En Mantenimiento' },
@@ -636,7 +636,7 @@ export default function Inventarios() {
         fecha_vencimiento: formulario_material.fecha_vencimiento
           ? format(formulario_material.fecha_vencimiento, 'yyyy-MM-dd')
           : undefined,
-        fecha_ingreso: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_material.fecha_compra)),
+        fecha_ingreso: formatearFechaSoloFecha(formulario_material.fecha_compra),
         generar_egreso: formulario_material.registrar_egreso,
       };
 
@@ -718,7 +718,7 @@ export default function Inventarios() {
         tipo_ajuste: formulario_ajuste_stock.tipo_ajuste,
         cantidad: cantidad,
         motivo: formulario_ajuste_stock.motivo || `Ajuste ${formulario_ajuste_stock.tipo_ajuste} manual`,
-        fecha: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_ajuste_stock.fecha_ajuste)),
+        fecha: formatearFechaSoloFecha(formulario_ajuste_stock.fecha_ajuste),
       });
 
       toast({
@@ -837,7 +837,7 @@ export default function Inventarios() {
           nro_serie: formulario_activo.nro_serie || undefined,
           nombre_asignado: formulario_activo.nombre_asignado || undefined,
           ubicacion: formulario_activo.ubicacion || undefined,
-          fecha_compra: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_activo.fecha_compra)),
+          fecha_compra: formatearFechaSoloFecha(formulario_activo.fecha_compra),
           generar_egreso: formulario_activo.registrar_egreso,
         };
 
@@ -897,6 +897,13 @@ export default function Inventarios() {
   const manejarCambioEstadoActivo = async (_producto: Producto, activo: Activo, nuevo_estado: string) => {
     if (!inventario_seleccionado) return;
 
+    // Si el nuevo estado es "desechado", abrir diálogo de confirmación
+    if (nuevo_estado === 'desechado' && activo.estado !== 'desechado') {
+      setActivoADesechar({ producto: _producto, activo });
+      setDialogoConfirmarCambioDesechadoAbierto(true);
+      return;
+    }
+
     setProductosCargando(prev => new Set(prev).add(_producto.id));
 
     try {
@@ -925,6 +932,44 @@ export default function Inventarios() {
         nuevo.delete(_producto.id);
         return nuevo;
       });
+    }
+  };
+
+  const confirmarCambioDesechado = async () => {
+    if (!inventario_seleccionado || !activo_a_desechar) return;
+
+    setProductosCargando(prev => new Set(prev).add(activo_a_desechar.producto.id));
+
+    try {
+      await inventarioApi.cambiarEstadoActivo(
+        inventario_seleccionado.id,
+        activo_a_desechar.activo.id,
+        { estado: 'desechado' }
+      );
+
+      toast({
+        title: 'Éxito',
+        description: 'Activo marcado como desechado y eliminado correctamente',
+      });
+
+      setDialogoConfirmarCambioDesechadoAbierto(false);
+      setActivoADesechar(null);
+      await cargarProductoIndividual(activo_a_desechar.producto.id);
+    } catch (error: any) {
+      console.error('Error al cambiar estado:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al cambiar el estado',
+        variant: 'destructive',
+      });
+    } finally {
+      if (activo_a_desechar) {
+        setProductosCargando(prev => {
+          const nuevo = new Set(prev);
+          nuevo.delete(activo_a_desechar.producto.id);
+          return nuevo;
+        });
+      }
     }
   };
 
@@ -994,7 +1039,7 @@ export default function Inventarios() {
         monto_venta: monto,
         registrar_pago: formulario_venta_activo.registrar_pago,
         tipo_salida: 'venta',
-        fecha_venta: formatearFechaSoloFecha(ajustarFechaParaBackend(formulario_venta_activo.fecha_venta)),
+        fecha_venta: formatearFechaSoloFecha(formulario_venta_activo.fecha_venta),
       });
 
       toast({
@@ -2091,19 +2136,36 @@ export default function Inventarios() {
       </Dialog>
 
       <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
               ¿Estás seguro de que deseas eliminar el inventario "{inventario_a_eliminar?.nombre}"?
-              Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarAbierto(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarAbierto(false);
+                setInventarioAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={confirmarEliminarInventario}>
+            <Button
+              variant="destructive"
+              onClick={confirmarEliminarInventario}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
               Eliminar
             </Button>
           </DialogFooter>
@@ -2376,19 +2438,36 @@ export default function Inventarios() {
       </Dialog>
 
       <Dialog open={dialogo_confirmar_eliminar_producto_abierto} onOpenChange={setDialogoConfirmarEliminarProductoAbierto}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
               ¿Estás seguro de que deseas eliminar el producto "{producto_a_eliminar?.nombre}"?
-              Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarProductoAbierto(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarProductoAbierto(false);
+                setProductoAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={confirmarEliminarProducto}>
+            <Button
+              variant="destructive"
+              onClick={confirmarEliminarProducto}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
               Eliminar
             </Button>
           </DialogFooter>
@@ -2531,19 +2610,36 @@ export default function Inventarios() {
       </Dialog>
 
       <Dialog open={dialogo_confirmar_eliminar_material_abierto} onOpenChange={setDialogoConfirmarEliminarMaterialAbierto}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
               ¿Estás seguro de que deseas eliminar este material?
-              Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarMaterialAbierto(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarMaterialAbierto(false);
+                setMaterialAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={confirmarEliminarMaterial}>
+            <Button
+              variant="destructive"
+              onClick={confirmarEliminarMaterial}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
               Eliminar
             </Button>
           </DialogFooter>
@@ -2825,20 +2921,77 @@ export default function Inventarios() {
       </Dialog>
 
       <Dialog open={dialogo_confirmar_eliminar_activo_abierto} onOpenChange={setDialogoConfirmarEliminarActivoAbierto}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
               ¿Estás seguro de que deseas eliminar este activo?
-              Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoConfirmarEliminarActivoAbierto(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarActivoAbierto(false);
+                setActivoAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={confirmarEliminarActivo}>
+            <Button
+              variant="destructive"
+              onClick={confirmarEliminarActivo}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
               Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_cambio_desechado_abierto} onOpenChange={setDialogoConfirmarCambioDesechadoAbierto}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Cambio de Estado</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas marcar este activo como desechado?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive font-semibold mb-1">
+              ⚠️ Esta acción eliminará permanentemente el activo
+            </p>
+            <p className="text-sm text-destructive">
+              Cambiar el estado a "desechado" eliminará este activo del inventario. Esta acción no se puede deshacer.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarCambioDesechadoAbierto(false);
+                setActivoADesechar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmarCambioDesechado}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Marcar como Desechado
             </Button>
           </DialogFooter>
         </DialogContent>

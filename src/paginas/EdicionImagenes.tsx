@@ -274,32 +274,32 @@ export default function EdicionImagenes() {
 
       setArchivoSeleccionado(archivo_completo);
       const versiones_actuales = await cargarVersiones(archivo.id);
-      
+
       let version_para_editar = version_existente;
       if (!version_existente) {
-         try {
-           const nuevaVersionData = {
-             archivo_original_id: archivo.id,
-             nombre: `Edición ${versiones_actuales.length + 1}`,
-             imagen_resultado_base64: archivo_completo.contenido_base64 || "",
-             datos_canvas: { objetos: [] } 
-           };
-           const nuevaVersion = await edicionesImagenesApi.crear(nuevaVersionData);
-           version_para_editar = nuevaVersion;
-           toast({
-             title: "Nueva edición iniciada",
-             description: `Se ha creado la Edición ${nuevaVersion.version}`,
-           });
-           await cargarVersiones(archivo.id);
-         } catch (e) {
-            console.error(e);
-            toast({
-              title: "Error",
-              description: "No se pudo iniciar una nueva versión",
-              variant: "destructive"
-            });
-            return;
-         }
+        try {
+          const nuevaVersionData = {
+            archivo_original_id: archivo.id,
+            nombre: `Edición ${versiones_actuales.length + 1}`,
+            imagen_resultado_base64: archivo_completo.contenido_base64 || "",
+            datos_canvas: { objetos: [] }
+          };
+          const nuevaVersion = await edicionesImagenesApi.crear(nuevaVersionData);
+          version_para_editar = nuevaVersion;
+          toast({
+            title: "Nueva edición iniciada",
+            description: `Se ha creado la Edición ${nuevaVersion.version}`,
+          });
+          await cargarVersiones(archivo.id);
+        } catch (e) {
+          console.error(e);
+          toast({
+            title: "Error",
+            description: "No se pudo iniciar una nueva versión",
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
       setVersionEditar(version_para_editar || null);
@@ -328,7 +328,7 @@ export default function EdicionImagenes() {
         archivo_completo = { ...archivo, contenido_base64: contenido };
         setArchivos(prev => prev.map(a => a.id === archivo.id ? archivo_completo : a));
       }
-      
+
       setArchivoSeleccionado(archivo_completo);
       await cargarVersiones(archivo.id);
       setDialogoVersionesAbierto(true);
@@ -347,8 +347,8 @@ export default function EdicionImagenes() {
       id: version.id,
       nombre_archivo: version.nombre || `Versión ${version.version}`,
       tipo_mime: 'image/png',
-      descripcion: version.descripcion 
-        ? `${version.descripcion} - Por ${version.usuario.nombre}` 
+      descripcion: version.descripcion
+        ? `${version.descripcion} - Por ${version.usuario.nombre}`
         : `Versión creada por ${version.usuario.nombre}`,
       url: `data:image/png;base64,${version.imagen_resultado_base64}`,
       fecha_subida: version.fecha_creacion,
@@ -920,72 +920,6 @@ export default function EdicionImagenes() {
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-
-                          <Dialog
-                            open={dialogo_confirmar_eliminar_version_abierto}
-                            onOpenChange={
-                              setDialogoConfirmarEliminarVersionAbierto
-                            }
-                          >
-                            <DialogContent className="sm:max-w-[425px]">
-                              <DialogHeader>
-                                <DialogTitle>
-                                  Confirmar Eliminación de Versión
-                                </DialogTitle>
-                                <DialogDescription>
-                                  ¿Estás seguro de que deseas eliminar esta
-                                  versión de edición?
-                                </DialogDescription>
-                              </DialogHeader>
-
-                              {version_a_eliminar && (
-                                <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="outline">
-                                      v{version_a_eliminar.version}
-                                    </Badge>
-                                    <p className="font-semibold text-foreground">
-                                      {version_a_eliminar.nombre ||
-                                        `Versión ${version_a_eliminar.version}`}
-                                    </p>
-                                  </div>
-                                  {version_a_eliminar.descripcion && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {version_a_eliminar.descripcion}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-
-                              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                                <p className="text-sm text-destructive">
-                                  Esta acción no se puede deshacer.
-                                </p>
-                              </div>
-
-                              <DialogFooter>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => {
-                                    setDialogoConfirmarEliminarVersionAbierto(
-                                      false
-                                    );
-                                    setVersionAEliminar(null);
-                                  }}
-                                  className="hover:scale-105 transition-all duration-200"
-                                >
-                                  Cancelar
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  onClick={eliminarVersion}
-                                  className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
-                                >
-                                  Eliminar Versión
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
                         </div>
                       </div>
                     </CardContent>
@@ -994,6 +928,65 @@ export default function EdicionImagenes() {
               </div>
             )}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialogo_confirmar_eliminar_version_abierto}
+        onOpenChange={setDialogoConfirmarEliminarVersionAbierto}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación de Versión</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar esta versión de edición?
+            </DialogDescription>
+          </DialogHeader>
+
+          {version_a_eliminar && (
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">
+                  v{version_a_eliminar.version}
+                </Badge>
+                <p className="font-semibold text-foreground">
+                  {version_a_eliminar.nombre ||
+                    `Versión ${version_a_eliminar.version}`}
+                </p>
+              </div>
+              {version_a_eliminar.descripcion && (
+                <p className="text-sm text-muted-foreground">
+                  {version_a_eliminar.descripcion}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarVersionAbierto(false);
+                setVersionAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={eliminarVersion}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar Versión
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

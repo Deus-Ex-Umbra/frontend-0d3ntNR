@@ -367,7 +367,8 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
         ...TAMANOS_PAPEL.carta,
         margenes: MARGENES_DEFECTO,
       });
-      const fecha_actual = new Date().toISOString().split('T')[0];
+      const hoy = new Date();
+      const fecha_actual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
       const nombre_archivo = `Consentimiento_${plantilla_seleccionada.nombre}_${fecha_actual}.pdf`;
 
       await archivosApi.subir({

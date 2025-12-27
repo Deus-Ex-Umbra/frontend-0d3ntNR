@@ -58,6 +58,8 @@ export function GestionPlantillasRecetas() {
   const [nuevoMedicamentoNombre, setNuevoMedicamentoNombre] = useState('');
 
   const [etiquetasExpandidas, setEtiquetasExpandidas] = useState<Set<number>>(new Set());
+  const [dialogoConfirmarEliminar, setDialogoConfirmarEliminar] = useState(false);
+  const [plantillaAEliminar, setPlantillaAEliminar] = useState<number | null>(null);
 
   useEffect(() => {
     cargarData();
@@ -289,11 +291,18 @@ export function GestionPlantillasRecetas() {
     setDialogoEditar(true);
   };
 
-  const manejarEliminar = async (id: number) => {
-    if (!confirm('¿Eliminar esta plantilla de receta?')) return;
+  const abrirDialogoConfirmarEliminar = (id: number) => {
+    setPlantillaAEliminar(id);
+    setDialogoConfirmarEliminar(true);
+  };
+
+  const manejarEliminar = async () => {
+    if (!plantillaAEliminar) return;
     try {
-      await plantillasRecetasApi.eliminar(id);
+      await plantillasRecetasApi.eliminar(plantillaAEliminar);
       toast({ title: 'Eliminada', description: 'La plantilla se eliminó correctamente' });
+      setDialogoConfirmarEliminar(false);
+      setPlantillaAEliminar(null);
       await cargarPlantillas();
     } catch (error) {
       console.error('Error al eliminar:', error);
@@ -619,7 +628,7 @@ export function GestionPlantillasRecetas() {
                       <Button variant="outline" size="icon" onClick={() => abrirEdicion(plantilla)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="icon" className="text-destructive" onClick={() => manejarEliminar(plantilla.id)}>
+                      <Button variant="outline" size="icon" className="text-destructive" onClick={() => abrirDialogoConfirmarEliminar(plantilla.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -702,6 +711,43 @@ export function GestionPlantillasRecetas() {
             <Button variant="outline" onClick={() => setDialogoNuevoMedicamento(false)}>Cancelar</Button>
             <Button onClick={crearNuevoMedicamento} disabled={guardandoMedicamento}>
               {guardandoMedicamento && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Crear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogoConfirmarEliminar} onOpenChange={setDialogoConfirmarEliminar}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar esta plantilla de receta?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminar(false);
+                setPlantillaAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={manejarEliminar}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>

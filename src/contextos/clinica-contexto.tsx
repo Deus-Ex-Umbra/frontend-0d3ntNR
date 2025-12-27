@@ -99,7 +99,6 @@ export function ProveedorClinica({ children }: { children: ReactNode }) {
     }, [usuario_id]);
 
     useEffect(() => {
-        // Reload from cache and API when user changes
         const cached = obtenerCacheLocal(usuario_id);
         if (cached) {
             setConfigClinica(cached);

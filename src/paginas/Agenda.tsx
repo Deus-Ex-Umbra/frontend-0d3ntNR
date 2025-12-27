@@ -13,7 +13,6 @@ import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Badge } from '@/componentes/ui/badge';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { Switch } from '@/componentes/ui/switch';
-import { ajustarFechaParaBackend } from '@/lib/utilidades';
 import DialogoGestionCita from '@/componentes/citas/dialogo-gestion-cita';
 import DialogoConfirmacionCita from '@/componentes/citas/dialogo-confirmacion-cita';
 import {
@@ -526,7 +525,7 @@ export default function Agenda() {
       }));
 
       const datos: any = {
-        fecha: ajustarFechaParaBackend(formulario.fecha),
+        fecha: formulario.fecha,
         descripcion: formulario.descripcion,
         horas_aproximadas: horas,
         minutos_aproximados: minutos,
@@ -735,7 +734,7 @@ export default function Agenda() {
       await agendaApi.actualizar(cita_seleccionada.id, {
         estado_pago: estado_pago_confirmacion,
         monto_esperado: monto_confirmacion ? parseFloat(monto_confirmacion) : 0,
-        fecha: ajustarFechaParaBackend(new Date(cita_seleccionada.fecha)),
+        fecha: new Date(cita_seleccionada.fecha),
         descripcion: cita_seleccionada.descripcion,
         horas_aproximadas: cita_seleccionada.horas_aproximadas,
         minutos_aproximados: cita_seleccionada.minutos_aproximados,

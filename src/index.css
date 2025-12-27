@@ -245,8 +245,6 @@
     --input: 165 35% 15%;
     --ring: 165 70% 45%;
   }
-
-  /* Light theme variants */
   .blue-light {
     --background: 210 50% 98%;
     --foreground: 210 80% 15%;
@@ -422,8 +420,6 @@
     --input: 165 35% 90%;
     --ring: 165 70% 35%;
   }
-
-  /* Especiales - Cielo Abierto */
   .sky-open {
     --background: 204 100% 97%;
     --foreground: 201 90% 18%;
@@ -445,8 +441,6 @@
     --input: 199 70% 85%;
     --ring: 199 89% 48%;
   }
-
-  /* Especiales - Esmeralda */
   .emerald {
     --background: 152 81% 96%;
     --foreground: 155 80% 14%;
@@ -468,8 +462,6 @@
     --input: 158 50% 82%;
     --ring: 158 64% 38%;
   }
-
-  /* Especiales - Atardecer */
   .sunset {
     --background: 234 45% 13%;
     --foreground: 0 0% 92%;
@@ -491,8 +483,6 @@
     --input: 217 56% 22%;
     --ring: 348 83% 59%;
   }
-
-  /* Especiales - Café con Leche */
   .coffee-cream {
     --background: 36 33% 96%;
     --foreground: 28 65% 16%;
@@ -514,8 +504,6 @@
     --input: 30 25% 85%;
     --ring: 28 56% 35%;
   }
-
-  /* Especiales - Ártico */
   .arctic {
     --background: 210 40% 98%;
     --foreground: 224 71% 14%;
@@ -537,8 +525,6 @@
     --input: 215 25% 80%;
     --ring: 222 47% 11%;
   }
-
-  /* Especiales - Neón Cyber */
   .neon-cyber {
     --background: 0 0% 5%;
     --foreground: 145 100% 50%;
@@ -560,8 +546,6 @@
     --input: 0 0% 15%;
     --ring: 145 100% 50%;
   }
-
-  /* Especiales - Vintage Sepia */
   .vintage-sepia {
     --background: 40 33% 94%;
     --foreground: 25 40% 22%;
@@ -583,8 +567,6 @@
     --input: 35 20% 82%;
     --ring: 25 76% 31%;
   }
-
-  /* Especiales - Azul Hielo */
   .ice-blue {
     --background: 208 100% 97%;
     --foreground: 221 44% 26%;
@@ -606,10 +588,6 @@
     --input: 197 71% 80%;
     --ring: 209 100% 56%;
   }
-
-  /* Monocromáticos - Temas de escala de grises pura (sin colores) */
-
-  /* Monocromático Claro - Todo blanco, texto negro, bordes grises sutiles */
   .mono-light {
     --background: 0 0% 100%;
     --foreground: 0 0% 8%;
@@ -631,8 +609,6 @@
     --input: 0 0% 92%;
     --ring: 0 0% 25%;
   }
-
-  /* Monocromático Oscuro - Todo negro, texto blanco, bordes grises sutiles */
   .mono-dark {
     --background: 0 0% 4%;
     --foreground: 0 0% 96%;
@@ -654,8 +630,6 @@
     --input: 0 0% 15%;
     --ring: 0 0% 80%;
   }
-
-  /* Custom theme - uses CSS custom properties that can be overridden via JavaScript */
   .custom {
     --background: var(--custom-background, 0 0% 100%);
     --foreground: var(--custom-foreground, 222.2 84% 4.9%);
@@ -691,17 +665,11 @@
   }
 }
 
-/* ========================================
-   ESTILOS GLOBALES DE SCROLLBAR
-   ======================================== */
-
-/* Firefox */
 * {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--border)) transparent;
 }
 
-/* Webkit (Chrome, Edge, Safari) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -734,13 +702,11 @@
   background: transparent;
 }
 
-/* Scrollbar más delgado en elementos pequeños */
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-/* Scrollbar oculto pero funcional */
 .scrollbar-hidden {
   scrollbar-width: none;
   -ms-overflow-style: none;

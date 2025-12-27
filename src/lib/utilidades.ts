@@ -5,17 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function ajustarFechaParaBackend(fecha: Date): Date {
-  const anio = fecha.getFullYear();
-  const mes = fecha.getMonth();
-  const dia = fecha.getDate();
-  const horas = fecha.getHours();
-  const minutos = fecha.getMinutes();
-  const segundos = fecha.getSeconds();
-  
-  return new Date(anio, mes, dia, horas, minutos, segundos);
-}
-
 export function formatearFechaISO(fecha: Date): string {
   const anio = fecha.getFullYear();
   const mes = String(fecha.getMonth() + 1).padStart(2, '0');
@@ -23,7 +12,7 @@ export function formatearFechaISO(fecha: Date): string {
   const horas = String(fecha.getHours()).padStart(2, '0');
   const minutos = String(fecha.getMinutes()).padStart(2, '0');
   const segundos = String(fecha.getSeconds()).padStart(2, '0');
-  
+
   return `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}`;
 }
 
@@ -31,7 +20,7 @@ export function formatearFechaSoloFecha(fecha: Date): string {
   const anio = fecha.getFullYear();
   const mes = String(fecha.getMonth() + 1).padStart(2, '0');
   const dia = String(fecha.getDate()).padStart(2, '0');
-  
+
   return `${anio}-${mes}-${dia}`;
 }
 

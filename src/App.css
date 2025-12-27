@@ -245,8 +245,6 @@
     --input: 165 35% 15%;
     --ring: 165 70% 45%;
   }
-
-  /* Light theme variants */
   .blue-light {
     --background: 210 50% 98%;
     --foreground: 210 80% 15%;
@@ -423,7 +421,6 @@
     --ring: 165 70% 35%;
   }
 
-  /* Custom theme - uses CSS custom properties that can be overridden via JavaScript */
   .custom {
     --background: var(--custom-background, 0 0% 100%);
     --foreground: var(--custom-foreground, 222.2 84% 4.9%);

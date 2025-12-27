@@ -6,7 +6,9 @@ import { Label } from '@/componentes/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
 import { Checkbox } from '@/componentes/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { Loader2, Filter, Search, AlertTriangle, TrendingUp, TrendingDown, DollarSign, BarChart3, LineChart as LineChartIcon, Calendar } from 'lucide-react';
+import { Textarea } from '@/componentes/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
+import { Loader2, Filter, Search, AlertTriangle, TrendingUp, TrendingDown, DollarSign, BarChart3, LineChart as LineChartIcon, Calendar, Edit, Trash2 } from 'lucide-react';
 import { finanzasApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/componentes/ui/badge';
@@ -42,6 +44,26 @@ export function FinanzasAnalisis() {
   const [tipo_visualizacion, setTipoVisualizacion] = useState<'barras' | 'lineas' | 'area'>('barras');
   const [modo_grafico, setModoGrafico] = useState<'ingresos-egresos' | 'balance'>('ingresos-egresos');
   const [tipo_balance, setTipoBalance] = useState<'simple' | 'area'>('simple');
+
+  const [dialogo_ingreso_abierto, setDialogoIngresoAbierto] = useState(false);
+  const [dialogo_egreso_abierto, setDialogoEgresoAbierto] = useState(false);
+  const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
+  const [guardando_ingreso, setGuardandoIngreso] = useState(false);
+  const [guardando_egreso, setGuardandoEgreso] = useState(false);
+  const [movimiento_seleccionado, setMovimientoSeleccionado] = useState<Movimiento | null>(null);
+  const [movimiento_a_eliminar, setMovimientoAEliminar] = useState<Movimiento | null>(null);
+
+  const [formulario_ingreso, setFormularioIngreso] = useState({
+    concepto: '',
+    fecha: new Date(),
+    monto: '',
+  });
+
+  const [formulario_egreso, setFormularioEgreso] = useState({
+    concepto: '',
+    fecha: new Date(),
+    monto: '',
+  });
 
   useEffect(() => {
     cargarAnalisis();
@@ -105,6 +127,155 @@ export function FinanzasAnalisis() {
       });
     } finally {
       setCargando(false);
+    }
+  };
+
+  const abrirEditarIngreso = (movimiento: Movimiento) => {
+    setFormularioIngreso({
+      concepto: movimiento.concepto || '',
+      fecha: new Date(movimiento.fecha),
+      monto: movimiento.monto.toString(),
+    });
+    setMovimientoSeleccionado(movimiento);
+    setDialogoIngresoAbierto(true);
+  };
+
+  const abrirEditarEgreso = (movimiento: Movimiento) => {
+    setFormularioEgreso({
+      concepto: movimiento.concepto || '',
+      fecha: new Date(movimiento.fecha),
+      monto: movimiento.monto.toString(),
+    });
+    setMovimientoSeleccionado(movimiento);
+    setDialogoEgresoAbierto(true);
+  };
+
+  const manejarRegistrarIngreso = async () => {
+    if (!formulario_ingreso.concepto || !formulario_ingreso.fecha || !formulario_ingreso.monto) {
+      toast({
+        title: 'Error',
+        description: 'Concepto, fecha y monto son obligatorios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const monto = parseFloat(formulario_ingreso.monto);
+    if (isNaN(monto) || monto <= 0) {
+      toast({
+        title: 'Error',
+        description: 'El monto debe ser un número positivo',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardandoIngreso(true);
+    try {
+      const datos: any = {
+        fecha: formulario_ingreso.fecha,
+        monto,
+        concepto: formulario_ingreso.concepto,
+      };
+
+      await finanzasApi.actualizarPago(movimiento_seleccionado!.id, datos);
+      toast({
+        title: 'Éxito',
+        description: 'Ingreso actualizado correctamente',
+      });
+
+      setDialogoIngresoAbierto(false);
+      await cargarAnalisis();
+    } catch (error: any) {
+      console.error('Error al actualizar ingreso:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo actualizar el ingreso',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardandoIngreso(false);
+    }
+  };
+
+  const manejarRegistrarEgreso = async () => {
+    if (!formulario_egreso.concepto || !formulario_egreso.fecha || !formulario_egreso.monto) {
+      toast({
+        title: 'Error',
+        description: 'Todos los campos son obligatorios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const monto = parseFloat(formulario_egreso.monto);
+    if (isNaN(monto) || monto <= 0) {
+      toast({
+        title: 'Error',
+        description: 'El monto debe ser un número positivo',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardandoEgreso(true);
+    try {
+      const datos: any = {
+        concepto: formulario_egreso.concepto,
+        fecha: formulario_egreso.fecha,
+        monto,
+      };
+
+      await finanzasApi.actualizarEgreso(movimiento_seleccionado!.id, datos);
+      toast({
+        title: 'Éxito',
+        description: 'Egreso actualizado correctamente',
+      });
+
+      setDialogoEgresoAbierto(false);
+      await cargarAnalisis();
+    } catch (error: any) {
+      console.error('Error al actualizar egreso:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo actualizar el egreso',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardandoEgreso(false);
+    }
+  };
+
+  const abrirDialogoConfirmarEliminar = (movimiento: Movimiento) => {
+    setMovimientoAEliminar(movimiento);
+    setDialogoConfirmarEliminarAbierto(true);
+  };
+
+  const confirmarEliminarMovimiento = async () => {
+    if (!movimiento_a_eliminar) return;
+
+    try {
+      if (movimiento_a_eliminar.tipo === 'ingreso') {
+        await finanzasApi.eliminarPago(movimiento_a_eliminar.id);
+      } else {
+        await finanzasApi.eliminarEgreso(movimiento_a_eliminar.id);
+      }
+
+      toast({
+        title: 'Éxito',
+        description: `${movimiento_a_eliminar.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} eliminado correctamente`,
+      });
+
+      setDialogoConfirmarEliminarAbierto(false);
+      setMovimientoAEliminar(null);
+      await cargarAnalisis();
+    } catch (error) {
+      console.error('Error al eliminar movimiento:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo eliminar el movimiento',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -440,109 +611,305 @@ export function FinanzasAnalisis() {
             </CardContent>
           </Card>
 
-    <Card className="border-2 border-border shadow-lg">
-      <CardHeader>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <CardTitle>Detalle de Movimientos</CardTitle>
-            <div className="flex items-center gap-2">
-              <Label className="text-sm text-muted-foreground">Mostrar:</Label>
-              <Select
-                value={items_por_pagina.toString()}
-                onValueChange={(v) => {
-                  setItemsPorPagina(Number(v));
-                  setPaginaActual(1);
-                }}
-              >
-                <SelectTrigger className="w-[100px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="12">12</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                  <SelectItem value={data.movimientos.length.toString()}>Todos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar en movimientos cargados..."
-              value={busqueda_local}
-              onChange={(e) => setBusquedaLocal(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </div>
-        <CardDescription>
-          {data.movimientos.length} movimientos encontrados
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {movimientos_paginados.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No se encontraron movimientos con los filtros actuales.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {movimientos_paginados.map((mov) => (
-                <div
-                  key={`${mov.tipo}-${mov.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-full ${mov.tipo === 'ingreso' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                      {mov.tipo === 'ingreso' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                    </div>
-                    <div>
-                      <p className="font-medium">{mov.concepto}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        {formatearFechaHora(mov.fecha)}
-                        {mov.cita_id && <Badge variant="outline" className="ml-2 text-[10px]">Cita #{mov.cita_id}</Badge>}
-                      </div>
-                    </div>
-                  </div>
-                  <div className={`font-bold ${mov.tipo === 'ingreso' ? 'text-green-600' : 'text-red-600'}`}>
-                    {mov.tipo === 'ingreso' ? '+' : '-'}{formatearMoneda(mov.monto)}
+          <Card className="border-2 border-border shadow-lg">
+            <CardHeader>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle>Detalle de Movimientos</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm text-muted-foreground">Mostrar:</Label>
+                    <Select
+                      value={items_por_pagina.toString()}
+                      onValueChange={(v) => {
+                        setItemsPorPagina(Number(v));
+                        setPaginaActual(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="12">12</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                        <SelectItem value={data.movimientos.length.toString()}>Todos</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-          {total_paginas > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
-                disabled={pagina_actual === 1}
-              >
-                Anterior
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Página {pagina_actual} de {total_paginas}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPaginaActual(p => Math.min(total_paginas, p + 1))}
-                disabled={pagina_actual === total_paginas}
-              >
-                Siguiente
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar en movimientos cargados..."
+                    value={busqueda_local}
+                    onChange={(e) => setBusquedaLocal(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
+              <CardDescription>
+                {data.movimientos.length} movimientos encontrados
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {movimientos_paginados.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No se encontraron movimientos con los filtros actuales.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {movimientos_paginados.map((mov) => (
+                      <div
+                        key={`${mov.tipo}-${mov.id}`}
+                        className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className={`p-2 rounded-full ${mov.tipo === 'ingreso' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                            {mov.tipo === 'ingreso' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium">{mov.concepto}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              {formatearFechaHora(mov.fecha)}
+                              {mov.cita_id && <Badge variant="outline" className="ml-2 text-[10px]">Cita #{mov.cita_id}</Badge>}
+                            </div>
+                          </div>
+                          <div className={`font-bold ${mov.tipo === 'ingreso' ? 'text-green-600' : 'text-red-600'}`}>
+                            {mov.tipo === 'ingreso' ? '+' : '-'}{formatearMoneda(mov.monto)}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => mov.tipo === 'ingreso'
+                              ? abrirEditarIngreso(mov)
+                              : abrirEditarEgreso(mov)
+                            }
+                            className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                            title="Editar"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => abrirDialogoConfirmarEliminar(mov)}
+                            className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {total_paginas > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                      disabled={pagina_actual === 1}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Página {pagina_actual} de {total_paginas}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPaginaActual(p => Math.min(total_paginas, p + 1))}
+                      disabled={pagina_actual === total_paginas}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </>
       )
-}
+      }
+
+      <Dialog open={dialogo_ingreso_abierto} onOpenChange={setDialogoIngresoAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Editar Ingreso</DialogTitle>
+            <DialogDescription>
+              Modifica los datos del ingreso
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="concepto_ingreso">Concepto *</Label>
+              <Input
+                id="concepto_ingreso"
+                placeholder="Ej: Pago de consulta"
+                value={formulario_ingreso.concepto}
+                onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, concepto: e.target.value })}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fecha_ingreso">Fecha y Hora *</Label>
+              <DateTimePicker
+                valor={formulario_ingreso.fecha}
+                onChange={(fecha) => fecha && setFormularioIngreso({ ...formulario_ingreso, fecha })}
+                placeholder="Selecciona fecha y hora"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="monto_ingreso">Monto (Bs.) *</Label>
+              <Input
+                id="monto_ingreso"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={formulario_ingreso.monto}
+                onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, monto: e.target.value })}
+                onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoIngresoAbierto(false)}
+              disabled={guardando_ingreso}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={manejarRegistrarIngreso}
+              disabled={guardando_ingreso}
+              className="bg-green-600 hover:bg-green-700 hover:shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              {guardando_ingreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Actualizar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_egreso_abierto} onOpenChange={setDialogoEgresoAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Editar Egreso</DialogTitle>
+            <DialogDescription>
+              Modifica los datos del egreso
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="concepto_egreso">Concepto *</Label>
+              <Textarea
+                id="concepto_egreso"
+                placeholder="Ej: Compra de materiales dentales"
+                value={formulario_egreso.concepto}
+                onChange={(e) => setFormularioEgreso({ ...formulario_egreso, concepto: e.target.value })}
+                rows={3}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fecha_egreso">Fecha y Hora *</Label>
+              <DateTimePicker
+                valor={formulario_egreso.fecha}
+                onChange={(fecha) => fecha && setFormularioEgreso({ ...formulario_egreso, fecha })}
+                placeholder="Selecciona fecha y hora"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="monto_egreso">Monto (Bs.) *</Label>
+              <Input
+                id="monto_egreso"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={formulario_egreso.monto}
+                onChange={(e) => setFormularioEgreso({ ...formulario_egreso, monto: e.target.value })}
+                onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoEgresoAbierto(false)}
+              disabled={guardando_egreso}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={manejarRegistrarEgreso}
+              disabled={guardando_egreso}
+              variant="destructive"
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              {guardando_egreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Actualizar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar este {movimiento_a_eliminar?.tipo === 'ingreso' ? 'ingreso' : 'egreso'}?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarAbierto(false);
+                setMovimientoAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmarEliminarMovimiento}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.5)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div >
   );
 }

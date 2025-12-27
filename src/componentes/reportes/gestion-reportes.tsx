@@ -48,6 +48,8 @@ export function GestionReportes() {
   } | null>(null);
   const [visualizador_abierto, setVisualizadorAbierto] = useState(false);
   const [reporte_cargando_id, setReporteCargandoId] = useState<number | null>(null);
+  const [dialogo_confirmar_eliminar, setDialogoConfirmarEliminar] = useState(false);
+  const [reporte_a_eliminar, setReporteAEliminar] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -156,13 +158,21 @@ export function GestionReportes() {
     }
   };
 
-  const eliminarReporte = async (id: number) => {
+  const abrirDialogoConfirmarEliminar = (id: number) => {
+    setReporteAEliminar(id);
+    setDialogoConfirmarEliminar(true);
+  };
+
+  const eliminarReporte = async () => {
+    if (!reporte_a_eliminar) return;
     try {
-      await reportesApi.eliminar(id);
+      await reportesApi.eliminar(reporte_a_eliminar);
       toast({
         title: 'Éxito',
         description: 'Reporte eliminado correctamente',
       });
+      setDialogoConfirmarEliminar(false);
+      setReporteAEliminar(null);
       await cargarReportes();
     } catch (error) {
       toast({
@@ -438,7 +448,7 @@ export function GestionReportes() {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => eliminarReporte(reporte.id)}
+                        onClick={() => abrirDialogoConfirmarEliminar(reporte.id)}
                         title="Eliminar reporte"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -461,6 +471,43 @@ export function GestionReportes() {
           }}
         />
       )}
+
+      <Dialog open={dialogo_confirmar_eliminar} onOpenChange={setDialogoConfirmarEliminar}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar este reporte?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminar(false);
+                setReporteAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={eliminarReporte}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

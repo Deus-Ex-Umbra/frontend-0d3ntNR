@@ -130,12 +130,9 @@ function esColorClaro(hex: string): boolean {
 export function ProveedorTema({ children }: { children: React.ReactNode }) {
   const { usuario } = useAutenticacion();
   const usuario_id = usuario?.id;
-
   const [tema, setTema] = useState<Tema>('claro');
   const [tema_efectivo, setTemaEfectivo] = useState<TemaEfectivo>('claro');
   const [tema_personalizado, setTemaPersonalizado] = useState<TemaPersonalizado | null>(TEMA_PERSONALIZADO_DEFAULT);
-
-  // Load theme from localStorage when user changes
   useEffect(() => {
     const tema_key = obtenerTemaKey(usuario_id);
     const tema_personalizado_key = obtenerTemaPersonalizadoKey(usuario_id);
@@ -247,8 +244,6 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
     if (tema === 'personalizado' && tema_personalizado) {
       aplicarColoresPersonalizados(tema_personalizado);
     }
-
-    // Save theme to localStorage with user-scoped key
     const tema_key = obtenerTemaKey(usuario_id);
     localStorage.setItem(tema_key, tema);
   }, [tema, tema_personalizado, usuario_id, aplicarColoresPersonalizados]);

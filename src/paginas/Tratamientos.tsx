@@ -60,7 +60,6 @@ import { Badge } from "@/componentes/ui/badge";
 import { Combobox, OpcionCombobox } from "@/componentes/ui/combobox";
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { SearchInput } from "@/componentes/ui/search-input";
-import { ajustarFechaParaBackend } from "@/lib/utilidades";
 import {
   Tratamiento,
 
@@ -1006,7 +1005,7 @@ export default function Tratamientos() {
       const datos: any = {
         paciente_id: plan_seleccionado.paciente.id,
         plan_tratamiento_id: plan_seleccionado.id,
-        fecha: ajustarFechaParaBackend(formulario_cita.fecha),
+        fecha: formulario_cita.fecha,
         descripcion: formulario_cita.descripcion,
         estado_pago: formulario_cita.estado_pago,
         monto_esperado: formulario_cita.monto_esperado ? parseFloat(formulario_cita.monto_esperado) : 0,
@@ -1285,7 +1284,7 @@ export default function Tratamientos() {
       await agendaApi.actualizar(cita_seleccionada.id, {
         estado_pago: estado_pago_confirmacion,
         monto_esperado: monto_confirmacion ? parseFloat(monto_confirmacion) : 0,
-        fecha: ajustarFechaParaBackend(new Date(cita_seleccionada.fecha)),
+        fecha: new Date(cita_seleccionada.fecha),
         descripcion: cita_seleccionada.descripcion,
         horas_aproximadas: cita_seleccionada.horas_aproximadas,
         minutos_aproximados: cita_seleccionada.minutos_aproximados,
@@ -2033,6 +2032,7 @@ export default function Tratamientos() {
                       id="numero_citas"
                       type="number"
                       min="1"
+                      max="100"
                       value={formulario_plantilla.numero_citas}
                       onChange={(e) =>
                         setFormularioPlantilla({
@@ -2040,6 +2040,7 @@ export default function Tratamientos() {
                           numero_citas: e.target.value,
                         })
                       }
+                      onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                       placeholder="Ej: 25"
                       className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                     />
@@ -2077,6 +2078,7 @@ export default function Tratamientos() {
                         id="intervalo_meses"
                         type="number"
                         min="0"
+                        max="24"
                         value={formulario_plantilla.intervalo_meses}
                         onChange={(e) =>
                           setFormularioPlantilla({
@@ -2084,6 +2086,7 @@ export default function Tratamientos() {
                             intervalo_meses: e.target.value,
                           })
                         }
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                         placeholder="0"
                         className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                       />
@@ -2097,6 +2100,7 @@ export default function Tratamientos() {
                         id="intervalo_semanas"
                         type="number"
                         min="0"
+                        max="52"
                         value={formulario_plantilla.intervalo_semanas}
                         onChange={(e) =>
                           setFormularioPlantilla({
@@ -2104,6 +2108,7 @@ export default function Tratamientos() {
                             intervalo_semanas: e.target.value,
                           })
                         }
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                         placeholder="0"
                         className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                       />
@@ -2117,6 +2122,7 @@ export default function Tratamientos() {
                         id="intervalo_dias"
                         type="number"
                         min="0"
+                        max="365"
                         value={formulario_plantilla.intervalo_dias}
                         onChange={(e) =>
                           setFormularioPlantilla({
@@ -2124,6 +2130,7 @@ export default function Tratamientos() {
                             intervalo_dias: e.target.value,
                           })
                         }
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                         placeholder="0"
                         className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                       />
@@ -2145,6 +2152,7 @@ export default function Tratamientos() {
                         id="horas_aproximadas_citas"
                         type="number"
                         min="0"
+                        max="23"
                         value={formulario_plantilla.horas_aproximadas_citas}
                         onChange={(e) =>
                           setFormularioPlantilla({
@@ -2152,6 +2160,7 @@ export default function Tratamientos() {
                             horas_aproximadas_citas: e.target.value,
                           })
                         }
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                         placeholder="0"
                         className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                       />
@@ -2164,7 +2173,8 @@ export default function Tratamientos() {
                       <Input
                         id="minutos_aproximados_citas"
                         type="number"
-                        min="1"
+                        min="0"
+                        max="59"
                         value={formulario_plantilla.minutos_aproximados_citas}
                         onChange={(e) =>
                           setFormularioPlantilla({
@@ -2172,6 +2182,7 @@ export default function Tratamientos() {
                             minutos_aproximados_citas: e.target.value,
                           })
                         }
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                         placeholder="30"
                         className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                       />
@@ -2554,7 +2565,6 @@ export default function Tratamientos() {
                               </div>
                               <div className="flex gap-2">
                                 {cita.materiales_confirmados ? (
-                                  /* Modo solo visualización para citas confirmadas */
                                   <Button
                                     variant="ghost"
                                     size="icon"

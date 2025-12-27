@@ -70,6 +70,8 @@ export function GestionPlantillasConsentimiento() {
   const [dialogo_visualizacion, setDialogoVisualizacion] = useState(false);
   const [plantilla_visualizando, setPlantillaVisualizando] = useState<PlantillaConsentimiento | null>(null);
   const [etiquetas_expandidas, setEtiquetasExpandidas] = useState<Set<number>>(new Set());
+  const [dialogo_confirmar_eliminar, setDialogoConfirmarEliminar] = useState(false);
+  const [plantilla_a_eliminar, setPlantillaAEliminar] = useState<number | null>(null);
   const [filtro_nombre, setFiltroNombre] = useState('');
   const [filtro_etiquetas, setFiltroEtiquetas] = useState<string[]>([]);
   const [opciones_etiquetas, setOpcionesEtiquetas] = useState<Array<{ valor: string; etiqueta: string }>>([]);
@@ -347,16 +349,23 @@ export function GestionPlantillasConsentimiento() {
     }
   };
 
-  const eliminarPlantilla = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar esta plantilla?')) return;
+  const abrirDialogoConfirmarEliminar = (id: number) => {
+    setPlantillaAEliminar(id);
+    setDialogoConfirmarEliminar(true);
+  };
+
+  const eliminarPlantilla = async () => {
+    if (!plantilla_a_eliminar) return;
 
     try {
-      await plantillasConsentimientoApi.eliminar(id);
+      await plantillasConsentimientoApi.eliminar(plantilla_a_eliminar);
       toast({
         title: 'Plantilla eliminada',
         description: 'La plantilla se ha eliminado correctamente',
         duration: 3000,
       });
+      setDialogoConfirmarEliminar(false);
+      setPlantillaAEliminar(null);
       await cargarPlantillas();
     } catch (error) {
       console.error('Error al eliminar plantilla:', error);
@@ -931,7 +940,7 @@ export function GestionPlantillasConsentimiento() {
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => eliminarPlantilla(plantilla.id)}
+                          onClick={() => abrirDialogoConfirmarEliminar(plantilla.id)}
                           title="Eliminar plantilla"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1307,6 +1316,43 @@ export function GestionPlantillasConsentimiento() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogoVisualizacion(false)}>
               Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar} onOpenChange={setDialogoConfirmarEliminar}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar esta plantilla de consentimiento informado?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminar(false);
+                setPlantillaAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={eliminarPlantilla}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>

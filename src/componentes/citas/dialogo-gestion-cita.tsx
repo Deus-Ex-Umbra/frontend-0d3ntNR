@@ -173,8 +173,10 @@ export default function DialogoGestionCita({
                     id="horas_aproximadas"
                     type="number"
                     min="0"
+                    max="23"
                     value={formulario.horas_aproximadas}
                     onChange={(e) => setFormulario({ ...formulario, horas_aproximadas: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                     placeholder="0"
                     className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                     disabled={esCitaPasadaEdicion}
@@ -187,9 +189,11 @@ export default function DialogoGestionCita({
                   <Input
                     id="minutos_aproximados"
                     type="number"
-                    min="1"
+                    min="0"
+                    max="59"
                     value={formulario.minutos_aproximados}
                     onChange={(e) => setFormulario({ ...formulario, minutos_aproximados: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                     placeholder="30"
                     className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                     disabled={esCitaPasadaEdicion}

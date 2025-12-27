@@ -10,7 +10,6 @@ export const api = axios.create({
   },
 });
 
-// Función recursiva para transformar todas las fechas en un objeto a hora local
 function transformarFechasALocal(obj: any): any {
   if (obj === null || obj === undefined) {
     return obj;
@@ -37,7 +36,6 @@ function transformarFechasALocal(obj: any): any {
   return obj;
 }
 
-// Interceptor para transformar fechas a hora local antes de enviar al backend
 api.interceptors.request.use(
   (config) => {
     if (config.data) {
@@ -67,7 +65,6 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // No hacer logout automático si el error proviene del cambio de contraseña
       const url = error.config?.url || '';
       const esCambioContrasena = url.includes('/cambiar-contrasena');
 
