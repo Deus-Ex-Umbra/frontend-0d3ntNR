@@ -375,10 +375,36 @@ export default function Agenda() {
     setAnoActual(nuevo_ano);
   };
 
+  const redondearA15Minutos = (fecha: Date): Date => {
+    const nueva_fecha = new Date(fecha);
+    // Agregar 5 minutos de buffer
+    nueva_fecha.setMinutes(nueva_fecha.getMinutes() + 5);
+
+    // Obtener los minutos actuales
+    const minutos = nueva_fecha.getMinutes();
+
+    // Redondear hacia arriba al próximo múltiplo de 15
+    const minutos_redondeados = Math.ceil(minutos / 15) * 15;
+
+    // Si minutos_redondeados es 60, debemos agregar una hora y poner minutos en 0
+    if (minutos_redondeados === 60) {
+      nueva_fecha.setHours(nueva_fecha.getHours() + 1);
+      nueva_fecha.setMinutes(0);
+    } else {
+      nueva_fecha.setMinutes(minutos_redondeados);
+    }
+
+    // Poner segundos y milisegundos en 0
+    nueva_fecha.setSeconds(0);
+    nueva_fecha.setMilliseconds(0);
+
+    return nueva_fecha;
+  };
+
   const abrirDialogoNuevo = () => {
     setFormulario({
       paciente_id: '',
-      fecha: new Date(),
+      fecha: redondearA15Minutos(new Date()),
       descripcion: '',
       estado_pago: 'pendiente',
       monto_esperado: '',
