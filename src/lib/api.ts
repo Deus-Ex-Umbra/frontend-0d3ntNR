@@ -489,6 +489,10 @@ export const catalogoApi = {
     const respuesta = await api.put('/catalogo/configuracion-clinica', datos);
     return respuesta.data;
   },
+  obtenerHoraServidor: async (): Promise<Date> => {
+    const respuesta = await api.get('/catalogo/hora-servidor');
+    return new Date(respuesta.data);
+  },
 };
 
 export const archivosApi = {

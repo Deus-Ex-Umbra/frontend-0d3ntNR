@@ -5,7 +5,7 @@ import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { User, Palette, Camera, Loader2, Save, Sun, Moon, Droplet, Database, Lock, Eye, EyeOff, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill, Building2, ImageIcon, X, Settings2 } from 'lucide-react';
+import { User, Palette, Camera, Loader2, Save, Sun, Moon, Droplet, Database, Lock, Eye, EyeOff, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill, Building2, ImageIcon, X, Settings2, Clock } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { useTema, TemaPersonalizado } from '@/contextos/tema-contexto';
 import { useClinica } from '@/contextos/clinica-contexto';
@@ -74,6 +74,8 @@ export default function Configuracion() {
 
   // Estado para la fecha y hora actual
   const [fecha_hora_actual, setFechaHoraActual] = useState(new Date());
+  const [desfase_tiempo, setDesfaseTiempo] = useState(0);
+  const [sincronizando, setSincronizando] = useState(false);
 
   const temas_disponibles = [
     { valor: 'claro', nombre: 'Claro', icono: Sun, descripcion: 'Tema claro tradicional', categoria: 'Base' },
@@ -121,13 +123,36 @@ export default function Configuracion() {
     cargarConfiguracionClinica();
   }, []);
 
+  const sincronizarHora = async () => {
+    setSincronizando(true);
+    try {
+      const hora_servidor = await catalogoApi.obtenerHoraServidor();
+      const desfase = hora_servidor.getTime() - Date.now();
+      setDesfaseTiempo(desfase);
+
+      toast({
+        title: 'Hora sincronizada',
+        description: 'El reloj se ha sincronizado con el servidor exitosamente',
+      });
+    } catch (error) {
+      console.error('Error al sincronizar hora:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo sincronizar la hora del servidor',
+        variant: 'destructive',
+      });
+    } finally {
+      setSincronizando(false);
+    }
+  };
+
   useEffect(() => {
     const intervalo = setInterval(() => {
-      setFechaHoraActual(new Date());
+      setFechaHoraActual(new Date(Date.now() + desfase_tiempo));
     }, 1000);
 
     return () => clearInterval(intervalo);
-  }, []);
+  }, [desfase_tiempo]);
 
 
   const cargarCatalogos = async () => {
@@ -440,6 +465,25 @@ export default function Configuracion() {
               <p className="text-sm text-muted-foreground">
                 {fecha_hora_actual.toLocaleDateString('es-BO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={sincronizarHora}
+                disabled={sincronizando}
+                className="mt-2"
+              >
+                {sincronizando ? (
+                  <>
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  <>
+                    <Clock className="mr-2 h-3 w-3" />
+                    Sincronizar Hora
+                  </>
+                )}
+              </Button>
             </div>
           </div>
 
