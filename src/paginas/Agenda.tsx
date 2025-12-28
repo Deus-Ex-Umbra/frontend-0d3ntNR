@@ -1037,7 +1037,7 @@ export default function Agenda() {
                                     </div>
                                   </div>
                                   <div className="ml-4 flex-1">
-                                    <p className="text-sm text-foreground">{elemento.descripcion}</p>
+                                    <p className="text-sm text-foreground break-words whitespace-normal">{elemento.descripcion}</p>
                                     <div className="flex items-center gap-3 mt-1">
                                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                                         <Clock className="h-3 w-3" />
@@ -1087,7 +1087,7 @@ export default function Agenda() {
                                     </div>
                                   </div>
                                   <div className="ml-4 flex-1">
-                                    <p className="text-sm text-foreground">{cita.descripcion}</p>
+                                    <p className="text-sm text-foreground break-words whitespace-normal">{cita.descripcion}</p>
                                     <div className="flex items-center gap-3 mt-1">
                                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                                         <Clock className="h-3 w-3" />

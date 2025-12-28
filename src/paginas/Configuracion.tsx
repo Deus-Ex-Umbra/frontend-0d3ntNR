@@ -72,6 +72,9 @@ export default function Configuracion() {
   const [cargando_clinica, setCargandoClinica] = useState(true);
   const [guardando_clinica, setGuardandoClinica] = useState(false);
 
+  // Estado para la fecha y hora actual
+  const [fecha_hora_actual, setFechaHoraActual] = useState(new Date());
+
   const temas_disponibles = [
     { valor: 'claro', nombre: 'Claro', icono: Sun, descripcion: 'Tema claro tradicional', categoria: 'Base' },
     { valor: 'oscuro', nombre: 'Oscuro', icono: Moon, descripcion: 'Tema oscuro clásico', categoria: 'Base' },
@@ -118,6 +121,13 @@ export default function Configuracion() {
     cargarConfiguracionClinica();
   }, []);
 
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      setFechaHoraActual(new Date());
+    }, 1000);
+
+    return () => clearInterval(intervalo);
+  }, []);
 
 
   const cargarCatalogos = async () => {
@@ -414,13 +424,23 @@ export default function Configuracion() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="p-8 space-y-8">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
-              Configuración
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Personaliza tu experiencia en 0d3ntApp
-            </p>
+          <div className="flex justify-between items-start">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
+                Configuración
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                Personaliza tu experiencia en 0d3ntApp
+              </p>
+            </div>
+            <div className="text-right space-y-1">
+              <p className="text-2xl font-semibold text-foreground">
+                {fecha_hora_actual.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {fecha_hora_actual.toLocaleDateString('es-BO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+            </div>
           </div>
 
           <Tabs defaultValue="perfil" className="w-full">
