@@ -525,7 +525,7 @@ export default function Inventarios() {
         subtipo_material: formulario_producto.tipo === 'material' ? formulario_producto.subtipo_material : undefined,
         subtipo_activo_fijo: formulario_producto.tipo === 'activo_fijo' ? formulario_producto.subtipo_activo_fijo : undefined,
         stock_minimo: formulario_producto.tipo === 'material'
-          ? parseFloat(formulario_producto.stock_minimo)
+          ? parseFloat(formulario_producto.stock_minimo) || 0
           : 0,
         unidad_medida: formulario_producto.tipo === 'material' ? formulario_producto.unidad_medida : undefined,
         descripcion: formulario_producto.descripcion,
@@ -2375,21 +2375,34 @@ export default function Inventarios() {
                       placeholder={formulario_producto.permite_decimales !== false ? '0.00' : '0'}
                       value={formulario_producto.stock_minimo}
                       onKeyDown={(e) => {
+                        // Prevenir decimales si permite_decimales es false
                         if (formulario_producto.permite_decimales === false && (e.key === '.' || e.key === ',')) {
+                          e.preventDefault();
+                        }
+                        // Prevenir letras y caracteres especiales (excepto números, punto, teclas de control)
+                        const isNumber = /^[0-9]$/.test(e.key);
+                        const isDecimalPoint = e.key === '.' || e.key === ',';
+                        const isControlKey = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key);
+                        const isCopyPaste = (e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase());
+
+                        if (!isNumber && !isDecimalPoint && !isControlKey && !isCopyPaste) {
                           e.preventDefault();
                         }
                       }}
                       onChange={(e) => {
                         let valor = e.target.value;
+                        // Si no permite decimales, remover cualquier decimal
                         if (formulario_producto.permite_decimales === false && valor.includes('.')) {
                           valor = valor.split('.')[0];
                         }
-                        setFormularioProducto({ ...formulario_producto, stock_minimo: valor });
-                      }}
-                      onBlur={(e) => {
-                        if (formulario_producto.permite_decimales !== false && e.target.value && !e.target.value.includes('.')) {
-                          setFormularioProducto({ ...formulario_producto, stock_minimo: e.target.value + '.00' });
+                        // Si permite decimales, limitar a 2 decimales
+                        if (formulario_producto.permite_decimales !== false && valor.includes('.')) {
+                          const partes = valor.split('.');
+                          if (partes[1] && partes[1].length > 2) {
+                            valor = partes[0] + '.' + partes[1].substring(0, 2);
+                          }
                         }
+                        setFormularioProducto({ ...formulario_producto, stock_minimo: valor });
                       }}
                     />
                   </div>
