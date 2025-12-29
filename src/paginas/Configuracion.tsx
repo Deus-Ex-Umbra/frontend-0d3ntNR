@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MenuLateral } from '@/componentes/MenuLateral';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Button } from '@/componentes/ui/button';
@@ -76,6 +76,9 @@ export default function Configuracion() {
   const [fecha_hora_actual, setFechaHoraActual] = useState(new Date());
   const [desfase_tiempo, setDesfaseTiempo] = useState(0);
   const [sincronizando, setSincronizando] = useState(false);
+
+  // Refs para los inputs de archivo
+  const logo_clinica_input_ref = useRef<HTMLInputElement>(null);
 
   const temas_disponibles = [
     { valor: 'claro', nombre: 'Claro', icono: Sun, descripcion: 'Tema claro tradicional', categoria: 'Base' },
@@ -778,6 +781,7 @@ export default function Configuracion() {
                                 <Camera className="h-4 w-4 text-primary-foreground" />
                               </label>
                               <input
+                                ref={logo_clinica_input_ref}
                                 id="logo-clinica-upload"
                                 type="file"
                                 accept="image/*"
@@ -793,7 +797,13 @@ export default function Configuracion() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => setConfigClinica({ ...config_clinica, logo: '' })}
+                                  onClick={() => {
+                                    setConfigClinica({ ...config_clinica, logo: '' });
+                                    // Resetear el input de archivo para permitir volver a subir logos
+                                    if (logo_clinica_input_ref.current) {
+                                      logo_clinica_input_ref.current.value = '';
+                                    }
+                                  }}
                                   className="text-destructive hover:text-destructive"
                                 >
                                   <X className="h-4 w-4 mr-1" />
