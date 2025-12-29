@@ -1513,7 +1513,7 @@ export const EditorConEtiquetasPersonalizado = forwardRef<EditorHandle, EditorCo
                       height: effectivePageOffset,
                       background: '#fff',
                       zIndex: isCurrentPage ? 1 : 0,
-                      boxShadow: isCurrentPage ? '0 4px 20px rgba(0,0,0,0.15)' : 'none',
+                      boxShadow: '0 0 20px rgba(0,0,0,0.1)',
                       pointerEvents: 'none',
                     }}
                   />
