@@ -189,6 +189,8 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
     setTemaPersonalizado(colores);
     const tema_personalizado_key = obtenerTemaPersonalizadoKey(usuario_id);
     localStorage.setItem(tema_personalizado_key, JSON.stringify(colores));
+    // También guardar en la key global para que las páginas públicas usen el último tema
+    localStorage.setItem('tema_personalizado', JSON.stringify(colores));
     if (tema === 'personalizado') {
       aplicarColoresPersonalizados(colores);
     }
@@ -246,6 +248,8 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
     }
     const tema_key = obtenerTemaKey(usuario_id);
     localStorage.setItem(tema_key, tema);
+    // También guardar en la key global para que las páginas públicas usen el último tema
+    localStorage.setItem('tema', tema);
   }, [tema, tema_personalizado, usuario_id, aplicarColoresPersonalizados]);
 
   const cambiarTema = useCallback((nuevo_tema: Tema) => {
