@@ -5,7 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatearFechaISO(fecha: Date): string {
+export function formatearFechaLocal(fecha: Date): string {
+  // Retorna la fecha/hora usando la zona local sin convertir a UTC
   const anio = fecha.getFullYear();
   const mes = String(fecha.getMonth() + 1).padStart(2, '0');
   const dia = String(fecha.getDate()).padStart(2, '0');

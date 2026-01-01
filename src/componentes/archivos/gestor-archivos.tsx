@@ -82,6 +82,26 @@ const TIPOS_PERMITIDOS = [
 const EXTENSIONES_PERMITIDAS = '.jpg,.jpeg,.png,.gif,.webp,.pdf';
 const TAMANO_MAXIMO = 10 * 1024 * 1024;
 
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+const formatearFechaCortaLocal = (fecha: Date | string): string => {
+  const f = new Date(fecha);
+  const dia = String(f.getDate()).padStart(2, '0');
+  const mes = MESES_CORTOS[f.getMonth()] ?? '';
+  const anio = f.getFullYear();
+  return `${dia} ${mes} ${anio}`.trim();
+};
+
+const formatearFechaHoraLocal = (fecha: Date | string): string => {
+  const f = new Date(fecha);
+  const dia = String(f.getDate()).padStart(2, '0');
+  const mes = MESES_CORTOS[f.getMonth()] ?? '';
+  const anio = f.getFullYear();
+  const horas = String(f.getHours()).padStart(2, '0');
+  const minutos = String(f.getMinutes()).padStart(2, '0');
+  return `${dia} ${mes} ${anio} ${horas}:${minutos}`.trim();
+};
+
 const validarNombreArchivo = (nombre: string): { valido: boolean; error?: string } => {
   const caracteres_invalidos = /[<>:"/\\|?*\x00-\x1F]/g;
 
@@ -269,7 +289,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
       case '[PACIENTE_DIRECCION]':
         return paciente.direccion || '';
       case '[FECHA_ACTUAL]':
-        return new Date().toLocaleDateString('es-BO');
+        return formatearFechaCortaLocal(new Date());
       default:
         return '';
     }
@@ -608,15 +628,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
     }
   };
 
-  const formatearFecha = (fecha: Date | string): string => {
-    return new Date(fecha).toLocaleDateString('es-BO', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatearFecha = (fecha: Date | string): string => formatearFechaHoraLocal(fecha);
 
   const obtenerIconoTipo = (tipo_mime: string) => {
     if (tipo_mime.startsWith('image/')) return '🖼️';
@@ -923,7 +935,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
                 </p>
               )}
               <p className="text-xs text-muted-foreground">
-                {new Date(archivo_a_eliminar.fecha_subida).toLocaleString('es-BO')}
+                {formatearFechaHoraLocal(archivo_a_eliminar.fecha_subida)}
               </p>
             </div>
           )}
@@ -1021,7 +1033,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, paciente, mod
                           <div className="flex-1">
                             <div className="font-semibold">{plantilla.nombre}</div>
                             <div className="text-xs text-muted-foreground mt-1">
-                              Creada el {new Date(plantilla.fecha_creacion).toLocaleDateString('es-BO')}
+                              Creada el {formatearFechaCortaLocal(plantilla.fecha_creacion)}
                             </div>
                           </div>
                         </Button>

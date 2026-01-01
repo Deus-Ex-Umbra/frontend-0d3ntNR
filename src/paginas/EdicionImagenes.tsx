@@ -430,14 +430,16 @@ export default function EdicionImagenes() {
     }
   };
 
+  const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
   const formatearFecha = (fecha: string): string => {
-    return new Date(fecha).toLocaleDateString("es-BO", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const f = new Date(fecha);
+    const dia = String(f.getDate()).padStart(2, "0");
+    const mes = MESES_CORTOS[f.getMonth()] ?? "";
+    const anio = f.getFullYear();
+    const horas = String(f.getHours()).padStart(2, "0");
+    const minutos = String(f.getMinutes()).padStart(2, "0");
+    return `${dia} ${mes} ${anio} ${horas}:${minutos}`.trim();
   };
 
   if (cargando_inicial) {

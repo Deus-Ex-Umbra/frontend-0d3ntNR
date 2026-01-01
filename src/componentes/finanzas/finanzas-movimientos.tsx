@@ -13,7 +13,7 @@ import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Badge } from '@/componentes/ui/badge';
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
-import { formatearFechaISO } from '@/lib/utilidades';
+import { formatearFechaLocal } from '@/lib/utilidades';
 import { Movimiento, ReporteFinanzas, DatosGrafico } from '@/tipos';
 
 interface CitaFinanzas {
@@ -109,14 +109,14 @@ export function FinanzasMovimientos() {
       inicio_ano.setHours(0, 0, 0, 0);
       const fin_ano = new Date(hoy.getFullYear(), 11, 31);
       fin_ano.setHours(23, 59, 59, 999);
-      const inicio_ano_str = formatearFechaISO(inicio_ano);
-      const fin_ano_str = formatearFechaISO(fin_ano);
+      const inicio_ano_str = formatearFechaLocal(inicio_ano);
+      const fin_ano_str = formatearFechaLocal(fin_ano);
       const inicio_hoy = new Date(hoy);
       inicio_hoy.setHours(0, 0, 0, 0);
       const fin_hoy = new Date(hoy);
       fin_hoy.setHours(23, 59, 59, 999);
-      const inicio_hoy_str = formatearFechaISO(inicio_hoy);
-      const fin_hoy_str = formatearFechaISO(fin_hoy);
+      const inicio_hoy_str = formatearFechaLocal(inicio_hoy);
+      const fin_hoy_str = formatearFechaLocal(fin_hoy);
       const datos_ano = await finanzasApi.obtenerReporte(inicio_ano_str, fin_ano_str);
       const datos_hoy = await finanzasApi.obtenerReporte(inicio_hoy_str, fin_hoy_str);
       setReporte({
@@ -400,13 +400,21 @@ export function FinanzasMovimientos() {
     setFechaGrafico(nueva_fecha);
   };
 
+  const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
   const obtenerTituloGrafico = (): string => {
+    const f = fecha_grafico;
+    const dia = String(f.getDate()).padStart(2, '0');
+    const mesLargo = MESES_LARGOS[f.getMonth()] ?? '';
+    const anio = f.getFullYear();
+
     if (tipo_grafico === 'dia') {
-      return fecha_grafico.toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' });
+      return `${dia} ${mesLargo} ${anio}`.trim();
     } else if (tipo_grafico === 'mes') {
-      return fecha_grafico.toLocaleDateString('es-BO', { month: 'long', year: 'numeric' });
+      return `${mesLargo} ${anio}`.trim();
     } else {
-      return fecha_grafico.getFullYear().toString();
+      return anio.toString();
     }
   };
 
@@ -418,30 +426,30 @@ export function FinanzasMovimientos() {
   };
 
   const formatearHora = (fecha: Date): string => {
-    return new Date(fecha).toLocaleTimeString('es-BO', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const f = new Date(fecha);
+    const horas = String(f.getHours()).padStart(2, '0');
+    const minutos = String(f.getMinutes()).padStart(2, '0');
+    return `${horas}:${minutos}`;
   };
 
   const formatearFechaHora = (fecha: Date): string => {
-    return new Date(fecha).toLocaleString('es-BO', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const f = new Date(fecha);
+    const dia = String(f.getDate()).padStart(2, '0');
+    const mes = MESES_CORTOS[f.getMonth()] ?? '';
+    const anio = f.getFullYear();
+    const horas = String(f.getHours()).padStart(2, '0');
+    const minutos = String(f.getMinutes()).padStart(2, '0');
+    return `${dia} ${mes} ${anio} ${horas}:${minutos}`.trim();
   };
 
   const formatearFechaCita = (fecha: Date): string => {
-    return new Date(fecha).toLocaleDateString('es-BO', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const f = new Date(fecha);
+    const dia = String(f.getDate()).padStart(2, '0');
+    const mes = MESES_CORTOS[f.getMonth()] ?? '';
+    const anio = f.getFullYear();
+    const horas = String(f.getHours()).padStart(2, '0');
+    const minutos = String(f.getMinutes()).padStart(2, '0');
+    return `${dia} ${mes} ${anio} ${horas}:${minutos}`.trim();
   };
 
   const opciones_citas: OpcionCombobox[] = [

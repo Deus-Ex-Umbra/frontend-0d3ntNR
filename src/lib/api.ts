@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { formatearFechaISO } from './utilidades';
 
 const API_URL = (import.meta as any).env.VITE_API_URL || 'https://backend-0d3nt.ddns.net';
 
@@ -9,42 +8,6 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-function transformarFechasALocal(obj: any): any {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-
-  if (obj instanceof Date) {
-    return formatearFechaISO(obj);
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(transformarFechasALocal);
-  }
-
-  if (typeof obj === 'object') {
-    const resultado: any = {};
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        resultado[key] = transformarFechasALocal(obj[key]);
-      }
-    }
-    return resultado;
-  }
-
-  return obj;
-}
-
-api.interceptors.request.use(
-  (config) => {
-    if (config.data) {
-      config.data = transformarFechasALocal(config.data);
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 api.interceptors.request.use(
   (config) => {
@@ -249,7 +212,7 @@ export const agendaApi = {
     return respuesta.data;
   },
   filtrarCitas: async (fecha_inicio: Date, fecha_fin: Date) => {
-    const respuesta = await api.get(`/agenda/filtrar?fecha_inicio=${formatearFechaISO(fecha_inicio)}&fecha_fin=${formatearFechaISO(fecha_fin)}`);
+    const respuesta = await api.get(`/agenda/filtrar?fecha_inicio=${formatearFechaLocal(fecha_inicio)}&fecha_fin=${formatearFechaLocal(fecha_fin)}`);
     return respuesta.data;
   },
   obtenerCitasSinPagar: async () => {
@@ -265,7 +228,7 @@ export const agendaApi = {
     return respuesta.data;
   },
   filtrarEspaciosLibres: async (fecha_inicio: Date, fecha_fin: Date) => {
-    const respuesta = await api.get(`/agenda/espacios-libres-filtrar?fecha_inicio=${formatearFechaISO(fecha_inicio)}&fecha_fin=${formatearFechaISO(fecha_fin)}`);
+    const respuesta = await api.get(`/agenda/espacios-libres-filtrar?fecha_inicio=${formatearFechaLocal(fecha_inicio)}&fecha_fin=${formatearFechaLocal(fecha_fin)}`);
     return respuesta.data;
   },
   actualizar: async (id: number, datos: any) => {
@@ -883,11 +846,11 @@ export const inventarioApi = {
     }
 
     if (filtros?.fecha_inicio) {
-      params.append('fecha_inicio', formatearFechaISO(filtros.fecha_inicio));
+      params.append('fecha_inicio', filtros.fecha_inicio.toISOString());
     }
 
     if (filtros?.fecha_fin) {
-      params.append('fecha_fin', formatearFechaISO(filtros.fecha_fin));
+      params.append('fecha_fin', filtros.fecha_fin.toISOString());
     }
 
     if (filtros?.usuario_id) {

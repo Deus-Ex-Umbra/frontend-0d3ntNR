@@ -1263,6 +1263,8 @@ export default function Tratamientos() {
   };
 
 
+  const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
   const formatearMoneda = (monto: number): string => {
     return new Intl.NumberFormat("es-BO", {
       style: "currency",
@@ -1271,21 +1273,21 @@ export default function Tratamientos() {
   };
 
   const formatearFecha = (fecha: Date): string => {
-    return new Date(fecha).toLocaleDateString("es-BO", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    const f = new Date(fecha);
+    const dia = String(f.getDate()).padStart(2, "0");
+    const mes = MESES_CORTOS[f.getMonth()] ?? "";
+    const anio = f.getFullYear();
+    return `${dia} ${mes} ${anio}`.trim();
   };
 
   const formatearFechaHora = (fecha: Date): string => {
-    return new Date(fecha).toLocaleString("es-BO", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const f = new Date(fecha);
+    const dia = String(f.getDate()).padStart(2, "0");
+    const mes = MESES_CORTOS[f.getMonth()] ?? "";
+    const anio = f.getFullYear();
+    const horas = String(f.getHours()).padStart(2, "0");
+    const minutos = String(f.getMinutes()).padStart(2, "0");
+    return `${dia} ${mes} ${anio} ${horas}:${minutos}`.trim();
   };
 
   const formatearDuracion = (horas: number, minutos: number): string => {

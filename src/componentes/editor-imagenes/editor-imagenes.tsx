@@ -1388,9 +1388,7 @@ export function EditorImagenes({
               )}
               <p className="text-xs text-muted-foreground">
                 Por {version_a_eliminar.usuario.nombre} •{" "}
-                {new Date(version_a_eliminar.fecha_creacion).toLocaleString(
-                  "es-BO"
-                )}
+                {formatearFecha(version_a_eliminar.fecha_creacion)}
               </p>
             </div>
           )}
@@ -1486,9 +1484,7 @@ export function EditorImagenes({
                         )}
                         <p className="text-xs text-muted-foreground mt-2">
                           Por {version.usuario.nombre} •{" "}
-                          {new Date(version.fecha_creacion).toLocaleString(
-                            "es-BO"
-                          )}
+                          {formatearFecha(version.fecha_creacion)}
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -1610,7 +1606,7 @@ export function EditorImagenes({
                           <DialogTitle>{comentario_seleccionado.titulo}</DialogTitle>
                       </div>
                       <DialogDescription>
-                        Creado por {comentario_seleccionado.usuario?.nombre} • {new Date(comentario_seleccionado.fecha_creacion).toLocaleDateString()}
+                        Creado por {comentario_seleccionado.usuario?.nombre} • {formatearFecha(comentario_seleccionado.fecha_creacion)}
                       </DialogDescription>
                   </DialogHeader>
                   <div className="py-4">

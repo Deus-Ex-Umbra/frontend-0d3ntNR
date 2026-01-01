@@ -157,11 +157,19 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
     setFase('creacion');
   };
 
+  const formatearFechaCorta = (fecha: Date | string): string => {
+    const f = new Date(fecha);
+    const dia = String(f.getDate()).padStart(2, '0');
+    const mes = String(f.getMonth() + 1).padStart(2, '0');
+    const anio = f.getFullYear();
+    return `${dia}/${mes}/${anio}`;
+  };
+
   const generarNombreArchivo = () => {
     const ahora = new Date();
-    const fecha = ahora.toLocaleDateString('es-BO').replace(/\//g, '-');
-    const hora = ahora.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }).replace(/:/g, '-');
-    return 'Receta-' + fecha + '_' + hora + '.pdf';
+    const fecha = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+    const hora = `${String(ahora.getHours()).padStart(2, '0')}-${String(ahora.getMinutes()).padStart(2, '0')}`;
+    return `Receta-${fecha}_${hora}.pdf`;
   };
 
   const generarPdf = async (contenidoHtml: string, config?: DocumentoConfig) => {
@@ -268,7 +276,7 @@ export function EditorRecetas({ paciente_id, paciente_nombre, paciente_apellidos
                         >
                           <span className="font-semibold text-base">{plantilla.nombre}</span>
                           <span className="text-xs text-muted-foreground">
-                            {new Date(plantilla.fecha_actualizacion || plantilla.fecha_creacion).toLocaleDateString('es-BO')}
+                            {formatearFechaCorta(plantilla.fecha_actualizacion || plantilla.fecha_creacion)}
                           </span>
                         </Button>
                       ))}

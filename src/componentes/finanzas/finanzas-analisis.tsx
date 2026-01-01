@@ -14,7 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/componentes/ui/badge';
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
-import { formatearFechaISO } from '@/lib/utilidades';
+import { formatearFechaLocal } from '@/lib/utilidades';
 import { Movimiento, DatosGrafico } from '@/tipos';
 
 interface AnalisisData {
@@ -107,8 +107,8 @@ export function FinanzasAnalisis() {
     setCargando(true);
     try {
       const filtros_api = {
-        fecha_inicio: formatearFechaISO(filtros.fecha_inicio),
-        fecha_fin: formatearFechaISO(filtros.fecha_fin),
+        fecha_inicio: formatearFechaLocal(filtros.fecha_inicio),
+        fecha_fin: formatearFechaLocal(filtros.fecha_fin),
         glosa: filtros.glosa,
         sensible_mayusculas: filtros.sensible_mayusculas,
         nivel_precision: filtros.nivel_precision,
@@ -286,14 +286,16 @@ export function FinanzasAnalisis() {
     }).format(monto);
   };
 
+  const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
   const formatearFechaHora = (fecha: Date | string): string => {
-    return new Date(fecha).toLocaleString('es-BO', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const f = new Date(fecha);
+    const dia = String(f.getDate()).padStart(2, '0');
+    const mes = MESES_CORTOS[f.getMonth()] ?? '';
+    const anio = f.getFullYear();
+    const horas = String(f.getHours()).padStart(2, '0');
+    const minutos = String(f.getMinutes()).padStart(2, '0');
+    return `${dia} ${mes} ${anio} ${horas}:${minutos}`.trim();
   };
   const movimientos_paginados = data?.movimientos.slice(
     (pagina_actual - 1) * items_por_pagina,

@@ -19,6 +19,24 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { HexColorPicker } from 'react-colorful';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
 
+const DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+const formatearHoraCompletaLocal = (fecha: Date): string => {
+  const horas = String(fecha.getHours()).padStart(2, '0');
+  const minutos = String(fecha.getMinutes()).padStart(2, '0');
+  const segundos = String(fecha.getSeconds()).padStart(2, '0');
+  return `${horas}:${minutos}:${segundos}`;
+};
+
+const formatearFechaLargaLocal = (fecha: Date): string => {
+  const diaSemana = DIAS_LARGOS[fecha.getDay()] ?? '';
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  const mes = MESES_LARGOS[fecha.getMonth()] ?? '';
+  const anio = fecha.getFullYear();
+  return `${diaSemana}, ${dia} de ${mes} de ${anio}`.trim();
+};
+
 export default function Configuracion() {
   const { usuario, actualizarUsuario } = useAutenticacion();
   const { tema, cambiarTema, tema_efectivo, tema_personalizado, actualizarTemaPersonalizado, aplicarColoresPersonalizados } = useTema();
@@ -463,10 +481,10 @@ export default function Configuracion() {
             </div>
             <div className="text-right space-y-1">
               <p className="text-2xl font-semibold text-foreground">
-                {fecha_hora_actual.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {formatearHoraCompletaLocal(fecha_hora_actual)}
               </p>
               <p className="text-sm text-muted-foreground">
-                {fecha_hora_actual.toLocaleDateString('es-BO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                {formatearFechaLargaLocal(fecha_hora_actual)}
               </p>
               <Button
                 variant="outline"

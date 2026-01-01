@@ -40,6 +40,17 @@ interface DialogoGestionCitaProps {
   pacienteDeshabilitado?: boolean;
 }
 
+const formatearFechaHoraLocal = (fecha?: Date): string => {
+  if (!fecha) return '';
+  const f = new Date(fecha);
+  const dia = String(f.getDate()).padStart(2, '0');
+  const mes = String(f.getMonth() + 1).padStart(2, '0');
+  const anio = f.getFullYear();
+  const horas = String(f.getHours()).padStart(2, '0');
+  const minutos = String(f.getMinutes()).padStart(2, '0');
+  return `${dia}/${mes}/${anio} ${horas}:${minutos}`;
+};
+
 export default function DialogoGestionCita({
   abierto,
   onCerrar,
@@ -136,7 +147,7 @@ export default function DialogoGestionCita({
               <Label htmlFor="fecha">Fecha y Hora *</Label>
               {esCitaPasadaEdicion ? (
                 <Input
-                  value={formulario.fecha ? formulario.fecha.toLocaleString('es-BO') : ''}
+                  value={formatearFechaHoraLocal(formulario.fecha)}
                   disabled
                   className="bg-muted"
                 />

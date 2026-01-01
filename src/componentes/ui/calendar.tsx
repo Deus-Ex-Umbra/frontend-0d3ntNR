@@ -9,6 +9,17 @@ import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 import { cn } from "@/lib/utilidades"
 import { Button, buttonVariants } from "@/componentes/ui/button"
 
+const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+
+const formatearMesCorto = (date: Date) => MESES_CORTOS[date.getMonth()] ?? ""
+
+const claveDia = (date: Date) => {
+  const anio = date.getFullYear()
+  const mes = String(date.getMonth() + 1).padStart(2, "0")
+  const dia = String(date.getDate()).padStart(2, "0")
+  return `${anio}-${mes}-${dia}`
+}
+
 function Calendar({
   className,
   classNames,
@@ -35,7 +46,7 @@ function Calendar({
       captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          formatearMesCorto(date),
         ...formatters,
       }}
       classNames={{
@@ -188,7 +199,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString()}
+      data-day={claveDia(day.date)}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

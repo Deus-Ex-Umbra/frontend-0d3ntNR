@@ -34,6 +34,26 @@ const CONFIG_DOC_DEF: DocumentoConfig = {
   margenes: { top: 20, right: 20, bottom: 20, left: 20 },
 };
 
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+const formatearFechaHoraLocal = (fecha: Date | string): string => {
+  const f = new Date(fecha);
+  const dia = String(f.getDate()).padStart(2, '0');
+  const mes = MESES_CORTOS[f.getMonth()] ?? '';
+  const anio = f.getFullYear();
+  const horas = String(f.getHours()).padStart(2, '0');
+  const minutos = String(f.getMinutes()).padStart(2, '0');
+  return `${dia} ${mes} ${anio} ${horas}:${minutos}`.trim();
+};
+
+const formatearFechaCortaLocal = (fecha: Date | string): string => {
+  const f = new Date(fecha);
+  const dia = String(f.getDate()).padStart(2, '0');
+  const mes = MESES_CORTOS[f.getMonth()] ?? '';
+  const anio = f.getFullYear();
+  return `${dia} ${mes} ${anio}`.trim();
+};
+
 export default function Pacientes() {
   const [todos_pacientes, setTodosPacientes] = useState<Paciente[]>([]);
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
@@ -1315,7 +1335,7 @@ export default function Pacientes() {
                                 />
                                 {version_visualizada && (
                                   <p className="text-xs text-muted-foreground">
-                                    {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
+                                    {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {formatearFechaHoraLocal(version_visualizada.creado_en)}
                                   </p>
                                 )}
                               </div>
@@ -1725,11 +1745,7 @@ export default function Pacientes() {
                                   <div>
                                     <Label className="text-xs text-muted-foreground">Fecha</Label>
                                     <p className="text-xs font-medium">
-                                      {new Date(ultima_cita.fecha).toLocaleDateString('es-ES', {
-                                        day: '2-digit',
-                                        month: 'short',
-                                        year: 'numeric',
-                                      })}
+                                      {formatearFechaCortaLocal(ultima_cita.fecha)}
                                     </p>
                                   </div>
                                   <div>
@@ -1891,7 +1907,7 @@ export default function Pacientes() {
                                       textoVacio="No hay versiones disponibles"
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                      {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {new Date(version_visualizada.creado_en).toLocaleString('es-BO')}
+                                      {version_visualizada.finalizada ? 'Solo lectura' : 'Editable'} · {formatearFechaHoraLocal(version_visualizada.creado_en)}
                                     </p>
                                   </div>
                                   <div className="space-y-1 md:col-span-2">
