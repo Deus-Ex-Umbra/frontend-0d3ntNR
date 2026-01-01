@@ -1877,20 +1877,32 @@ export default function Tratamientos() {
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-2">
                       <Label htmlFor="intervalo_meses" className="text-xs text-muted-foreground">
-                        Meses
+                        Meses (máx 101)
                       </Label>
                       <Input
                         id="intervalo_meses"
                         type="number"
                         min="0"
-                        max="24"
+                        max="101"
+                        step="1"
                         value={formulario_plantilla.intervalo_meses}
-                        onChange={(e) =>
-                          setFormularioPlantilla({
-                            ...formulario_plantilla,
-                            intervalo_meses: e.target.value,
-                          })
-                        }
+                        onChange={(e) => {
+                          let valor = e.target.value;
+                          if (valor === '') {
+                            setFormularioPlantilla({
+                              ...formulario_plantilla,
+                              intervalo_meses: '0',
+                            });
+                          } else {
+                            const num = parseInt(valor, 10);
+                            if (!isNaN(num) && num >= 0 && num <= 101) {
+                              setFormularioPlantilla({
+                                ...formulario_plantilla,
+                                intervalo_meses: num.toString(),
+                              });
+                            }
+                          }
+                        }}
                         onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                         placeholder="0"
                         className="hover:border-primary/50 focus:border-primary transition-all duration-200"
@@ -1899,20 +1911,32 @@ export default function Tratamientos() {
 
                     <div className="space-y-2">
                       <Label htmlFor="intervalo_semanas" className="text-xs text-muted-foreground">
-                        Semanas
+                        Semanas (máx 62)
                       </Label>
                       <Input
                         id="intervalo_semanas"
                         type="number"
                         min="0"
-                        max="52"
+                        max="62"
+                        step="1"
                         value={formulario_plantilla.intervalo_semanas}
-                        onChange={(e) =>
-                          setFormularioPlantilla({
-                            ...formulario_plantilla,
-                            intervalo_semanas: e.target.value,
-                          })
-                        }
+                        onChange={(e) => {
+                          let valor = e.target.value;
+                          if (valor === '') {
+                            setFormularioPlantilla({
+                              ...formulario_plantilla,
+                              intervalo_semanas: '0',
+                            });
+                          } else {
+                            const num = parseInt(valor, 10);
+                            if (!isNaN(num) && num >= 0 && num <= 62) {
+                              setFormularioPlantilla({
+                                ...formulario_plantilla,
+                                intervalo_semanas: num.toString(),
+                              });
+                            }
+                          }
+                        }}
                         onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                         placeholder="0"
                         className="hover:border-primary/50 focus:border-primary transition-all duration-200"
@@ -1921,20 +1945,32 @@ export default function Tratamientos() {
 
                     <div className="space-y-2">
                       <Label htmlFor="intervalo_dias" className="text-xs text-muted-foreground">
-                        Días
+                        Días (máx 91)
                       </Label>
                       <Input
                         id="intervalo_dias"
                         type="number"
                         min="0"
-                        max="365"
+                        max="91"
+                        step="1"
                         value={formulario_plantilla.intervalo_dias}
-                        onChange={(e) =>
-                          setFormularioPlantilla({
-                            ...formulario_plantilla,
-                            intervalo_dias: e.target.value,
-                          })
-                        }
+                        onChange={(e) => {
+                          let valor = e.target.value;
+                          if (valor === '') {
+                            setFormularioPlantilla({
+                              ...formulario_plantilla,
+                              intervalo_dias: '0',
+                            });
+                          } else {
+                            const num = parseInt(valor, 10);
+                            if (!isNaN(num) && num >= 0 && num <= 91) {
+                              setFormularioPlantilla({
+                                ...formulario_plantilla,
+                                intervalo_dias: num.toString(),
+                              });
+                            }
+                          }
+                        }}
                         onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') e.preventDefault(); }}
                         placeholder="0"
                         className="hover:border-primary/50 focus:border-primary transition-all duration-200"
