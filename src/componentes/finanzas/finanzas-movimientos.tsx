@@ -150,10 +150,10 @@ export function FinanzasMovimientos() {
       const datos: DatosGrafico[] = await finanzasApi.obtenerDatosGrafico(tipo_grafico, fecha_str);
       setDatosGrafico(datos);
     } catch (error) {
-      console.error('Error al cargar datos del grÃ¡fico:', error);
+      console.error('Error al cargar datos del gráfico:', error);
       toast({
         title: 'Error',
-        description: 'No se pudieron cargar los datos del grÃ¡fico',
+        description: 'No se pudieron cargar los datos del gráfico',
         variant: 'destructive',
       });
     } finally {
@@ -234,7 +234,7 @@ export function FinanzasMovimientos() {
     if (isNaN(monto) || monto <= 0) {
       toast({
         title: 'Error',
-        description: 'El monto debe ser un nÃºmero positivo',
+        description: 'El monto debe ser un número positivo',
         variant: 'destructive',
       });
       return;
@@ -563,9 +563,9 @@ export function FinanzasMovimientos() {
                 <BarChart3 className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <CardTitle className="text-xl">GrÃ¡fico de Ingresos y Egresos</CardTitle>
+                <CardTitle className="text-xl">Gráfico de Ingresos y Egresos</CardTitle>
                 <CardDescription>
-                  VisualizaciÃ³n de movimientos financieros - {obtenerTituloGrafico()}
+                  Visualización de movimientos financieros - {obtenerTituloGrafico()}
                 </CardDescription>
               </div>
             </div>
@@ -850,7 +850,7 @@ export function FinanzasMovimientos() {
                   No hay movimientos hoy
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Los ingresos y egresos que registres hoy aparecerÃ¡n aquÃ­
+                  Los ingresos y egresos que registres hoy aparecerán aquí
                 </p>
               </div>
             </div>
@@ -1114,9 +1114,9 @@ export function FinanzasMovimientos() {
       <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Confirmar EliminaciÃ³n</DialogTitle>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
             <DialogDescription>
-              Â¿EstÃ¡s seguro de que deseas eliminar este {movimiento_a_eliminar?.tipo === 'ingreso' ? 'ingreso' : 'egreso'}?
+              ¿Estás seguro de que deseas eliminar este {movimiento_a_eliminar?.tipo === 'ingreso' ? 'ingreso' : 'egreso'}?
             </DialogDescription>
           </DialogHeader>
 
@@ -1135,7 +1135,7 @@ export function FinanzasMovimientos() {
 
           <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
             <p className="text-sm text-destructive">
-              Esta acciÃ³n no se puede deshacer.
+              Esta acción no se puede deshacer.
             </p>
           </div>
 
