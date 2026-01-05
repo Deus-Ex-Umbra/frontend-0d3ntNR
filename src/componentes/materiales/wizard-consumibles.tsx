@@ -73,10 +73,18 @@ export default function WizardConsumibles({
             .filter(p => p.tipo === TipoProducto.MATERIAL)
             .filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
         : [];
-    const materiales_filtrados = estado.producto?.materiales?.filter(m =>
-    (m.nro_lote?.toLowerCase().includes(busqueda.toLowerCase()) ||
-        m.nro_serie?.toLowerCase().includes(busqueda.toLowerCase()))
-    ) || [];
+    const materiales_filtrados = (() => {
+        const materiales = estado.producto?.materiales || [];
+        const termino = busqueda.trim().toLowerCase();
+
+        if (!termino) return materiales;
+
+        return materiales.filter((m) => {
+            const nroLote = m.nro_lote?.toLowerCase() || '';
+            const nroSerie = m.nro_serie?.toLowerCase() || '';
+            return nroLote.includes(termino) || nroSerie.includes(termino) || String(m.id).includes(termino);
+        });
+    })();
 
     const seleccionarInventario = async (inv: Inventario) => {
         setCargandoInventario(true);
